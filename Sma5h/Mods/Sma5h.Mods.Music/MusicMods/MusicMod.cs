@@ -160,7 +160,7 @@ namespace Sma5h.Mods.Music.MusicMods
                 {
                     var oldBgmData = _musicModConfig.Series.SelectMany(s => s.Games.SelectMany(p => p.Bgms.Where(s => s.ToneId == toneId)))?.FirstOrDefault();
                     string oldFilename = Path.Combine(ModPath, oldBgmData.Filename);
-                    if (oldFilename.ToLower() != bgmProperty.Filename.ToLower())
+                    if (!PathsEqual(oldFilename, bgmProperty.Filename))
                     {
                         _logger.LogInformation("Need to update filename for toneId: {ToneId}", oldBgmData.ToneId);
 
@@ -175,6 +175,13 @@ namespace Sma5h.Mods.Music.MusicMods
                         }
 
                         isFileEdit = false;
+                    }
+                    else
+                    {
+                        _logger.LogDebug(
+                            "The selected file for toneId {ToneId} is already the mod file. Keeping {Filename}.",
+                            toneId,
+                            oldFilename);
                     }
                 }
 
@@ -485,6 +492,19 @@ namespace Sma5h.Mods.Music.MusicMods
         private string GetMusicModAudioFile(string bgmFilename)
         {
             return Path.Combine(ModPath, bgmFilename);
+        }
+
+        private static bool PathsEqual(string firstPath, string secondPath)
+        {
+            if (string.IsNullOrWhiteSpace(firstPath) || string.IsNullOrWhiteSpace(secondPath))
+                return false;
+
+            var firstFullPath = Path.GetFullPath(firstPath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var secondFullPath = Path.GetFullPath(secondPath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            return string.Equals(firstFullPath, secondFullPath, StringComparison.OrdinalIgnoreCase);
         }
 
         protected virtual MusicModConfig LoadMusicModConfig()
