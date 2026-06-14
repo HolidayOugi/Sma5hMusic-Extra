@@ -141,6 +141,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
                 var nameId = GetString(db, "name_id", uiBgmId);
 
+                if (_unavailableBgmNameIds.Value?.Contains(nameId) == true)
+                    continue;
+
                 if (HasBgmDatabaseEntry(songData, uiBgmId))
                     continue;
 

@@ -339,6 +339,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             var uiBgmId = GetString(db, "ui_bgm_id");
             var nameId = GetString(bgmProp, "name_id");
+            if (includeAudio && _unavailableBgmNameIds.Value?.Contains(nameId) == true)
+            {
+                _logger.LogWarning("[CSK] Excluding unavailable song {NameId} from pack metadata.", nameId);
+                return orderCounter;
+            }
+
             var handledByCoreBgmOverride = IsCoreBgmOverride(coreBgmOverride, uiBgmId);
             var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
 
