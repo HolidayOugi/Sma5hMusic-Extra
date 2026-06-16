@@ -379,6 +379,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             foreach (var playlistProperty in playlistOverride.Properties())
             {
                 var playlistId = playlistProperty.Name;
+                var isVanillaPlaylist = SeriesToPlaylist.Values
+                    .SelectMany(p => p)
+                    .Append("bgmsmashmenu")
+                    .Contains(playlistId, StringComparer.OrdinalIgnoreCase);
+
                 foreach (JObject track in GetArray(playlistProperty.Value, "tracks"))
                 {
                     if (GetString(track, "ui_bgm_id") != uiBgmId)
@@ -390,12 +395,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         continue;
 
                     var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    for (var i = 0; i < 16; i++)
-                    {
-                        entry[$"order{i}"] = GetInt(track, $"o{i}", orderCounter);
-                        entry[$"incidence{i}"] = GetInt(track, $"i{i}", 10000);
-                    }
+                    var order0 = GetInt(track, "o0", orderCounter);
+                    var incidence0 = GetInt(track, "i0", 10000);
 
+                    for (var i = 0; i < 16; i++)
+                    {   
+                        //hacky fix for custom playlists TODO: handle properly
+                        entry[$"order{i}"] = isVanillaPlaylist ? GetInt(track, $"o{i}", orderCounter) : order0;
+                        entry[$"incidence{i}"] = isVanillaPlaylist ? GetInt(track, $"i{i}", 10000) : incidence0;
+                    }
                     entries.Add(entry);
                 }
             }
