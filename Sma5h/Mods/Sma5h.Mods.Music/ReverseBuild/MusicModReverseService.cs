@@ -50,7 +50,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 throw new ArgumentException("Override output path is required.", nameof(overrideOutputPath));
 
             var core = LoadSnapshot(coreResourcesPath);
-            var output = LoadSnapshot(outputPath);
+            var output = LoadSnapshot(outputPath, core);
 
             Directory.CreateDirectory(modOutputPath);
             Directory.CreateDirectory(overrideOutputPath);

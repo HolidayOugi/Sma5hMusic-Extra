@@ -15,7 +15,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 {
     public partial class MusicModReverseService
     {
-        private ResourceSnapshot LoadSnapshot(string rootPath)
+        private ResourceSnapshot LoadSnapshot(string rootPath, ResourceSnapshot fallback = null)
         {
             var bgmDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_BGM_DB_PATH);
             var gameTitleDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_GAMETITLE_DB_PATH);
@@ -25,17 +25,19 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             EnsureSnapshotFileExists(bgmDbPath);
             EnsureSnapshotFileExists(gameTitleDbPath);
-            EnsureSnapshotFileExists(seriesDbPath);
-            EnsureSnapshotFileExists(stageDbPath);
+            if (fallback == null)
+                EnsureSnapshotFileExists(seriesDbPath);
+            if (fallback == null)
+                EnsureSnapshotFileExists(stageDbPath);
             EnsureSnapshotFileExists(bgmPropertyPath);
 
             var bgmDb = _prcProvider.ReadFile<PrcUiBgmDatabase>(bgmDbPath, true);
             var gameTitleDb = _prcProvider.ReadFile<PrcUiGameTitleDatabase>(gameTitleDbPath);
-            var seriesDb = _prcProvider.ReadFile<PrcUiSeriesDatabase>(seriesDbPath);
-            var stageDb = _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath);
+            var seriesDb = File.Exists(seriesDbPath) ? _prcProvider.ReadFile<PrcUiSeriesDatabase>(seriesDbPath) : null;
+            var stageDb = File.Exists(stageDbPath) ? _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath) : null;
             var bgmProperty = _bgmPropertyProvider.ReadFile<BinBgmProperty>(bgmPropertyPath);
 
-            if (bgmDb == null || gameTitleDb == null || seriesDb == null || stageDb == null || bgmProperty == null)
+            if (bgmDb == null || gameTitleDb == null || (seriesDb == null && fallback == null) || (stageDb == null && fallback == null) || bgmProperty == null)
                 throw new InvalidOperationException($"Could not read required music resources from {rootPath}.");
 
             var snapshot = new ResourceSnapshot();
@@ -45,8 +47,16 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var seriesIds = new Dictionary<string, string>();
             var gameTitleIds = new Dictionary<string, string>();
 
-            foreach (var value in seriesDb.DbRootEntries.Values)
-                AddGeneratedId(seriesIds, value.UiSeriesId, MusicConstants.InternalIds.SERIES_ID_PREFIX, value.NameId);
+            if (seriesDb != null)
+            {
+                foreach (var value in seriesDb.DbRootEntries.Values)
+                    AddGeneratedId(seriesIds, value.UiSeriesId, MusicConstants.InternalIds.SERIES_ID_PREFIX, value.NameId);
+            }
+            else
+            {
+                foreach (var seriesId in fallback.SeriesEntries.Keys)
+                    AddResolvedId(seriesIds, seriesId);
+            }
 
             foreach (var value in gameTitleDb.DbRootEntries.Values)
                 AddGeneratedId(gameTitleIds, value.UiGameTitleId, MusicConstants.InternalIds.GAME_TITLE_ID_PREFIX, value.NameId);
@@ -54,9 +64,15 @@ namespace Sma5h.Mods.Music.ReverseBuild
             LoadBgmEntries(snapshot, bgmDb, bgmMsbts, toneIds, gameTitleIds);
             LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
             LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
-            LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
+            if (seriesDb != null)
+                LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
+            else
+                LoadFallbackSeriesEntries(snapshot, fallback);
             var playlistIds = LoadPlaylistEntries(snapshot, bgmDb, toneIds);
-            LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
+            if (stageDb != null)
+                LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
+            else
+                LoadFallbackStageEntries(snapshot, fallback);
 
             return snapshot;
         }
@@ -164,6 +180,12 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
         }
 
+        private static void LoadFallbackSeriesEntries(ResourceSnapshot snapshot, ResourceSnapshot fallback)
+        {
+            foreach (var value in fallback.SeriesEntries)
+                snapshot.SeriesEntries.Add(value.Key, value.Value);
+        }
+
         private Dictionary<string, string> LoadPlaylistEntries(ResourceSnapshot snapshot, PrcUiBgmDatabase bgmDb, List<string> toneIds)
         {
             var playlistIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -199,6 +221,12 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 var entry = _mapper.Map<StageEntry>(value);
                 snapshot.StageEntries.Add(entry.UiStageId, entry);
             }
+        }
+
+        private static void LoadFallbackStageEntries(ResourceSnapshot snapshot, ResourceSnapshot fallback)
+        {
+            foreach (var value in fallback.StageEntries)
+                snapshot.StageEntries.Add(value.Key, value.Value);
         }
 
         private static void EnsureSnapshotFileExists(string file)
@@ -292,6 +320,16 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var candidate = prefix + nameId;
             if (value.Equals(candidate, StringComparison.OrdinalIgnoreCase) || Hash40Matches(value, candidate))
                 output[value] = candidate;
+        }
+
+        private static void AddResolvedId(IDictionary<string, string> output, string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return;
+
+            output[value] = value;
+            if (!IsHexId(value))
+                output[$"0x{Hash40Util.StringToHash40(value):x}"] = value;
         }
 
         private static string ResolveKnownId(string value, IDictionary<string, string> knownIds)
