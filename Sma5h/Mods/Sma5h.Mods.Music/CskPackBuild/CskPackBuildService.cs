@@ -29,6 +29,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private readonly IAudioStateService _audioStateService;
         private readonly ILogger _logger;
         private readonly AsyncLocal<string> _currentBuildLocale = new AsyncLocal<string>();
+        private readonly AsyncLocal<HashSet<string>> _unavailableBgmNameIds = new AsyncLocal<HashSet<string>>();
 
         public CskPackBuildService(
             IOptionsMonitor<CskPackBuildOptions> config,
@@ -130,6 +131,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 try
                 {
                     var includeAudio = buildMode != CskPackBuildMode.MetadataOnly;
+                    _unavailableBgmNameIds.Value = includeAudio
+                        ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                        : null;
                     var generatedBgmFolder = includeAudio
                         ? GenerateBgmFiles(contexts, tempRoot, selectedSeriesKeys, buildResources.CoreGameOverride)
                         : null;
@@ -148,6 +152,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             finally
             {
                 _currentBuildLocale.Value = null;
+                _unavailableBgmNameIds.Value = null;
             }
         }
 
