@@ -14,8 +14,16 @@ namespace Sma5hMusic.GUI.ViewModels
             var wasShowingDebug = IsShowingDebug;
             try
             {
-                IsShowingDebug = true;
                 _logger.LogInformation("Generate Mod from build files requested.");
+
+                var confirm = await _messageDialog.ShowWarningConfirm(
+                    "Generate Mod from build files",
+                    "This will change your songs order and song playlists. Continue?");
+                if (!confirm)
+                {
+                    _logger.LogInformation("Generate Mod from build files cancelled: warning confirmation rejected.");
+                    return;
+                }
 
                 var buildFolder = await _fileDialog.OpenFolderDialog(_rootDialog.Window);
                 if (string.IsNullOrWhiteSpace(buildFolder))
@@ -34,6 +42,8 @@ namespace Sma5hMusic.GUI.ViewModels
                         $"The selected folder does not look like a Sma5hMusic build output.\r\nIt must contain sound, stream; and ui folders:\r\n{buildFolder}");
                     return;
                 }
+
+                IsShowingDebug = true;
 
                 var modInfoVm = new GenerateModFromBuildFilesModalWindowViewModel(_appSettings);
                 var modInfoWindow = new GenerateModFromBuildFilesModalWindow { DataContext = modInfoVm };
