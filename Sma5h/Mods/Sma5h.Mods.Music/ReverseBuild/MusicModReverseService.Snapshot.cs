@@ -15,64 +15,51 @@ namespace Sma5h.Mods.Music.ReverseBuild
 {
     public partial class MusicModReverseService
     {
-        private ResourceSnapshot LoadSnapshot(string rootPath, ResourceSnapshot fallback = null)
+        private ResourceSnapshot LoadSnapshot(string rootPath, string fallbackRootPath = null)
         {
             var bgmDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_BGM_DB_PATH);
-            var gameTitleDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_GAMETITLE_DB_PATH);
-            var seriesDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_SERIES_DB_PATH);
-            var stageDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_STAGE_DB_PATH);
-            var bgmPropertyPath = Path.Combine(rootPath, BgmPropertyFileConstants.BGM_PROPERTY_PATH);
-
             EnsureSnapshotFileExists(bgmDbPath);
-            EnsureSnapshotFileExists(gameTitleDbPath);
-            if (fallback == null)
-                EnsureSnapshotFileExists(seriesDbPath);
-            if (fallback == null)
-                EnsureSnapshotFileExists(stageDbPath);
-            EnsureSnapshotFileExists(bgmPropertyPath);
 
+            //loads either from build or resources
+            var gameTitleDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_GAMETITLE_DB_PATH, fallbackRootPath);
+            var seriesDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_SERIES_DB_PATH, fallbackRootPath);
+            var stageDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_STAGE_DB_PATH, fallbackRootPath);
+            var bgmPropertyPath = ResolveSnapshotFilePath(rootPath, BgmPropertyFileConstants.BGM_PROPERTY_PATH, fallbackRootPath);
+
+            //read build files
             var bgmDb = _prcProvider.ReadFile<PrcUiBgmDatabase>(bgmDbPath, true);
             var gameTitleDb = _prcProvider.ReadFile<PrcUiGameTitleDatabase>(gameTitleDbPath);
-            var seriesDb = File.Exists(seriesDbPath) ? _prcProvider.ReadFile<PrcUiSeriesDatabase>(seriesDbPath) : null;
-            var stageDb = File.Exists(stageDbPath) ? _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath) : null;
+            var seriesDb = _prcProvider.ReadFile<PrcUiSeriesDatabase>(seriesDbPath);
+            var stageDb = _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath);
             var bgmProperty = _bgmPropertyProvider.ReadFile<BinBgmProperty>(bgmPropertyPath);
 
-            if (bgmDb == null || gameTitleDb == null || (seriesDb == null && fallback == null) || (stageDb == null && fallback == null) || bgmProperty == null)
+            if (bgmDb == null || gameTitleDb == null || seriesDb == null || stageDb == null || bgmProperty == null)
                 throw new InvalidOperationException($"Could not read required music resources from {rootPath}.");
 
             var snapshot = new ResourceSnapshot();
-            var bgmMsbts = LoadMsbtDatabases(rootPath, MsbtExtConstants.MSBT_BGM);
-            var titleMsbts = LoadMsbtDatabases(rootPath, MsbtExtConstants.MSBT_TITLE);
+            var bgmMsbts = LoadMsbtDatabases(rootPath, MsbtExtConstants.MSBT_BGM, fallbackRootPath);
+            var titleMsbts = LoadMsbtDatabases(rootPath, MsbtExtConstants.MSBT_TITLE, fallbackRootPath);
+
+            //get toneIDs from filenames
             var toneIds = GetToneIds(rootPath, bgmProperty);
             var seriesIds = new Dictionary<string, string>();
             var gameTitleIds = new Dictionary<string, string>();
 
-            if (seriesDb != null)
-            {
-                foreach (var value in seriesDb.DbRootEntries.Values)
-                    AddGeneratedId(seriesIds, value.UiSeriesId, MusicConstants.InternalIds.SERIES_ID_PREFIX, value.NameId);
-            }
-            else
-            {
-                foreach (var seriesId in fallback.SeriesEntries.Keys)
-                    AddResolvedId(seriesIds, seriesId);
-            }
+            //generate series IDs from nameID
+            foreach (var value in seriesDb.DbRootEntries.Values)
+                AddGeneratedId(seriesIds, value.UiSeriesId, MusicConstants.InternalIds.SERIES_ID_PREFIX, value.NameId);
 
+            //generate game title IDs from nameID
             foreach (var value in gameTitleDb.DbRootEntries.Values)
                 AddGeneratedId(gameTitleIds, value.UiGameTitleId, MusicConstants.InternalIds.GAME_TITLE_ID_PREFIX, value.NameId);
 
+            //add entries to snapshot
             LoadBgmEntries(snapshot, bgmDb, bgmMsbts, toneIds, gameTitleIds);
             LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
             LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
-            if (seriesDb != null)
-                LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
-            else
-                LoadFallbackSeriesEntries(snapshot, fallback);
+            LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
             var playlistIds = LoadPlaylistEntries(snapshot, bgmDb, toneIds);
-            if (stageDb != null)
-                LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
-            else
-                LoadFallbackStageEntries(snapshot, fallback);
+            LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
 
             return snapshot;
         }
@@ -86,6 +73,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
         {
             foreach (var value in bgmDb.DbRootEntries.Values)
             {
+                //generate all IDs from tone IDs and different prefixes
                 value.UiBgmId = ResolveGeneratedId(value.UiBgmId, toneIds, MusicConstants.InternalIds.UI_BGM_ID_PREFIX);
                 value.StreamSetId = ResolveGeneratedId(value.StreamSetId, toneIds, MusicConstants.InternalIds.STREAM_SET_PREFIX);
                 value.UiGameTitleId = ResolveKnownId(value.UiGameTitleId, gameTitleIds);
@@ -180,12 +168,6 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
         }
 
-        private static void LoadFallbackSeriesEntries(ResourceSnapshot snapshot, ResourceSnapshot fallback)
-        {
-            foreach (var value in fallback.SeriesEntries)
-                snapshot.SeriesEntries.Add(value.Key, value.Value);
-        }
-
         private Dictionary<string, string> LoadPlaylistEntries(ResourceSnapshot snapshot, PrcUiBgmDatabase bgmDb, List<string> toneIds)
         {
             var playlistIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -223,24 +205,37 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
         }
 
-        private static void LoadFallbackStageEntries(ResourceSnapshot snapshot, ResourceSnapshot fallback)
-        {
-            foreach (var value in fallback.StageEntries)
-                snapshot.StageEntries.Add(value.Key, value.Value);
-        }
-
         private static void EnsureSnapshotFileExists(string file)
         {
             if (!File.Exists(file))
                 throw new FileNotFoundException($"Required music resource file was not found: {file}", file);
         }
 
-        private Dictionary<string, MsbtDatabase> LoadMsbtDatabases(string rootPath, string resourcePattern)
+        private static string ResolveSnapshotFilePath(string rootPath, string relativePath, string fallbackRootPath)
+        {
+            var path = Path.Combine(rootPath, relativePath);
+            if (File.Exists(path))
+                return path;
+
+            if (!string.IsNullOrWhiteSpace(fallbackRootPath))
+            {
+                var fallbackPath = Path.Combine(fallbackRootPath, relativePath);
+                if (File.Exists(fallbackPath))
+                    return fallbackPath;
+            }
+
+            throw new FileNotFoundException($"Required music resource file was not found: {path}", path);
+        }
+
+        private Dictionary<string, MsbtDatabase> LoadMsbtDatabases(string rootPath, string resourcePattern, string fallbackRootPath = null)
         {
             var output = new Dictionary<string, MsbtDatabase>();
             foreach (var locale in LocaleHelper.ValidLocales)
             {
                 var file = Path.Combine(rootPath, string.Format(resourcePattern, locale));
+                if (!File.Exists(file) && !string.IsNullOrWhiteSpace(fallbackRootPath))
+                    file = Path.Combine(fallbackRootPath, string.Format(resourcePattern, locale));
+
                 if (File.Exists(file))
                     output.Add(locale, _msbtProvider.ReadFile<MsbtDatabase>(file));
             }
@@ -320,16 +315,6 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var candidate = prefix + nameId;
             if (value.Equals(candidate, StringComparison.OrdinalIgnoreCase) || Hash40Matches(value, candidate))
                 output[value] = candidate;
-        }
-
-        private static void AddResolvedId(IDictionary<string, string> output, string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return;
-
-            output[value] = value;
-            if (!IsHexId(value))
-                output[$"0x{Hash40Util.StringToHash40(value):x}"] = value;
         }
 
         private static string ResolveKnownId(string value, IDictionary<string, string> knownIds)
