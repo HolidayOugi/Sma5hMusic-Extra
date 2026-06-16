@@ -35,6 +35,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IFileDialog _fileDialog;
         private readonly IDialogWindow _rootDialog;
         private readonly IBuildDialog _buildDialog;
+        private readonly IMusicModManagerService _musicModManagerService;
         private readonly IMusicModReverseService _musicModReverseService;
         private readonly ISongSpreadsheetService _songSpreadsheetService;
         private readonly IOptionsMonitor<ApplicationSettings> _appSettings;
@@ -100,7 +101,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
 
         public MainWindowViewModel(IServiceProvider serviceProvider, IViewModelManager viewModelManager, IGUIStateManager guiStateManager, IMapper mapper, IVGMMusicPlayer musicPlayer,
-               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IMusicModReverseService musicModReverseService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
+               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IMusicModManagerService musicModManagerService, IMusicModReverseService musicModReverseService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
         {
             _viewModelManager = viewModelManager;
             _guiStateManager = guiStateManager;
@@ -112,6 +113,7 @@ namespace Sma5hMusic.GUI.ViewModels
             _buildDialog = buildDialog;
             _songSpreadsheetService = songSpreadsheetService;
             _cskPackBuildService = cskPackBuildService;
+            _musicModManagerService = musicModManagerService;
             _musicModReverseService = musicModReverseService;
             _messageDialog = messageDialog;
             _rootDialog = rootDialog;

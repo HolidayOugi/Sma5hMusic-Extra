@@ -83,7 +83,7 @@
                   ToolTip.Tip="Builds modular CSK pack metadata for all series without any BGM files."
                   Command="{Binding ActionBuildCskMetadataOnly}"></MenuItem>
         <Separator></Separator>
-        <MenuItem Header="Generate Mod from Build"
+        <MenuItem Header="[Exp.] Generate Mod from Build"
                   ToolTip.Tip="Creates a new music mod from an already built output folder."
                   Command="{Binding ActionGenerateModFromBuildFiles}"></MenuItem>
         <Separator></Separator>

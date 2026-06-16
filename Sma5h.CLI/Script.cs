@@ -5,6 +5,7 @@ using Sma5h.Interfaces;
 using Sma5h.Mods.Music.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Sma5h.CLI
@@ -94,14 +95,16 @@ namespace Sma5h.CLI
             var coreResourcesPath = _configuration.GetValue<string>("ReverseMusicMod:CoreResourcesPath");
             var outputPath = _configuration.GetValue<string>("ReverseMusicMod:OutputPath");
             var modOutputPath = _configuration.GetValue<string>("ReverseMusicMod:ModOutputPath");
+            var overrideOutputPath = _configuration.GetValue<string>("ReverseMusicMod:OverrideOutputPath") ?? Path.Combine("Mods", "MusicOverride");
             var modName = _configuration.GetValue<string>("ReverseMusicMod:Name");
 
             _logger.LogInformation("ReverseMusicMod: CoreResourcesPath={CoreResourcesPath}", coreResourcesPath);
             _logger.LogInformation("ReverseMusicMod: OutputPath={OutputPath}", outputPath);
             _logger.LogInformation("ReverseMusicMod: ModOutputPath={ModOutputPath}", modOutputPath);
+            _logger.LogInformation("ReverseMusicMod: OverrideOutputPath={OverrideOutputPath}", overrideOutputPath);
 
             var reverseService = _serviceProvider.GetRequiredService<IMusicModReverseService>();
-            reverseService.Reverse(coreResourcesPath, outputPath, modOutputPath, modName);
+            reverseService.Reverse(coreResourcesPath, outputPath, modOutputPath, overrideOutputPath, modName);
 
             _logger.LogInformation("ReverseMusicMod complete.");
         }

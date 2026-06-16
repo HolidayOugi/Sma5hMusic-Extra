@@ -1,172 +1,41 @@
-using AutoMapper;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using paracobNET;
 using Sma5h.Data;
 using Sma5h.Data.Ui.Param.Database;
 using Sma5h.Helpers;
-using Sma5h.Interfaces;
 using Sma5h.Mods.Data.Sound.Config;
 using Sma5h.Mods.Music.Helpers;
-using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
-using Sma5h.Mods.Music.MusicMods;
-using Sma5h.Mods.Music.MusicMods.MusicModModels;
-using Sma5h.ResourceProviders;
 using Sma5h.ResourceProviders.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
-namespace Sma5h.Mods.Music.Services
+namespace Sma5h.Mods.Music.ReverseBuild
 {
-    public class MusicModReverseService : IMusicModReverseService
+    public partial class MusicModReverseService
     {
-        private readonly ILogger _logger;
-        private readonly IMapper _mapper;
-        private readonly PrcResourceProvider _prcProvider;
-        private readonly MsbtResourceProvider _msbtProvider;
-        private readonly BgmPropertyProvider _bgmPropertyProvider;
-
-        public MusicModReverseService(IEnumerable<IResourceProvider> resourceProviders, IMapper mapper, ILogger<MusicModReverseService> logger)
-        {
-            _logger = logger;
-            _mapper = mapper;
-            _prcProvider = resourceProviders.OfType<PrcResourceProvider>().First();
-            _msbtProvider = resourceProviders.OfType<MsbtResourceProvider>().First();
-            _bgmPropertyProvider = resourceProviders.OfType<BgmPropertyProvider>().First();
-        }
-
-        public MusicModConfig Reverse(string coreResourcesPath, string outputPath, string modOutputPath, string modName = null, MusicModInformation modInformation = null)
-        {
-            if (string.IsNullOrWhiteSpace(coreResourcesPath))
-                throw new ArgumentException("Core resources path is required.", nameof(coreResourcesPath));
-            if (string.IsNullOrWhiteSpace(outputPath))
-                throw new ArgumentException("Output path is required.", nameof(outputPath));
-            if (string.IsNullOrWhiteSpace(modOutputPath))
-                throw new ArgumentException("Mod output path is required.", nameof(modOutputPath));
-
-            var core = LoadSnapshot(coreResourcesPath);
-            var output = LoadSnapshot(outputPath);
-            var newBgmIds = output.BgmDbRootEntries.Keys.Except(core.BgmDbRootEntries.Keys).OrderBy(p => p).ToList();
-
-            _logger.LogInformation("Reverse MusicMod: found {BgmCount} new BGM entry/entries.", newBgmIds.Count);
-
-            var metadata = new MusicModConfig(Guid.NewGuid().ToString())
-            {
-                Name = !string.IsNullOrWhiteSpace(modInformation?.Name)
-                    ? modInformation.Name
-                    : string.IsNullOrWhiteSpace(modName) ? Path.GetFileName(Path.TrimEndingDirectorySeparator(modOutputPath)) : modName,
-                Author = modInformation?.Author,
-                Website = modInformation?.Website,
-                Description = modInformation?.Description,
-                Series = new List<SeriesConfig>()
-            };
-
-            var seriesById = new Dictionary<string, SeriesConfig>();
-            var gameById = new Dictionary<string, GameConfig>();
-
-            Directory.CreateDirectory(modOutputPath);
-
-            foreach (var uiBgmId in newBgmIds)
-            {
-                var dbRoot = output.BgmDbRootEntries[uiBgmId];
-                if (!output.GameTitleEntries.TryGetValue(dbRoot.UiGameTitleId, out var gameTitle))
-                {
-                    _logger.LogWarning("Skipping {UiBgmId}: game title {GameTitleId} was not found.", uiBgmId, dbRoot.UiGameTitleId);
-                    continue;
-                }
-
-                if (!output.SeriesEntries.TryGetValue(gameTitle.UiSeriesId, out var seriesEntry))
-                {
-                    _logger.LogWarning("Skipping {UiBgmId}: series {SeriesId} was not found.", uiBgmId, gameTitle.UiSeriesId);
-                    continue;
-                }
-
-                var streamSet = output.StreamSetEntries.GetValueOrDefault(dbRoot.StreamSetId);
-                var infoId = GetFirstInfoId(streamSet);
-                var assignedInfo = infoId != null ? output.AssignedInfoEntries.GetValueOrDefault(infoId) : null;
-                var streamProperty = assignedInfo != null ? output.StreamPropertyEntries.GetValueOrDefault(assignedInfo.StreamId) : null;
-                var toneId = GetToneId(streamProperty, dbRoot);
-                var bgmProperty = toneId != null ? output.BgmPropertyEntries.GetValueOrDefault(toneId) : null;
-
-                if (streamSet == null || assignedInfo == null || streamProperty == null || bgmProperty == null)
-                {
-                    _logger.LogWarning("Skipping {UiBgmId}: linked stream/property records are incomplete. StreamSetId={StreamSetId} HasStreamSet={HasStreamSet} InfoId={InfoId} HasAssignedInfo={HasAssignedInfo} StreamId={StreamId} HasStreamProperty={HasStreamProperty} ToneId={ToneId} HasBgmProperty={HasBgmProperty}",
-                        uiBgmId,
-                        dbRoot.StreamSetId,
-                        streamSet != null,
-                        infoId,
-                        assignedInfo != null,
-                        assignedInfo?.StreamId,
-                        streamProperty != null,
-                        toneId,
-                        bgmProperty != null);
-                    continue;
-                }
-
-                if (!seriesById.TryGetValue(seriesEntry.UiSeriesId, out var seriesConfig))
-                {
-                    seriesConfig = _mapper.Map<SeriesConfig>(seriesEntry);
-                    seriesConfig.Games = new List<GameConfig>();
-                    seriesById.Add(seriesEntry.UiSeriesId, seriesConfig);
-                    metadata.Series.Add(seriesConfig);
-                }
-
-                if (!gameById.TryGetValue(gameTitle.UiGameTitleId, out var gameConfig))
-                {
-                    gameConfig = _mapper.Map<GameConfig>(gameTitle);
-                    gameConfig.Bgms = new List<BgmConfig>();
-                    gameById.Add(gameTitle.UiGameTitleId, gameConfig);
-                    seriesConfig.Games.Add(gameConfig);
-                }
-
-                var filename = $"{toneId}.nus3audio";
-                CopyNus3Audio(outputPath, toneId, Path.Combine(modOutputPath, filename));
-
-                gameConfig.Bgms.Add(new BgmConfig
-                {
-                    ToneId = toneId,
-                    Filename = filename,
-                    NUS3BankConfig = new NUS3BankConfig
-                    {
-                        AudioVolume = ReadNus3BankVolume(outputPath, toneId)
-                    },
-                    BgmProperties = _mapper.Map<BgmPropertyEntryConfig>(bgmProperty),
-                    DbRoot = _mapper.Map<BgmDbRootConfig>(dbRoot),
-                    AssignedInfo = _mapper.Map<BgmAssignedInfoConfig>(assignedInfo),
-                    StreamSet = _mapper.Map<BgmStreamSetConfig>(streamSet),
-                    StreamProperty = _mapper.Map<BgmStreamPropertyConfig>(streamProperty)
-                });
-            }
-
-            var metadataPath = Path.Combine(modOutputPath, MusicConstants.MusicModFiles.MUSIC_MOD_METADATA_JSON_FILE);
-            File.WriteAllText(metadataPath, JsonConvert.SerializeObject(metadata, Formatting.Indented), new UTF8Encoding(false));
-            _logger.LogInformation("Reverse MusicMod: wrote {MetadataPath}.", metadataPath);
-
-            return metadata;
-        }
-
         private ResourceSnapshot LoadSnapshot(string rootPath)
         {
             var bgmDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_BGM_DB_PATH);
             var gameTitleDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_GAMETITLE_DB_PATH);
             var seriesDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_SERIES_DB_PATH);
+            var stageDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_STAGE_DB_PATH);
             var bgmPropertyPath = Path.Combine(rootPath, BgmPropertyFileConstants.BGM_PROPERTY_PATH);
 
             EnsureSnapshotFileExists(bgmDbPath);
             EnsureSnapshotFileExists(gameTitleDbPath);
             EnsureSnapshotFileExists(seriesDbPath);
+            EnsureSnapshotFileExists(stageDbPath);
             EnsureSnapshotFileExists(bgmPropertyPath);
 
             var bgmDb = _prcProvider.ReadFile<PrcUiBgmDatabase>(bgmDbPath, true);
             var gameTitleDb = _prcProvider.ReadFile<PrcUiGameTitleDatabase>(gameTitleDbPath);
             var seriesDb = _prcProvider.ReadFile<PrcUiSeriesDatabase>(seriesDbPath);
+            var stageDb = _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath);
             var bgmProperty = _bgmPropertyProvider.ReadFile<BinBgmProperty>(bgmPropertyPath);
 
-            if (bgmDb == null || gameTitleDb == null || seriesDb == null || bgmProperty == null)
+            if (bgmDb == null || gameTitleDb == null || seriesDb == null || stageDb == null || bgmProperty == null)
                 throw new InvalidOperationException($"Could not read required music resources from {rootPath}.");
 
             var snapshot = new ResourceSnapshot();
@@ -182,6 +51,23 @@ namespace Sma5h.Mods.Music.Services
             foreach (var value in gameTitleDb.DbRootEntries.Values)
                 AddGeneratedId(gameTitleIds, value.UiGameTitleId, MusicConstants.InternalIds.GAME_TITLE_ID_PREFIX, value.NameId);
 
+            LoadBgmEntries(snapshot, bgmDb, bgmMsbts, toneIds, gameTitleIds);
+            LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
+            LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
+            LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
+            LoadPlaylistEntries(snapshot, bgmDb, toneIds);
+            LoadStageEntries(snapshot, stageDb, seriesIds);
+
+            return snapshot;
+        }
+
+        private void LoadBgmEntries(
+            ResourceSnapshot snapshot,
+            PrcUiBgmDatabase bgmDb,
+            Dictionary<string, MsbtDatabase> bgmMsbts,
+            List<string> toneIds,
+            Dictionary<string, string> gameTitleIds)
+        {
             foreach (var value in bgmDb.DbRootEntries.Values)
             {
                 value.UiBgmId = ResolveGeneratedId(value.UiBgmId, toneIds, MusicConstants.InternalIds.UI_BGM_ID_PREFIX);
@@ -224,24 +110,33 @@ namespace Sma5h.Mods.Music.Services
             {
                 value.InfoId = ResolveGeneratedId(value.InfoId, toneIds, MusicConstants.InternalIds.INFO_ID_PREFIX);
                 value.StreamId = ResolveGeneratedId(value.StreamId, toneIds, MusicConstants.InternalIds.STREAM_PREFIX);
-
                 snapshot.AssignedInfoEntries.Add(value.InfoId, _mapper.Map(value, new BgmAssignedInfoEntry(value.InfoId)));
             }
 
             foreach (var value in bgmDb.StreamPropertyEntries.Values)
             {
                 value.StreamId = ResolveGeneratedId(value.StreamId, toneIds, MusicConstants.InternalIds.STREAM_PREFIX);
-
                 snapshot.StreamPropertyEntries.Add(value.StreamId, _mapper.Map(value, new BgmStreamPropertyEntry(value.StreamId)));
             }
+        }
 
+        private void LoadBgmPropertyEntries(ResourceSnapshot snapshot, string rootPath, BinBgmProperty bgmProperty, List<string> toneIds)
+        {
             foreach (var value in bgmProperty.Entries.Values)
             {
                 value.NameId = ResolveGeneratedId(value.NameId, toneIds, string.Empty);
                 var filename = Path.Combine(rootPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, value.NameId));
                 snapshot.BgmPropertyEntries.Add(value.NameId, _mapper.Map(value, new BgmPropertyEntry(value.NameId, filename)));
             }
+        }
 
+        private void LoadGameEntries(
+            ResourceSnapshot snapshot,
+            PrcUiGameTitleDatabase gameTitleDb,
+            Dictionary<string, MsbtDatabase> titleMsbts,
+            Dictionary<string, string> gameTitleIds,
+            Dictionary<string, string> seriesIds)
+        {
             foreach (var value in gameTitleDb.DbRootEntries.Values)
             {
                 value.UiGameTitleId = ResolveKnownId(value.UiGameTitleId, gameTitleIds);
@@ -251,7 +146,14 @@ namespace Sma5h.Mods.Music.Services
                 FillTitleMsbt(entry.MSBTTitle, entry.MSBTTitleKey, titleMsbts);
                 snapshot.GameTitleEntries.Add(entry.UiGameTitleId, entry);
             }
+        }
 
+        private void LoadSeriesEntries(
+            ResourceSnapshot snapshot,
+            PrcUiSeriesDatabase seriesDb,
+            Dictionary<string, MsbtDatabase> titleMsbts,
+            Dictionary<string, string> seriesIds)
+        {
             foreach (var value in seriesDb.DbRootEntries.Values)
             {
                 value.UiSeriesId = ResolveKnownId(value.UiSeriesId, seriesIds);
@@ -260,8 +162,31 @@ namespace Sma5h.Mods.Music.Services
                 FillTitleMsbt(entry.MSBTTitle, entry.MSBTTitleKey, titleMsbts);
                 snapshot.SeriesEntries.Add(entry.UiSeriesId, entry);
             }
+        }
 
-            return snapshot;
+        private void LoadPlaylistEntries(ResourceSnapshot snapshot, PrcUiBgmDatabase bgmDb, List<string> toneIds)
+        {
+            foreach (var value in bgmDb.PlaylistEntries)
+            {
+                var playlist = new PlaylistEntry(value.Id);
+                foreach (var track in value.Values)
+                {
+                    track.UiBgmId = ResolveGeneratedId(track.UiBgmId, toneIds, MusicConstants.InternalIds.UI_BGM_ID_PREFIX);
+                    playlist.Tracks.Add(_mapper.Map<Models.PlaylistEntryModels.PlaylistValueEntry>(track));
+                }
+
+                snapshot.PlaylistEntries.Add(playlist.Id, playlist);
+            }
+        }
+
+        private void LoadStageEntries(ResourceSnapshot snapshot, PrcUiStageDatabase stageDb, Dictionary<string, string> seriesIds)
+        {
+            foreach (var value in stageDb.DbRootEntries.Values)
+            {
+                value.UiSeriesId = ResolveKnownId(value.UiSeriesId, seriesIds);
+                var entry = _mapper.Map<StageEntry>(value);
+                snapshot.StageEntries.Add(entry.UiStageId, entry);
+            }
         }
 
         private static void EnsureSnapshotFileExists(string file)
@@ -375,78 +300,6 @@ namespace Sma5h.Mods.Music.Services
             return value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) && Hash40Equals(value, candidate);
         }
 
-        private static string GetFirstInfoId(BgmStreamSetEntry streamSet)
-        {
-            if (streamSet == null)
-                return null;
-
-            return new[]
-            {
-                streamSet.Info0, streamSet.Info1, streamSet.Info2, streamSet.Info3,
-                streamSet.Info4, streamSet.Info5, streamSet.Info6, streamSet.Info7,
-                streamSet.Info8, streamSet.Info9, streamSet.Info10, streamSet.Info11,
-                streamSet.Info12, streamSet.Info13, streamSet.Info14, streamSet.Info15
-            }.FirstOrDefault(p => !string.IsNullOrEmpty(p));
-        }
-
-        private static string GetToneId(BgmStreamPropertyEntry streamProperty, BgmDbRootEntry dbRoot)
-        {
-            if (!string.IsNullOrEmpty(streamProperty?.DataName0))
-                return streamProperty.DataName0;
-
-            var streamId = streamProperty?.StreamId;
-            if (!string.IsNullOrEmpty(streamId) && streamId.StartsWith(MusicConstants.InternalIds.STREAM_PREFIX))
-                return streamId.Substring(MusicConstants.InternalIds.STREAM_PREFIX.Length);
-
-            if (!string.IsNullOrEmpty(dbRoot?.UiBgmId) && dbRoot.UiBgmId.StartsWith(MusicConstants.InternalIds.UI_BGM_ID_PREFIX))
-                return dbRoot.UiBgmId.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length);
-
-            return null;
-        }
-
-        private static void CopyNus3Audio(string outputPath, string toneId, string destinationFile)
-        {
-            var sourceFile = Path.Combine(outputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, toneId));
-            if (!File.Exists(sourceFile))
-                return;
-
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
-            File.Copy(sourceFile, destinationFile, true);
-        }
-
-        private static float ReadNus3BankVolume(string outputPath, string toneId)
-        {
-            var bankFile = Path.Combine(outputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3BANK_FILE, toneId));
-            if (!File.Exists(bankFile))
-                return 2.7f;
-
-            var bytes = File.ReadAllBytes(bankFile);
-            var matches = Locate(bytes, new byte[] { 0xE8, 0x22, 0x00, 0x00 }).ToList();
-            if (matches.Count != 3 || matches[1] + 8 > bytes.Length)
-                return 2.7f;
-
-            return (float)Math.Round(BitConverter.ToSingle(bytes, matches[1] + 4), 2, MidpointRounding.AwayFromZero);
-        }
-
-        private static IEnumerable<int> Locate(byte[] haystack, byte[] needle)
-        {
-            for (var i = 0; i <= haystack.Length - needle.Length; i++)
-            {
-                var found = true;
-                for (var j = 0; j < needle.Length; j++)
-                {
-                    if (haystack[i + j] != needle[j])
-                    {
-                        found = false;
-                        break;
-                    }
-                }
-
-                if (found)
-                    yield return i;
-            }
-        }
-
         private class ResourceSnapshot
         {
             public Dictionary<string, BgmDbRootEntry> BgmDbRootEntries { get; } = new Dictionary<string, BgmDbRootEntry>();
@@ -456,6 +309,8 @@ namespace Sma5h.Mods.Music.Services
             public Dictionary<string, BgmPropertyEntry> BgmPropertyEntries { get; } = new Dictionary<string, BgmPropertyEntry>();
             public Dictionary<string, GameTitleEntry> GameTitleEntries { get; } = new Dictionary<string, GameTitleEntry>();
             public Dictionary<string, SeriesEntry> SeriesEntries { get; } = new Dictionary<string, SeriesEntry>();
+            public Dictionary<string, PlaylistEntry> PlaylistEntries { get; } = new Dictionary<string, PlaylistEntry>();
+            public Dictionary<string, StageEntry> StageEntries { get; } = new Dictionary<string, StageEntry>();
         }
     }
 }

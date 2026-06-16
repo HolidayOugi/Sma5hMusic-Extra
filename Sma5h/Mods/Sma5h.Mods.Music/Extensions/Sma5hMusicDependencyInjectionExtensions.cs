@@ -4,6 +4,7 @@ using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.CskPackBuild;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models.AutoMapper;
+using Sma5h.Mods.Music.ReverseBuild;
 using Sma5h.Mods.Music.Services;
 using Sma5h.ResourceProviders;
 using VGMMusic;

@@ -56,9 +56,11 @@ namespace Sma5hMusic.GUI.ViewModels
                     _appSettings.CurrentValue.GameResourcesPath,
                     buildFolder,
                     modOutputPath,
+                    _appSettings.CurrentValue.Sma5hMusicOverride.ModPath,
                     modInformation.Name,
                     modInformation));
 
+                _musicModManagerService.RefreshMusicMods();
                 await OnInitData();
                 var songCount = CountSongs(metadata);
                 _logger.LogInformation("Generate Mod from build files completed: {ModName} with {SongCount} song(s).", modInformation.Name, songCount);
