@@ -55,8 +55,8 @@ namespace Sma5h.Mods.Music.ReverseBuild
             LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
             LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
             LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
-            LoadPlaylistEntries(snapshot, bgmDb, toneIds);
-            LoadStageEntries(snapshot, stageDb, seriesIds);
+            var playlistIds = LoadPlaylistEntries(snapshot, bgmDb, toneIds);
+            LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
 
             return snapshot;
         }
@@ -164,11 +164,20 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
         }
 
-        private void LoadPlaylistEntries(ResourceSnapshot snapshot, PrcUiBgmDatabase bgmDb, List<string> toneIds)
+        private Dictionary<string, string> LoadPlaylistEntries(ResourceSnapshot snapshot, PrcUiBgmDatabase bgmDb, List<string> toneIds)
         {
+            var playlistIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var usedPlaylistIds = new HashSet<string>(
+                bgmDb.PlaylistEntries
+                    .Select(p => p.Id)
+                    .Where(p => !IsHexId(p)),
+                StringComparer.OrdinalIgnoreCase);
+            var unknownPlaylistIndex = 1;
+
             foreach (var value in bgmDb.PlaylistEntries)
             {
-                var playlist = new PlaylistEntry(value.Id);
+                var playlistId = ResolvePlaylistId(value.Id, playlistIds, usedPlaylistIds, ref unknownPlaylistIndex);
+                var playlist = new PlaylistEntry(playlistId);
                 foreach (var track in value.Values)
                 {
                     track.UiBgmId = ResolveGeneratedId(track.UiBgmId, toneIds, MusicConstants.InternalIds.UI_BGM_ID_PREFIX);
@@ -177,13 +186,16 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
                 snapshot.PlaylistEntries.Add(playlist.Id, playlist);
             }
+
+            return playlistIds;
         }
 
-        private void LoadStageEntries(ResourceSnapshot snapshot, PrcUiStageDatabase stageDb, Dictionary<string, string> seriesIds)
+        private void LoadStageEntries(ResourceSnapshot snapshot, PrcUiStageDatabase stageDb, Dictionary<string, string> seriesIds, Dictionary<string, string> playlistIds)
         {
             foreach (var value in stageDb.DbRootEntries.Values)
             {
                 value.UiSeriesId = ResolveKnownId(value.UiSeriesId, seriesIds);
+                value.BgmSetId = ResolveKnownId(value.BgmSetId, playlistIds);
                 var entry = _mapper.Map<StageEntry>(value);
                 snapshot.StageEntries.Add(entry.UiStageId, entry);
             }
@@ -288,6 +300,43 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 return value;
 
             return knownIds.TryGetValue(value, out var resolved) ? resolved : value;
+        }
+
+        private static string ResolvePlaylistId(
+            string value,
+            IDictionary<string, string> playlistIds,
+            ISet<string> usedPlaylistIds,
+            ref int unknownPlaylistIndex)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            if (!IsHexId(value))
+            {
+                playlistIds[value] = value;
+                usedPlaylistIds.Add(value);
+                return value;
+            }
+
+            if (playlistIds.TryGetValue(value, out var knownPlaylistId))
+                return knownPlaylistId;
+
+            string playlistId;
+            do
+            {
+                playlistId = $"bgmunknown{unknownPlaylistIndex}";
+                unknownPlaylistIndex++;
+            }
+            while (usedPlaylistIds.Contains(playlistId));
+
+            playlistIds[value] = playlistId;
+            usedPlaylistIds.Add(playlistId);
+            return playlistId;
+        }
+
+        private static bool IsHexId(string value)
+        {
+            return value != null && value.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool Hash40Equals(string hashValue, string candidate)

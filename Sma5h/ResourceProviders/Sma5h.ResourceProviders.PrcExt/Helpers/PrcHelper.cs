@@ -71,7 +71,7 @@ namespace Sma5h.ResourceProviders.Prc.Helpers
                 {
                     var filtersRegex = MapOffsetToRegexFilters(objType);
 
-                    if (filtersRegex.Count == 0 || _paramHashes == null || !_paramHashes.ContainsKey(node.Key))
+                    if (filtersRegex.Count == 0 || _paramHashes == null)
                     {
                         if (_ignoreUnknownFilters && filtersRegex.Count > 0)
                             continue;
@@ -79,15 +79,32 @@ namespace Sma5h.ResourceProviders.Prc.Helpers
                         throw new Exception($"Hex 0x{node.Key:X} was not mapped to any property.");
                     }
 
-                    var keyString = _paramHashes[node.Key];
+                    var hasKnownLabel = _paramHashes.ContainsKey(node.Key);
+                    var keyString = GetStringFromHex(node.Key);
 
                     foreach (var filterRegex in filtersRegex)
                     {
-                        if (Regex.IsMatch(keyString, filterRegex.Value.Regex))
+                        if (hasKnownLabel ? Regex.IsMatch(keyString, filterRegex.Value.Regex) : filterRegex.Value.MatchUnknown)
                         {
-                            var newObjToMap = WriteNewFilterStruct(objToMap, objType, filterRegex.Key, node.Key);
-                            propertyInfo = newObjToMap.GetType().GetProperty("Values");
-                            ReadPrc(node.Value, newObjToMap, propertyInfo);
+                            object newObjToMap = null;
+                            try
+                            {
+                                newObjToMap = WriteNewFilterStruct(objToMap, objType, filterRegex.Key, node.Key);
+                                propertyInfo = newObjToMap.GetType().GetProperty("Values");
+                                ReadPrc(node.Value, newObjToMap, propertyInfo);
+                            }
+                            catch
+                            {
+                                if (_ignoreUnknownFilters && !hasKnownLabel)
+                                {
+                                    RemoveFilterStruct(objToMap, objType, filterRegex.Key, newObjToMap);
+                                    propertyInfo = null;
+                                    continue;
+                                }
+
+                                throw;
+                            }
+
                             break;
                         }
                     }
@@ -197,6 +214,16 @@ namespace Sma5h.ResourceProviders.Prc.Helpers
             filterStructObjType.GetProperty("Id").SetValue(newfilterStructObjInstance, GetStringFromHex(hexKey));
 
             return newfilterStructObjInstance;
+        }
+
+        private static void RemoveFilterStruct(object objToMap, Type objType, string propertyName, object filterStruct)
+        {
+            if (filterStruct == null)
+                return;
+
+            var propertyInfo = objType.GetProperty(propertyName);
+            var filterStructs = propertyInfo?.GetValue(objToMap) as IList;
+            filterStructs?.Remove(filterStruct);
         }
         #endregion
 

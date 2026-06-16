@@ -30,7 +30,7 @@ namespace Sma5h.Data.Ui.Param.Database
         [PrcHexMapping("fighter_jingle")]
         public Dictionary<string, PrcUiBgmDatabaseModels.PrcBgmFighterJingleBgmEntry> FighterJingleEntries { get; set; }
 
-        [PrcFilterMatch("^(bgm)")]
+        [PrcFilterMatch("^(bgm)", true)]
         public List<PcrFilterStruct<PrcUiBgmDatabaseModels.PrcBgmPlaylistEntry>> PlaylistEntries { get; set; }
     }
 
