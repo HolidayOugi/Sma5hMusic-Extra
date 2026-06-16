@@ -100,8 +100,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
 
         public MainWindowViewModel(IServiceProvider serviceProvider, IViewModelManager viewModelManager, IGUIStateManager guiStateManager, IMapper mapper, IVGMMusicPlayer musicPlayer,
-               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
-               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, IMusicModReverseService musicModReverseService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
+               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IMusicModReverseService musicModReverseService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
         {
             _viewModelManager = viewModelManager;
             _guiStateManager = guiStateManager;
