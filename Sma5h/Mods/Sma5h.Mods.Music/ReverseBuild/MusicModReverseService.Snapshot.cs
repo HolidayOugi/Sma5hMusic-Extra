@@ -58,7 +58,8 @@ namespace Sma5h.Mods.Music.ReverseBuild
             LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
             LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
             LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
-            var playlistIds = LoadPlaylistEntries(snapshot, bgmDb, toneIds);
+            var playlistIdHints = BuildStagePlaylistIdHints(stageDb);
+            var playlistIds = LoadPlaylistEntries(snapshot, bgmDb, toneIds, playlistIdHints);
             LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
 
             return snapshot;
@@ -168,7 +169,11 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
         }
 
-        private Dictionary<string, string> LoadPlaylistEntries(ResourceSnapshot snapshot, PrcUiBgmDatabase bgmDb, List<string> toneIds)
+        private Dictionary<string, string> LoadPlaylistEntries(
+            ResourceSnapshot snapshot,
+            PrcUiBgmDatabase bgmDb,
+            List<string> toneIds,
+            Dictionary<string, string> playlistIdHints)
         {
             var playlistIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var usedPlaylistIds = new HashSet<string>(
@@ -180,7 +185,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             foreach (var value in bgmDb.PlaylistEntries)
             {
-                var playlistId = ResolvePlaylistId(value.Id, playlistIds, usedPlaylistIds, ref unknownPlaylistIndex);
+                var playlistId = ResolvePlaylistId(value.Id, playlistIds, playlistIdHints, usedPlaylistIds, ref unknownPlaylistIndex);
                 var playlist = new PlaylistEntry(playlistId);
                 foreach (var track in value.Values)
                 {
@@ -192,6 +197,38 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
 
             return playlistIds;
+        }
+
+        //get custom playlist ID from stage
+        private static Dictionary<string, string> BuildStagePlaylistIdHints(PrcUiStageDatabase stageDb)
+        {
+            var output = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var value in stageDb.DbRootEntries.Values)
+            {
+                var bgmSetId = value.BgmSetId;
+                if (string.IsNullOrEmpty(bgmSetId) || !IsHexId(bgmSetId) || output.ContainsKey(bgmSetId))
+                    continue;
+
+                var playlistId = CreatePlaylistIdFromStageId(value.UiStageId);
+                if (!string.IsNullOrEmpty(playlistId))
+                    output[bgmSetId] = playlistId;
+            }
+
+            return output;
+        }
+
+        private static string CreatePlaylistIdFromStageId(string stageId)
+        {
+            if (string.IsNullOrWhiteSpace(stageId) || IsHexId(stageId))
+                return null;
+
+            const string stagePrefix = "ui_stage_";
+            var name = stageId.StartsWith(stagePrefix, StringComparison.OrdinalIgnoreCase)
+                ? stageId.Substring(stagePrefix.Length)
+                : stageId;
+
+            name = name.Replace("_", string.Empty);
+            return string.IsNullOrWhiteSpace(name) ? null : $"bgm{name}";
         }
 
         private void LoadStageEntries(ResourceSnapshot snapshot, PrcUiStageDatabase stageDb, Dictionary<string, string> seriesIds, Dictionary<string, string> playlistIds)
@@ -328,6 +365,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
         private static string ResolvePlaylistId(
             string value,
             IDictionary<string, string> playlistIds,
+            IDictionary<string, string> playlistIdHints,
             ISet<string> usedPlaylistIds,
             ref int unknownPlaylistIndex)
         {
@@ -343,6 +381,13 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             if (playlistIds.TryGetValue(value, out var knownPlaylistId))
                 return knownPlaylistId;
+
+            if (playlistIdHints != null && playlistIdHints.TryGetValue(value, out var hintedPlaylistId) && !usedPlaylistIds.Contains(hintedPlaylistId))
+            {
+                playlistIds[value] = hintedPlaylistId;
+                usedPlaylistIds.Add(hintedPlaylistId);
+                return hintedPlaylistId;
+            }
 
             string playlistId;
             do
