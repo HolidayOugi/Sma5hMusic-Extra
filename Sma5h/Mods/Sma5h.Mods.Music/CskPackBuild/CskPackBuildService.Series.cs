@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Sma5h.Mods.Music;
+using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using System;
 using System.Collections.Generic;
@@ -44,6 +45,70 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var outputJsonPath = Path.Combine(databaseFolder, "series_order.json");
             File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
             _logger.LogInformation("[CSK] Saved series order pack: {SavedPath}", outputJsonPath);
+        }
+
+        #endregion
+
+        #region Series Options
+
+        private CskPackSeriesOption CreateSeriesOption(CskModContext context, JObject series)
+        {
+            return new CskPackSeriesOption
+            {
+                Key = CreateSeriesKey(context.Mod, series),
+                DisplayName = GetSeriesDisplayName(series),
+                NameId = GetString(series, "name_id"),
+                UiSeriesId = GetString(series, "ui_series_id"),
+                ModName = context.Mod.Name
+            };
+        }
+
+        private static string CreateSeriesKey(IMusicMod mod, JObject series)
+        {
+            return $"{Path.GetFullPath(mod.ModPath)}|{GetString(series, "ui_series_id")}|{GetString(series, "name_id")}";
+        }
+
+        private string GetSeriesDisplayName(JObject series)
+        {
+            var seriesName = GetString(series, "name_id");
+            var title = GetLocalizedString(series["msbt_title"]);
+            if (string.IsNullOrWhiteSpace(title))
+                title = GetLocalizedString(series["title"]);
+
+            return string.IsNullOrWhiteSpace(title) ? seriesName : title;
+        }
+
+        #endregion
+
+        #region Effective Series Data
+
+        private JObject BuildEffectiveCoreSeriesData(JObject coreSeriesOverride)
+        {
+            var seriesData = new JObject();
+
+            foreach (var series in _audioStateService.GetSeriesEntries().Where(p => !string.IsNullOrEmpty(p.UiSeriesId)))
+                seriesData[series.UiSeriesId] = CreateSeriesObject(series);
+
+            OverlayProperties(seriesData, coreSeriesOverride);
+            return seriesData;
+        }
+
+        private static JObject CreateSeriesObject(SeriesEntry series)
+        {
+            return new JObject
+            {
+                ["ui_series_id"] = series.UiSeriesId,
+                ["name_id"] = series.NameId,
+                ["disp_order"] = series.DispOrder,
+                ["disp_order_sound"] = series.DispOrderSound,
+                ["save_no"] = series.SaveNo,
+                ["0x1c38302364"] = series.Unk1,
+                ["is_dlc"] = series.IsDlc,
+                ["is_patch"] = series.IsPatch,
+                ["dlc_chara_id"] = series.DlcCharaId,
+                ["is_use_amiibo_bg"] = series.IsUseAmiiboBg,
+                ["msbt_title"] = CreateLocalizedObject(series.MSBTTitle)
+            };
         }
 
         #endregion

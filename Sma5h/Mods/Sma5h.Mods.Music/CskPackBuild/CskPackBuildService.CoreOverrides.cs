@@ -1,6 +1,8 @@
 using Newtonsoft.Json.Linq;
+using Sma5h.Mods.Music.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Sma5h.Mods.Music.CskPackBuild
 {
@@ -104,7 +106,132 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #endregion
 
+        #region Effective Core Data
+
+        private Dictionary<string, string> BuildCoreGameSeriesById(JObject effectiveCoreGameData)
+        {
+            var seriesNames = _audioStateService.GetSeriesEntries()
+                .Where(p => !string.IsNullOrEmpty(p.UiSeriesId))
+                .GroupBy(p => p.UiSeriesId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(p => p.Key, p => p.First().NameId, StringComparer.OrdinalIgnoreCase);
+
+            return _audioStateService.GetGameTitleEntries()
+                .Where(p => p.Source == EntrySource.Core && !string.IsNullOrEmpty(p.UiGameTitleId))
+                .GroupBy(p => p.UiGameTitleId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    p => p.Key,
+                    p =>
+                    {
+                        var game = effectiveCoreGameData[p.Key] as JObject;
+                        var uiSeriesId = GetString(game, "ui_series_id", p.First().UiSeriesId);
+                        return GetSeriesNameFromUiSeriesId(uiSeriesId, seriesNames);
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        private JObject BuildEffectiveCoreGameData(JObject coreGameOverride)
+        {
+            var gameData = new JObject();
+
+            foreach (var game in _audioStateService.GetGameTitleEntries().Where(p => !string.IsNullOrEmpty(p.UiGameTitleId)))
+                gameData[game.UiGameTitleId] = CreateGameObject(game);
+
+            OverlayProperties(gameData, coreGameOverride);
+            return gameData;
+        }
+
+        private static JObject CreateGameObject(GameTitleEntry game)
+        {
+            return new JObject
+            {
+                ["ui_gametitle_id"] = game.UiGameTitleId,
+                ["name_id"] = game.NameId,
+                ["ui_series_id"] = game.UiSeriesId,
+                ["0x1c38302364"] = game.Unk1,
+                ["release"] = game.Release,
+                ["msbt_title"] = CreateLocalizedObject(game.MSBTTitle)
+            };
+        }
+
+        private JObject BuildEffectiveCoreBgmOverrideData(JObject coreBgmOverride)
+        {
+            if (coreBgmOverride == null)
+                return null;
+
+            var output = (JObject)coreBgmOverride.DeepClone();
+            var dbRoots = EnsureObject(output, "CoreBgmDbRootOverrides");
+            var streamSets = EnsureObject(output, "CoreBgmStreamSetOverrides");
+            var assignedInfos = EnsureObject(output, "CoreBgmAssignedInfoOverrides");
+            var streamProperties = EnsureObject(output, "CoreBgmStreamPropertyOverrides");
+            var bgmProperties = EnsureObject(output, "CoreBgmPropertyOverrides");
+
+            var dbRootEntries = _audioStateService.GetBgmDbRootEntries()
+                .Where(p => !string.IsNullOrEmpty(p.UiBgmId))
+                .ToDictionary(p => p.UiBgmId, p => p, StringComparer.OrdinalIgnoreCase);
+            var streamSetEntries = _audioStateService.GetBgmStreamSetEntries()
+                .Where(p => !string.IsNullOrEmpty(p.StreamSetId))
+                .ToDictionary(p => p.StreamSetId, p => p, StringComparer.OrdinalIgnoreCase);
+            var assignedInfoEntries = _audioStateService.GetBgmAssignedInfoEntries()
+                .Where(p => !string.IsNullOrEmpty(p.InfoId))
+                .ToDictionary(p => p.InfoId, p => p, StringComparer.OrdinalIgnoreCase);
+            var streamPropertyEntries = _audioStateService.GetBgmStreamPropertyEntries()
+                .Where(p => !string.IsNullOrEmpty(p.StreamId))
+                .ToDictionary(p => p.StreamId, p => p, StringComparer.OrdinalIgnoreCase);
+            var bgmPropertyEntries = _audioStateService.GetBgmPropertyEntries()
+                .Where(p => !string.IsNullOrEmpty(p.NameId))
+                .ToDictionary(p => p.NameId, p => p, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var dbProperty in dbRoots.Properties().ToList())
+            {
+                var uiBgmId = dbProperty.Name;
+                if (dbRootEntries.ContainsKey(uiBgmId))
+                    dbRoots[uiBgmId] = MergeObjects(CreateBgmDbRootObject(dbRootEntries[uiBgmId]), dbProperty.Value as JObject);
+
+                var db = dbRoots[uiBgmId] as JObject;
+                var streamSetId = GetString(db, "stream_set_id");
+                if (string.IsNullOrEmpty(streamSetId))
+                    continue;
+
+                if (streamSetEntries.ContainsKey(streamSetId))
+                    streamSets[streamSetId] = MergeObjects(CreateStreamSetObject(streamSetEntries[streamSetId]), streamSets[streamSetId] as JObject);
+
+                var streamSet = streamSets[streamSetId] as JObject;
+                for (var i = 0; i < 16; i++)
+                {
+                    var infoId = GetString(streamSet, $"info{i}");
+                    if (string.IsNullOrEmpty(infoId))
+                        continue;
+
+                    if (assignedInfoEntries.ContainsKey(infoId))
+                        assignedInfos[infoId] = MergeObjects(CreateAssignedInfoObject(assignedInfoEntries[infoId]), assignedInfos[infoId] as JObject);
+
+                    var assigned = assignedInfos[infoId] as JObject;
+                    var streamId = GetString(assigned, "stream_id");
+                    if (string.IsNullOrEmpty(streamId))
+                        continue;
+
+                    if (streamPropertyEntries.ContainsKey(streamId))
+                        streamProperties[streamId] = MergeObjects(CreateStreamPropertyObject(streamPropertyEntries[streamId]), streamProperties[streamId] as JObject);
+
+                    var streamProperty = streamProperties[streamId] as JObject;
+                    var nameId = GetString(streamProperty, "data_name0");
+                    if (!string.IsNullOrEmpty(nameId) && bgmPropertyEntries.ContainsKey(nameId))
+                        bgmProperties[nameId] = MergeObjects(CreateBgmPropertyObject(bgmPropertyEntries[nameId]), bgmProperties[nameId] as JObject);
+                }
+            }
+
+            return output;
+        }
+
+        #endregion
+
         #region Core BGM Overrides
+
+        private void AddOptionalBgmMessageUnique(List<string> entries, string label, JToken localizedText)
+        {
+            var text = GetLocalizedString(localizedText);
+            AddUniqueMessage(entries, label, text);
+        }
 
         private void ProcessCoreBgmOverrides(
             JObject songData,
