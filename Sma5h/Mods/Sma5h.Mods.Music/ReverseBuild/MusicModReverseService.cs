@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sma5h.Interfaces;
 using Sma5h.Mods.Music.Interfaces;
@@ -19,17 +20,16 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
         private readonly ILogger _logger;
         private readonly IMapper _mapper;
-        private readonly PrcResourceProvider _prcProvider;
-        private readonly MsbtResourceProvider _msbtProvider;
-        private readonly BgmPropertyProvider _bgmPropertyProvider;
+        private readonly IServiceProvider _serviceProvider;
+        private PrcResourceProvider _prcProvider;
+        private MsbtResourceProvider _msbtProvider;
+        private BgmPropertyProvider _bgmPropertyProvider;
 
-        public MusicModReverseService(IEnumerable<IResourceProvider> resourceProviders, IMapper mapper, ILogger<MusicModReverseService> logger)
+        public MusicModReverseService(IServiceProvider serviceProvider, IMapper mapper, ILogger<MusicModReverseService> logger)
         {
             _logger = logger;
             _mapper = mapper;
-            _prcProvider = resourceProviders.OfType<PrcResourceProvider>().First();
-            _msbtProvider = resourceProviders.OfType<MsbtResourceProvider>().First();
-            _bgmPropertyProvider = resourceProviders.OfType<BgmPropertyProvider>().First();
+            _serviceProvider = serviceProvider;
         }
 
         public MusicModConfig Reverse(string coreResourcesPath, string outputPath, string modOutputPath, string modName = null, MusicModInformation modInformation = null)
@@ -49,6 +49,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             if (string.IsNullOrWhiteSpace(overrideOutputPath))
                 throw new ArgumentException("Override output path is required.", nameof(overrideOutputPath));
 
+            EnsureResourceProviders();
             var core = LoadSnapshot(coreResourcesPath);
             var output = LoadSnapshot(outputPath, coreResourcesPath);
 
@@ -64,6 +65,17 @@ namespace Sma5h.Mods.Music.ReverseBuild
             GenerateStageOverride(core, output, overrideOutputPath);
 
             return metadata;
+        }
+
+        private void EnsureResourceProviders()
+        {
+            if (_prcProvider != null && _msbtProvider != null && _bgmPropertyProvider != null)
+                return;
+
+            var resourceProviders = _serviceProvider.GetServices<IResourceProvider>();
+            _prcProvider = resourceProviders.OfType<PrcResourceProvider>().First();
+            _msbtProvider = resourceProviders.OfType<MsbtResourceProvider>().First();
+            _bgmPropertyProvider = resourceProviders.OfType<BgmPropertyProvider>().First();
         }
 
     }
