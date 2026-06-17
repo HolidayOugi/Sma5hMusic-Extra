@@ -78,6 +78,19 @@ namespace Sma5h.Mods.Music.CskPackBuild
             songData[arrayName] = output;
         }
 
+        private static void AddUniqueJObjectByKey(JObject songData, string arrayName, string key, JObject entry)
+        {
+            if (entry == null)
+                return;
+
+            var entryKey = GetString(entry, key);
+            var entries = GetArray(songData, arrayName);
+            if (!string.IsNullOrEmpty(entryKey) && entries.Any(p => string.Equals(GetString(p, key), entryKey, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            entries.Add(entry);
+        }
+
         private static void DeduplicatePlaylists(JObject songData)
         {
             var playlists = songData["playlist_entries"] as JObject;

@@ -11,6 +11,17 @@ namespace Sma5h.Mods.Music.CskPackBuild
 {
     public partial class CskPackBuildService
     {
+        #region Types
+
+        private class BgmBuildEntry
+        {
+            public string NameId { get; set; }
+            public float AudioVolume { get; set; }
+            public string Filename { get; set; }
+        }
+
+        #endregion
+
         #region BGM Files
 
         private string GenerateBgmFiles(IEnumerable<CskModContext> contexts, string tempRoot, HashSet<string> selectedSeriesKeys, JObject coreGameOverride)

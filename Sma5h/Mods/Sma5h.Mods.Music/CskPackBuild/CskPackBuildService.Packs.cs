@@ -308,105 +308,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
 
             ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, ref orderCounter);
-            ProcessPlaylistsAndStages(songData, msgBgmEntries, seriesName, playlistData, stageOverride, coreBgmIds, coreBgmOverride, orderOverride);
+            PopulateVanillaPlaylists(songData, seriesName, playlistData, coreBgmIds, coreBgmOverride, orderOverride);
+            PopulateStageDatabaseEntries(songData, seriesName, stageOverride, playlistData);
             ProcessCoreBgmOverrides(songData, msgBgmEntries, msgTitleEntries, seriesName, seriesIdToName, coreBgmOverride, orderOverride, coreGameOverride);
             AddCoreGameOverridesForNewSeries(songData, series, seriesName, coreGameOverride);
-        }
-
-        #endregion
-
-        #region BGM Processing
-
-        private int ProcessBgm(
-            JObject bgm,
-            JObject songData,
-            JObject playlistOverride,
-            List<string> msgBgmEntries,
-            JObject coreBgmOverride,
-            JObject orderOverride,
-            string seriesName,
-            string seriesFolderName,
-            string outputRoot,
-            string generatedBgmFolder,
-            bool includeAudio,
-            int orderCounter)
-        {
-            var db = bgm["db_root"] as JObject;
-            var assigned = bgm["assigned_info"] as JObject;
-            var streamProp = bgm["stream_property"] as JObject;
-            var bgmProp = bgm["bgm_properties"] as JObject;
-            var streamSet = bgm["stream_set"] as JObject;
-
-            var uiBgmId = GetString(db, "ui_bgm_id");
-            var nameId = GetString(bgmProp, "name_id");
-            if (includeAudio && _unavailableBgmNameIds.Value?.Contains(nameId) == true)
-            {
-                _logger.LogWarning("[CSK] Excluding unavailable song {NameId} from pack metadata.", nameId);
-                return orderCounter;
-            }
-
-            var handledByCoreBgmOverride = IsCoreBgmOverride(coreBgmOverride, uiBgmId);
-            var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
-
-            // If this song is present in CoreBgmOverride, let ProcessCoreBgmOverrides add the
-            // database/stream/message entries. ProcessBgm still handles playlists and file copy.
-            if (!handledByCoreBgmOverride && !HasBgmDatabaseEntry(songData, uiBgmId))
-            {
-                GetArray(songData, "bgm_database_entries").Add(new JObject
-                {
-                    ["ui_bgm_id"] = uiBgmId,
-                    ["clone_from_ui_bgm_id"] = CloneBgmId,
-                    ["stream_set_id"] = GetString(db, "stream_set_id"),
-                    ["name_id"] = nameId,
-                    ["ui_gametitle_id"] = GetString(db, "ui_gametitle_id"),
-                    ["test_disp_order"] = testDispOrder,
-                    ["record_type"] = GetString(db, "record_type", "record_original")
-                });
-
-                AddUniqueJObjectByKey(songData, "stream_set_entries", "stream_set_id", CreateStreamSetEntry(streamSet));
-                AddUniqueJObjectByKey(songData, "assigned_info_entries", "info_id", new JObject
-                {
-                    ["info_id"] = GetString(assigned, "info_id"),
-                    ["stream_id"] = GetString(assigned, "stream_id"),
-                    ["condition"] = GetString(assigned, "condition"),
-                    ["condition_process"] = "sound_condition_process_add",
-                    ["change_fadeout_frame"] = 60,
-                    ["menu_change_fadeout_frame"] = 60
-                });
-
-                AddUniqueJObjectByKey(songData, "stream_property_entries", "stream_id", new JObject
-                {
-                    ["stream_id"] = GetString(streamProp, "stream_id"),
-                    ["data_name0"] = GetString(streamProp, "data_name0")
-                });
-
-                AddUniqueJObjectByKey(songData, "bgm_property_entries", "stream_name", new JObject
-                {
-                    ["stream_name"] = GetString(streamProp, "data_name0"),
-                    ["loop_start_ms"] = GetInt(bgmProp, "loop_start_ms", 0),
-                    ["loop_start_sample"] = GetInt(bgmProp, "loop_start_sample", 0),
-                    ["loop_end_ms"] = GetInt(bgmProp, "loop_end_ms", 0),
-                    ["loop_end_sample"] = GetInt(bgmProp, "loop_end_sample", 0),
-                    ["duration_ms"] = GetInt(bgmProp, "total_time_ms", 0),
-                    ["duration_sample"] = GetInt(bgmProp, "total_samples", 0)
-                });
-
-                var titleText = GetLocalizedString(db["msbt_title"], nameId);
-                AddUniqueMessage(msgBgmEntries, $"bgm_title_{nameId}", titleText);
-
-                var authorText = GetLocalizedString(db["msbt_author"]);
-                AddUniqueMessage(msgBgmEntries, $"bgm_author_{nameId}", authorText);
-
-                var copyrightText = GetLocalizedString(db["msbt_copyright"]);
-                AddUniqueMessage(msgBgmEntries, $"bgm_copyright_{nameId}", copyrightText);
-            }
-
-            orderCounter = AddToPlaylists(uiBgmId, songData, playlistOverride, seriesName, orderCounter);
-
-            if (includeAudio)
-                CopyBgmFiles(bgm, seriesFolderName, outputRoot, generatedBgmFolder);
-
-            return orderCounter;
         }
 
         #endregion
