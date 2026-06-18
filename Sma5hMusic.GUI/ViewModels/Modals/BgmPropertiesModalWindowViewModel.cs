@@ -138,7 +138,8 @@ namespace Sma5hMusic.GUI.ViewModels
             var defaultLocaleItem = new ComboItem(defaultLocale, Constants.GetLocaleDisplayName(defaultLocale));
             MSBTTitleEditor = new MSBTFieldViewModel()
             {
-                SelectedLocale = defaultLocaleItem
+                SelectedLocale = defaultLocaleItem,
+                EnableColorFormatting = true
             };
             MSBTAuthorEditor = new MSBTFieldViewModel()
             {
@@ -605,6 +606,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
             IsModSong = item.MusicMod != null;
 
+            MSBTTitleEditor.ResetTextColorSelection();
+            MSBTAuthorEditor.ResetTextColorSelection();
+            MSBTCopyrightEditor.ResetTextColorSelection();
             MSBTTitleEditor.MSBTValues = DbRootViewModel.MSBTTitle;
             MSBTAuthorEditor.MSBTValues = DbRootViewModel.MSBTAuthor;
             MSBTCopyrightEditor.MSBTValues = DbRootViewModel.MSBTCopyright;

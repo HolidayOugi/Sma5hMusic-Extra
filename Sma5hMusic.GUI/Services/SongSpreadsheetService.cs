@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using Sma5hMusic.GUI.Interfaces;
@@ -244,7 +245,11 @@ namespace Sma5hMusic.GUI.Services
 
         private static string UnwrapDoubleBraces(string value)
         {
-            return string.IsNullOrEmpty(value) ? value : DoubleBracesRegex.Replace(value, "$1");
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            value = DoubleBracesRegex.Replace(value, "$1");
+            return MsbtRichTextColorHelper.ToPlainText(MsbtRichTextColorHelper.Parse(value));
         }
 
         private static string StripSongSuffix(string songName, string gameName)

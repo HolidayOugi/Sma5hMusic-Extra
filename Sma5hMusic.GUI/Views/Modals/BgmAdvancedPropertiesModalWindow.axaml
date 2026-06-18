@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        Width="1200" Height="720" MinWidth="1200"
+        Width="1540" Height="720" MinWidth="1540"
         x:Class="Sma5hMusic.GUI.Views.BgmAdvancedPropertiesModalWindow"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
         xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
@@ -40,7 +40,7 @@
     <Grid>
       <TabControl Classes="content" TabStripPlacement="Bottom">
         <TabItem Header="General" FontSize="14">
-          <Grid ColumnDefinitions="*,*,*" RowDefinitions="100,*">
+          <Grid ColumnDefinitions="0.9*,1.2*,0.9*" RowDefinitions="100,*">
             <!-- File Properties-->
             <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Grid.Column="0" HorizontalAlignment="Stretch">
               <Border Classes="contentTitle" DockPanel.Dock="Top">

@@ -5,7 +5,7 @@
               xmlns:i="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Avalonia.Xaml.Interactivity"
              xmlns:ia="clr-namespace:Avalonia.Xaml.Interactions.Core;assembly=Avalonia.Xaml.Interactions"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
+             xmlns:controls="clr-namespace:Sma5hMusic.GUI.Controls"
              x:Class="Sma5hMusic.GUI.Views.PlaylistView">
   <Grid ColumnDefinitions="3*,5,4*" RowDefinitions="30,*">
     <ContentControl Grid.Row="0" Grid.Column="0" Content="{Binding VMContextMenu}"></ContentControl>
@@ -38,8 +38,8 @@
           <DataGridTemplateColumn Width="3*" Header="Title">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
-                           Foreground="{Binding TestDispOrder, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding Title, Mode=OneWay, Converter={StaticResource LabelValueConverter}}"></TextBlock>
+                <controls:ColoredLabelTextBlock Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
+                           Text="{Binding Title, Mode=OneWay}"></controls:ColoredLabelTextBlock>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
@@ -162,9 +162,9 @@
           <DataGridTemplateColumn Width="3*" Header="Title">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
-                           Foreground="{Binding Order, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding BgmReference.Title, Mode=OneWay, Converter={StaticResource LabelValueConverter}}">
-                  <TextBlock.ContextMenu>
+                <controls:ColoredLabelTextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
+                           Text="{Binding BgmReference.Title, Mode=OneWay}">
+                  <controls:ColoredLabelTextBlock.ContextMenu>
                     <ContextMenu IsVisible="{Binding IsMod}">
                       <MenuItem Header="Set exact incidence value..." Command="{Binding $parent[DataGrid].DataContext.ActionSetIncidence, Mode=OneWay}" CommandParameter="{Binding}"/>
                       <Separator/>
@@ -172,8 +172,8 @@
                       <MenuItem Header="Paste incidence" IsEnabled="{Binding $parent[DataGrid].DataContext.CopyValueExists}" Command="{Binding $parent[DataGrid].DataContext.ActionPasteIncidence, Mode=OneWay}" CommandParameter="{Binding}"/>
                       <MenuItem Header="Paste incidence to all other Orders" IsEnabled="{Binding $parent[DataGrid].DataContext.CopyValueExists}" Command="{Binding $parent[DataGrid].DataContext.ActionPasteIncidenceAll, Mode=OneWay}" CommandParameter="{Binding}"/>
                     </ContextMenu>
-                  </TextBlock.ContextMenu>
-                </TextBlock>
+                  </controls:ColoredLabelTextBlock.ContextMenu>
+                </controls:ColoredLabelTextBlock>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>

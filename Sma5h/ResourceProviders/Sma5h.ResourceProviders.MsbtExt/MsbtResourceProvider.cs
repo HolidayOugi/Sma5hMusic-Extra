@@ -15,6 +15,30 @@ namespace Sma5h.ResourceProviders
     public class MsbtResourceProvider : BaseResourceProvider
     {
         private readonly ILogger _logger;
+        private const string GameTextTagOpenMarker = "{{";
+        private const string GameTextTagCloseMarker = "}}";
+        private const string GameTextTagOpen = "\u000e\u0000\u0002\u0002P";
+        private const string GameTextTagClose = "\u000e\u0000\u0002\u0002d";
+        private const string ColorCloseTag = "<\\color>";
+        private const string ColorCloseTagAlt = "</color>";
+        private const string ColorOpenPrefix = "<color=";
+
+        private static readonly IReadOnlyDictionary<string, MsbtTextColor> ColorMap =
+            new List<MsbtTextColor>
+            {
+                new MsbtTextColor("default", 0x00, 0x00, 0x00, 0x00, true),
+                new MsbtTextColor("white", 0xFF, 0xFF, 0xFF, 0xFF),
+                new MsbtTextColor("red", 0xFF, 0x00, 0x00, 0xFF),
+                new MsbtTextColor("orange", 0xFF, 0xA5, 0x00, 0xFF),
+                new MsbtTextColor("yellow", 0xFF, 0xFF, 0x00, 0xFF),
+                new MsbtTextColor("green", 0x00, 0x80, 0x00, 0xFF),
+                new MsbtTextColor("lime", 0x00, 0xFF, 0x00, 0xFF),
+                new MsbtTextColor("cyan", 0x00, 0xFF, 0xFF, 0xFF),
+                new MsbtTextColor("blue", 0x00, 0x00, 0xFF, 0xFF),
+                new MsbtTextColor("purple", 0x80, 0x00, 0x80, 0xFF),
+                new MsbtTextColor("pink", 0xFF, 0x69, 0xB4, 0xFF),
+                new MsbtTextColor("gray", 0x80, 0x80, 0x80, 0xFF)
+            }.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
 
         public MsbtResourceProvider(IOptionsMonitor<Sma5hOptions> config, ILogger<MsbtResourceProvider> logger)
             : base(config)
@@ -75,7 +99,7 @@ namespace Sma5h.ResourceProviders
                     var valueStr = newMsbtEntry.Value;
                     if (string.IsNullOrEmpty(newMsbtEntry.Value))
                         valueStr = "MISSING";
-                    newEntry.Value = Encoding.Unicode.GetBytes(valueStr + "\0");
+                    newEntry.Value = EncodeMsbtText(valueStr);
                 }
                 msbtFile.Save();
             }
@@ -85,6 +109,131 @@ namespace Sma5h.ResourceProviders
             }
 
             return true;
+        }
+
+        private static byte[] EncodeMsbtText(string text)
+        {
+            //same as CSK
+            var bytes = new List<byte>();
+            for (var index = 0; index < text.Length;)
+            {
+                if (text.IndexOf(GameTextTagOpenMarker, index, StringComparison.Ordinal) == index)
+                {
+                    bytes.AddRange(Encoding.Unicode.GetBytes(GameTextTagOpen));
+                    index += GameTextTagOpenMarker.Length;
+                    continue;
+                }
+
+                if (text.IndexOf(GameTextTagCloseMarker, index, StringComparison.Ordinal) == index)
+                {
+                    bytes.AddRange(Encoding.Unicode.GetBytes(GameTextTagClose));
+                    index += GameTextTagCloseMarker.Length;
+                    continue;
+                }
+
+                if (text.IndexOf(ColorCloseTag, index, StringComparison.OrdinalIgnoreCase) == index)
+                {
+                    AddColorMarkerBytes(bytes, ColorMap["default"]);
+                    index += ColorCloseTag.Length;
+                    continue;
+                }
+
+                if (text.IndexOf(ColorCloseTagAlt, index, StringComparison.OrdinalIgnoreCase) == index)
+                {
+                    AddColorMarkerBytes(bytes, ColorMap["default"]);
+                    index += ColorCloseTagAlt.Length;
+                    continue;
+                }
+
+                if (text.IndexOf(ColorOpenPrefix, index, StringComparison.OrdinalIgnoreCase) == index)
+                {
+                    var tagEnd = text.IndexOf('>', index);
+                    if (tagEnd > index)
+                    {
+                        var colorId = text.Substring(index + ColorOpenPrefix.Length, tagEnd - index - ColorOpenPrefix.Length).Trim();
+                        if (TryGetColor(colorId, out var color))
+                        {
+                            AddColorMarkerBytes(bytes, color);
+                            index = tagEnd + 1;
+                            continue;
+                        }
+                    }
+                }
+
+                bytes.AddRange(Encoding.Unicode.GetBytes(text[index].ToString()));
+                index++;
+            }
+
+            bytes.AddRange(new byte[] { 0x00, 0x00 });
+            return bytes.ToArray();
+        }
+
+        private static bool TryGetColor(string colorId, out MsbtTextColor color)
+        {
+            color = null;
+            if (string.IsNullOrWhiteSpace(colorId))
+                return false;
+
+            if (ColorMap.TryGetValue(colorId, out color))
+                return true;
+
+            var hex = colorId.TrimStart('#');
+            if (colorId.StartsWith("#") && (hex.Length == 6 || hex.Length == 8) &&
+                uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out var parsed))
+            {
+                byte alpha;
+                byte red;
+                byte green;
+                byte blue;
+                if (hex.Length == 8)
+                {
+                    alpha = (byte)((parsed >> 24) & 0xFF);
+                    red = (byte)((parsed >> 16) & 0xFF);
+                    green = (byte)((parsed >> 8) & 0xFF);
+                    blue = (byte)(parsed & 0xFF);
+                }
+                else
+                {
+                    alpha = 0xFF;
+                    red = (byte)((parsed >> 16) & 0xFF);
+                    green = (byte)((parsed >> 8) & 0xFF);
+                    blue = (byte)(parsed & 0xFF);
+                }
+
+                color = new MsbtTextColor(colorId, red, green, blue, alpha);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void AddColorMarkerBytes(List<byte> bytes, MsbtTextColor color)
+        {
+            bytes.AddRange(new byte[] { 0x0E, 0x00, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00 });
+            bytes.Add(color.Red);
+            bytes.Add(color.Green);
+            bytes.Add(color.Blue);
+            bytes.Add(color.Alpha);
+        }
+
+        private class MsbtTextColor
+        {
+            public MsbtTextColor(string id, byte red, byte green, byte blue, byte alpha, bool isDefault = false)
+            {
+                Id = id;
+                Red = red;
+                Green = green;
+                Blue = blue;
+                Alpha = alpha;
+                IsDefault = isDefault;
+            }
+
+            public string Id { get; }
+            public byte Red { get; }
+            public byte Green { get; }
+            public byte Blue { get; }
+            public byte Alpha { get; }
+            public bool IsDefault { get; }
         }
 
         /*

@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="180"
+        Width="360" Height="180" MinWidth="360" MinHeight="180"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        x:Class="Sma5hMusic.GUI.Views.CustomTextColorModalWindow"
+        Title="Custom Color">
+  <DockPanel Classes="modal" LastChildFill="True" HorizontalAlignment="Stretch">
+    <Border Classes="headerTitle" DockPanel.Dock="Top">
+      <TextBlock>Custom Color</TextBlock>
+    </Border>
+    <StackPanel Classes="modalActions" DockPanel.Dock="Bottom">
+      <Button x:Name="OkButton" Content="Apply"></Button>
+      <Button x:Name="CancelButton" Content="Cancel"></Button>
+    </StackPanel>
+
+    <StackPanel Classes="content" HorizontalAlignment="Center">
+      <TextBlock Text="Hex value" HorizontalAlignment="Center"/>
+      <Grid ColumnDefinitions="Auto,160" Margin="0,8,0,0">
+        <Border Grid.Column="0" BorderBrush="#777" BorderThickness="1,1,0,1" Padding="8,3" MinHeight="28">
+          <TextBlock Text="#" VerticalAlignment="Center"/>
+        </Border>
+        <TextBox x:Name="HexTextBox" Grid.Column="1" MaxLength="8" MinHeight="28"/>
+      </Grid>
+      <TextBlock x:Name="ValidationText" Foreground="#CC5555" FontSize="11" Margin="0,4,0,0"/>
+    </StackPanel>
+  </DockPanel>
+</Window>
