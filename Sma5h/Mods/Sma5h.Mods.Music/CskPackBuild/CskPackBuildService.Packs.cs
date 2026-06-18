@@ -283,8 +283,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 GetArray(songData, "series_database_entries").Add(CreateSeriesDatabaseEntry(series, coreSeriesOverride, dispOrderSound));
             }
 
-            msgTitleEntries.Add(MakeEntry($"tit_series_snd_{seriesName}", EscapeXml(seriesTitle)));
-            msgTitleEntries.Add(MakeEntry($"tit_series_{seriesName}", EscapeXml(seriesTitle)));
+            msgTitleEntries.Add(MakeEntry($"tit_series_snd_{seriesName}", seriesTitle));
+            msgTitleEntries.Add(MakeEntry($"tit_series_{seriesName}", seriesTitle));
 
             foreach (JObject game in GetArray(series, "games"))
             {
@@ -301,7 +301,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     AddGameTitleEntry(songData, effectiveGame);
 
                 var gameTitle = GetLocalizedString(effectiveGame["msbt_title"], gameName);
-                msgTitleEntries.Add(MakeEntry($"tit_{gameName}", EscapeXml(gameTitle)));
+                msgTitleEntries.Add(MakeEntry($"tit_{gameName}", gameTitle));
 
                 foreach (JObject bgm in GetArray(game, "bgms"))
                     orderCounter = ProcessBgm(bgm, songData, playlistData, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, orderCounter);

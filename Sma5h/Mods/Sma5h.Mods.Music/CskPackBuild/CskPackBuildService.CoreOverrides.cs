@@ -33,7 +33,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             foreach (var gameMeta in GetCoreGameMovedGames(series, metadata, coreGameOverride))
             {
                 var gameTitle = GetLocalizedString(gameMeta["msbt_title"], GetString(gameMeta, "name_id"));
-                msgTitleEntries.Add(MakeEntry($"tit_{GetString(gameMeta, "name_id")}", EscapeXml(gameTitle)));
+                msgTitleEntries.Add(MakeEntry($"tit_{GetString(gameMeta, "name_id")}", gameTitle));
 
                 foreach (JObject bgm in GetArray(gameMeta, "bgms"))
                     orderCounter = ProcessBgm(bgm, songData, playlistOverride, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, orderCounter);
@@ -311,7 +311,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var entryId = $"tit_{GetString(game, "name_id")}";
                     if (alreadyAdded.Add(entryId))
-                        msgTitleEntries.Add(MakeEntry(entryId, EscapeXml(gameTitle)));
+                        msgTitleEntries.Add(MakeEntry(entryId, gameTitle));
                 }
             }
         }
