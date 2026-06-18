@@ -7,7 +7,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Sma5h.Mods.Music.CskPackBuild
 {
@@ -55,9 +54,17 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Messages
 
+        private const string GameTextTagOpenMarker = "{{";
+        private const string GameTextTagCloseMarker = "}}";
+        private const string GameTextTagOpen = "\u000e\u0000\u0002\u0002P";
+        private const string GameTextTagClose = "\u000e\u0000\u0002\u0002d";
+
         private static string MakeEntry(string label, string text)
         {
-            return $"<entry label=\"{label}\">\r\n<text>{text}</text>\r\n</entry>";
+            if (ContainsGameTextTagMarker(text))
+                return $"<entry label=\"{label}\" base64=\"true\">\r\n<text><![CDATA[{EncodeGameTextAsBase64(text)}]]></text>\r\n</entry>";
+
+            return $"<entry label=\"{label}\">\r\n<text>{EscapeXml(text)}</text>\r\n</entry>";
         }
 
         private static bool HasMessageEntry(List<string> entries, string label)
@@ -65,7 +72,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (string.IsNullOrEmpty(label))
                 return false;
 
-            var pattern = $"<entry label=\"{label}\">";
+            var pattern = $"<entry label=\"{label}\"";
             return entries.Any(p => p.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
@@ -74,7 +81,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (string.IsNullOrEmpty(text) || HasMessageEntry(entries, label))
                 return;
 
-            entries.Add(MakeEntry(label, EscapeXml(text)));
+            entries.Add(MakeEntry(label, text));
         }
 
         private static void WriteXmsbt(string path, IEnumerable<string> entries)
@@ -97,13 +104,27 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            text = Regex.Replace(text, "\\{\\{(.*?)\\}\\}", "$1");
             return text
                 .Replace("&", "&amp;")
                 .Replace("<", "&lt;")
                 .Replace(">", "&gt;")
                 .Replace("'", "&apos;")
                 .Replace("\"", "&quot;");
+        }
+
+        private static bool ContainsGameTextTagMarker(string text)
+        {
+            return !string.IsNullOrEmpty(text) &&
+                text.Contains(GameTextTagOpenMarker) &&
+                text.Contains(GameTextTagCloseMarker);
+        }
+
+        private static string EncodeGameTextAsBase64(string text)
+        {
+            var gameText = text
+                .Replace(GameTextTagOpenMarker, GameTextTagOpen)
+                .Replace(GameTextTagCloseMarker, GameTextTagClose);
+            return Convert.ToBase64String(Encoding.Unicode.GetBytes(gameText));
         }
 
         #endregion
