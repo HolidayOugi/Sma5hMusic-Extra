@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using Sma5h.Mods.Music.Helpers;
@@ -23,6 +24,9 @@ namespace Sma5hMusic.GUI.Controls
         private readonly IDisposable _selectionStartSubscription;
         private readonly IDisposable _selectionEndSubscription;
         private readonly IDisposable _dropDownOpenSubscription;
+        private const double PreviewFontSize = 13;
+        private const double SmallTextFontScale = 0.8;
+        private static readonly FontFamily PreviewFontFamily = new FontFamily("Segoe UI,Microsoft YaHei,Simsun,苹方-简,宋体-简");
         private INotifyPropertyChanged _viewModelNotifier;
         private object _dataContext;
         private List<MsbtRichTextSpan> _spans = new List<MsbtRichTextSpan>();
@@ -449,18 +453,100 @@ namespace Sma5hMusic.GUI.Controls
                 return;
 
             _richTextPreview.Children.Clear();
-            foreach (var span in _spans)
+            var chars = ToColoredCharacters();
+            for (var i = 0; i < chars.Count;)
             {
-                var color = MsbtRichTextColorHelper.GetColor(span.ColorId) ?? MsbtRichTextColorHelper.DefaultColor;
-                var textBlock = new TextBlock
+                if (IsSmallTextStart(chars, i))
                 {
-                    Text = span.Text
-                };
-                if (!color.IsDefault)
-                    textBlock.Foreground = Brush.Parse(color.Hex);
+                    var end = FindSmallTextEnd(chars, i + 2);
+                    if (end >= 0)
+                    {
+                        AppendPreviewText(chars.Skip(i + 2).Take(end - i - 2), true);
+                        i = end + 2;
+                        continue;
+                    }
+                }
 
-                _richTextPreview.Children.Add(textBlock);
+                var nextMarker = FindNextSmallTextStart(chars, i + 1);
+                var takeCount = (nextMarker >= 0 ? nextMarker : chars.Count) - i;
+                AppendPreviewText(chars.Skip(i).Take(takeCount), false);
+                i += takeCount;
             }
+        }
+
+        private void AppendPreviewText(IEnumerable<ColoredCharacter> characters, bool isSmallText)
+        {
+            var activeColorId = (string)null;
+            var text = string.Empty;
+            foreach (var character in characters)
+            {
+                if (!string.Equals(activeColorId, character.ColorId, StringComparison.OrdinalIgnoreCase))
+                {
+                    AddPreviewTextBlock(text, activeColorId, isSmallText);
+                    text = string.Empty;
+                    activeColorId = character.ColorId;
+                }
+
+                text += character.Value;
+            }
+
+            AddPreviewTextBlock(text, activeColorId, isSmallText);
+        }
+
+        private void AddPreviewTextBlock(string text, string colorId, bool isSmallText)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            var color = MsbtRichTextColorHelper.GetColor(colorId) ?? MsbtRichTextColorHelper.DefaultColor;
+            var fontSize = isSmallText ? PreviewFontSize * SmallTextFontScale : PreviewFontSize;
+            var textBlock = new TextBlock
+            {
+                Text = text,
+                FontFamily = PreviewFontFamily,
+                FontSize = fontSize,
+                VerticalAlignment = VerticalAlignment.Bottom
+            };
+            if (!color.IsDefault)
+                textBlock.Foreground = Brush.Parse(color.Hex);
+
+            _richTextPreview.Children.Add(textBlock);
+        }
+
+        private static bool IsSmallTextStart(IList<ColoredCharacter> characters, int index)
+        {
+            return index + 1 < characters.Count &&
+                   characters[index].Value == '{' &&
+                   characters[index + 1].Value == '{';
+        }
+
+        private static bool IsSmallTextEnd(IList<ColoredCharacter> characters, int index)
+        {
+            return index + 1 < characters.Count &&
+                   characters[index].Value == '}' &&
+                   characters[index + 1].Value == '}';
+        }
+
+        private static int FindSmallTextEnd(IList<ColoredCharacter> characters, int startIndex)
+        {
+            for (var i = startIndex; i < characters.Count - 1; i++)
+            {
+                if (IsSmallTextEnd(characters, i))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private static int FindNextSmallTextStart(IList<ColoredCharacter> characters, int startIndex)
+        {
+            for (var i = startIndex; i < characters.Count - 1; i++)
+            {
+                if (IsSmallTextStart(characters, i))
+                    return i;
+            }
+
+            return -1;
         }
 
         private class ColoredCharacter

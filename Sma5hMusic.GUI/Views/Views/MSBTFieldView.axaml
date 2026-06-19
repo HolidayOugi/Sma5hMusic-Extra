@@ -13,18 +13,9 @@
       <Setter Property="MinHeight" Value="28"/>
       <Setter Property="Height" Value="28"/>
     </Style>
-    <Style Selector="TextBox#RichTextEditor">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Foreground" Value="Transparent"/>
-    </Style>
-    <Style Selector="TextBox#RichTextEditor:pointerover">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
-    </Style>
-    <Style Selector="TextBox#RichTextEditor:focus">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
+    <Style Selector="TextBlock#DisplayedTitleLabel">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Margin" Value="0,9,0,0"/>
     </Style>
     <Style Selector="Button#SmallTextMarkerButton">
       <Setter Property="Width" Value="28"/>
@@ -74,15 +65,16 @@
       </ComboBox>
     </StackPanel>
     <TextBox IsVisible="{Binding !EnableColorFormatting}" Classes="jpnSupport" Text="{Binding CurrentLocalizedValue}" AcceptsReturn="{Binding AcceptsReturn}"/>
-    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding EnableColorFormatting}">
-      <Grid Grid.Column="0" ClipToBounds="True">
-        <Border x:Name="RichTextEditorFrame" BorderBrush="#777" BorderThickness="1" CornerRadius="2"
-                Background="Transparent" MinHeight="28" Padding="4,5" Margin="0,1,0,0" ClipToBounds="True">
-          <StackPanel x:Name="RichTextPreview" Orientation="Horizontal"/>
-        </Border>
-        <TextBox x:Name="RichTextEditor" Classes="jpnSupport" AcceptsReturn="{Binding AcceptsReturn}"/>
+    <StackPanel IsVisible="{Binding EnableColorFormatting}" Spacing="4">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox x:Name="RichTextEditor" Grid.Column="0" Classes="jpnSupport" AcceptsReturn="{Binding AcceptsReturn}"/>
+        <Button x:Name="SmallTextMarkerButton" Grid.Column="1" Content="S" IsVisible="{Binding EnableColorFormatting}"/>
       </Grid>
-      <Button x:Name="SmallTextMarkerButton" Grid.Column="1" Content="S" IsVisible="{Binding EnableColorFormatting}"/>
-    </Grid>
+      <TextBlock x:Name="DisplayedTitleLabel" Text="Displayed Title"/>
+      <Border x:Name="RichTextEditorFrame" BorderBrush="#777" BorderThickness="1" CornerRadius="2"
+              Background="Transparent" MinHeight="28" Padding="4,5" Margin="0,0,0,0" ClipToBounds="True">
+          <StackPanel x:Name="RichTextPreview" Orientation="Horizontal"/>
+      </Border>
+    </StackPanel>
   </StackPanel>
 </UserControl>
