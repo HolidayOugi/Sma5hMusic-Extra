@@ -94,9 +94,10 @@ namespace Sma5hMusic.GUI.Controls
             };
             if (isSmallText)
             {
-                textBlock.RenderTransformOrigin = new RelativePoint(0, 1, RelativeUnit.Relative);
-                textBlock.RenderTransform = new ScaleTransform(SmallTextScale, SmallTextScale);
+                var baseFontSize = textBlock.FontSize > 0 ? textBlock.FontSize : 12;
+                textBlock.FontSize = baseFontSize * SmallTextScale;
             }
+
             if (!color.IsDefault)
                 textBlock.Foreground = Brush.Parse(color.Hex);
 
