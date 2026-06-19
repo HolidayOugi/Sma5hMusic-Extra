@@ -39,9 +39,7 @@ namespace Sma5hMusic.GUI.Views
                 return;
 
             var text = _hexTextBox.Text ?? string.Empty;
-            var sanitized = new string(text.Where(Uri.IsHexDigit).ToArray()).ToUpperInvariant();
-            if (sanitized.Length > 8)
-                sanitized = sanitized.Substring(0, 8);
+            var sanitized = text.ToUpperInvariant();
 
             if (!string.Equals(text, sanitized, StringComparison.Ordinal))
             {
@@ -50,9 +48,18 @@ namespace Sma5hMusic.GUI.Views
                 _isSyncing = false;
             }
 
-            var valid = sanitized.Length == 6 || sanitized.Length == 8;
+            var hasOnlyHexDigits = sanitized.All(IsAsciiHexDigit);
+            var valid = sanitized.Length == 6 && hasOnlyHexDigits;
             _okButton.IsEnabled = valid;
-            _validationText.Text = string.IsNullOrEmpty(sanitized) || valid ? string.Empty : "Use 6 or 8 hex digits.";
+            _validationText.Text = string.IsNullOrEmpty(sanitized) || valid
+                ? string.Empty
+                : hasOnlyHexDigits ? "Use 6 hex digits." : "Use only hex digits.";
+        }
+
+        private static bool IsAsciiHexDigit(char value)
+        {
+            return (value >= '0' && value <= '9') ||
+                   (value >= 'A' && value <= 'F');
         }
     }
 }

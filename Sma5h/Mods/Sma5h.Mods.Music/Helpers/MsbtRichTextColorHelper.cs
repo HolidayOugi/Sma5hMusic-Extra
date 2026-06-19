@@ -13,22 +13,22 @@ namespace Sma5h.Mods.Music.Helpers
 
         public static readonly IReadOnlyList<MsbtTextColor> Colors = new List<MsbtTextColor>
         {
-            new MsbtTextColor("default", "Default", 0xFF, 0xFF, 0xFF, 0xFF, true),
-            new MsbtTextColor("white", "White", 0xFF, 0xFF, 0xFF, 0xFF),
-            new MsbtTextColor("red", "Red", 0xFF, 0x00, 0x00, 0xFF),
-            new MsbtTextColor("orange", "Orange", 0xFF, 0xA5, 0x00, 0xFF),
-            new MsbtTextColor("yellow", "Yellow", 0xFF, 0xFF, 0x00, 0xFF),
-            new MsbtTextColor("green", "Green", 0x00, 0x80, 0x00, 0xFF),
-            new MsbtTextColor("lime", "Lime", 0x00, 0xFF, 0x00, 0xFF),
-            new MsbtTextColor("cyan", "Cyan", 0x00, 0xFF, 0xFF, 0xFF),
-            new MsbtTextColor("blue", "Blue", 0x00, 0x00, 0xFF, 0xFF),
-            new MsbtTextColor("purple", "Purple", 0x80, 0x00, 0x80, 0xFF),
-            new MsbtTextColor("pink", "Pink", 0xFF, 0x69, 0xB4, 0xFF),
-            new MsbtTextColor("gray", "Gray", 0x80, 0x80, 0x80, 0xFF)
+            new MsbtTextColor("default", "Default", 0xFF, 0xFF, 0xFF, true),
+            new MsbtTextColor("white", "White", 0xFF, 0xFF, 0xFF),
+            new MsbtTextColor("red", "Red", 0xFF, 0x00, 0x00),
+            new MsbtTextColor("orange", "Orange", 0xFF, 0xA5, 0x00),
+            new MsbtTextColor("yellow", "Yellow", 0xFF, 0xFF, 0x00),
+            new MsbtTextColor("green", "Green", 0x00, 0x80, 0x00),
+            new MsbtTextColor("lime", "Lime", 0x00, 0xFF, 0x00),
+            new MsbtTextColor("cyan", "Cyan", 0x00, 0xFF, 0xFF),
+            new MsbtTextColor("blue", "Blue", 0x00, 0x00, 0xFF),
+            new MsbtTextColor("purple", "Purple", 0x80, 0x00, 0x80),
+            new MsbtTextColor("pink", "Pink", 0xFF, 0x69, 0xB4),
+            new MsbtTextColor("gray", "Gray", 0x80, 0x80, 0x80)
         };
 
         public static readonly MsbtTextColor DefaultColor = Colors[0];
-        public static readonly MsbtTextColor CustomColorSelector = new MsbtTextColor("custom", "Custom...", 0x00, 0x00, 0x00, 0x00, false, true);
+        public static readonly MsbtTextColor CustomColorSelector = new MsbtTextColor("custom", "Custom...", 0x00, 0x00, 0x00, false, true);
 
         public static bool ContainsColorMarkup(string text)
         {
@@ -184,43 +184,29 @@ namespace Sma5h.Mods.Music.Helpers
             if (hex.Length != 6 && hex.Length != 8)
                 return false;
 
-            if (!uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out var parsed))
+            var rgbHex = hex.Length == 8 ? hex.Substring(0, 6) : hex;
+            if (!uint.TryParse(rgbHex, System.Globalization.NumberStyles.HexNumber, null, out var parsed))
                 return false;
 
-            byte alpha;
-            byte red;
-            byte green;
-            byte blue;
-            if (hex.Length == 8)
-            {
-                alpha = (byte)((parsed >> 24) & 0xFF);
-                red = (byte)((parsed >> 16) & 0xFF);
-                green = (byte)((parsed >> 8) & 0xFF);
-                blue = (byte)(parsed & 0xFF);
-            }
-            else
-            {
-                alpha = 0xFF;
-                red = (byte)((parsed >> 16) & 0xFF);
-                green = (byte)((parsed >> 8) & 0xFF);
-                blue = (byte)(parsed & 0xFF);
-            }
+            var red = (byte)((parsed >> 16) & 0xFF);
+            var green = (byte)((parsed >> 8) & 0xFF);
+            var blue = (byte)(parsed & 0xFF);
 
-            color = new MsbtTextColor(value.ToLowerInvariant(), value, red, green, blue, alpha);
+            var normalizedHex = "#" + rgbHex.ToUpperInvariant();
+            color = new MsbtTextColor(normalizedHex.ToLowerInvariant(), normalizedHex, red, green, blue);
             return true;
         }
     }
 
     public class MsbtTextColor
     {
-        public MsbtTextColor(string id, string label, byte red, byte green, byte blue, byte alpha, bool isDefault = false, bool isCustomSelector = false)
+        public MsbtTextColor(string id, string label, byte red, byte green, byte blue, bool isDefault = false, bool isCustomSelector = false)
         {
             Id = id;
             Label = label;
             Red = red;
             Green = green;
             Blue = blue;
-            Alpha = alpha;
             IsDefault = isDefault;
             IsCustomSelector = isCustomSelector;
             Hex = isDefault || isCustomSelector ? "Transparent" : $"#{red:X2}{green:X2}{blue:X2}";
@@ -231,7 +217,6 @@ namespace Sma5h.Mods.Music.Helpers
         public byte Red { get; }
         public byte Green { get; }
         public byte Blue { get; }
-        public byte Alpha { get; }
         public bool IsDefault { get; }
         public bool IsCustomSelector { get; }
         public string Hex { get; }

@@ -26,18 +26,18 @@ namespace Sma5h.ResourceProviders
         private static readonly IReadOnlyDictionary<string, MsbtTextColor> ColorMap =
             new List<MsbtTextColor>
             {
-                new MsbtTextColor("default", 0x00, 0x00, 0x00, 0x00, true),
-                new MsbtTextColor("white", 0xFF, 0xFF, 0xFF, 0xFF),
-                new MsbtTextColor("red", 0xFF, 0x00, 0x00, 0xFF),
-                new MsbtTextColor("orange", 0xFF, 0xA5, 0x00, 0xFF),
-                new MsbtTextColor("yellow", 0xFF, 0xFF, 0x00, 0xFF),
-                new MsbtTextColor("green", 0x00, 0x80, 0x00, 0xFF),
-                new MsbtTextColor("lime", 0x00, 0xFF, 0x00, 0xFF),
-                new MsbtTextColor("cyan", 0x00, 0xFF, 0xFF, 0xFF),
-                new MsbtTextColor("blue", 0x00, 0x00, 0xFF, 0xFF),
-                new MsbtTextColor("purple", 0x80, 0x00, 0x80, 0xFF),
-                new MsbtTextColor("pink", 0xFF, 0x69, 0xB4, 0xFF),
-                new MsbtTextColor("gray", 0x80, 0x80, 0x80, 0xFF)
+                new MsbtTextColor("default", 0xFF, 0xFF, 0xFF, true),
+                new MsbtTextColor("white", 0xFF, 0xFF, 0xFF),
+                new MsbtTextColor("red", 0xFF, 0x00, 0x00),
+                new MsbtTextColor("orange", 0xFF, 0xA5, 0x00),
+                new MsbtTextColor("yellow", 0xFF, 0xFF, 0x00),
+                new MsbtTextColor("green", 0x00, 0x80, 0x00),
+                new MsbtTextColor("lime", 0x00, 0xFF, 0x00),
+                new MsbtTextColor("cyan", 0x00, 0xFF, 0xFF),
+                new MsbtTextColor("blue", 0x00, 0x00, 0xFF),
+                new MsbtTextColor("purple", 0x80, 0x00, 0x80),
+                new MsbtTextColor("pink", 0xFF, 0x69, 0xB4),
+                new MsbtTextColor("gray", 0x80, 0x80, 0x80)
             }.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
 
         public MsbtResourceProvider(IOptionsMonitor<Sma5hOptions> config, ILogger<MsbtResourceProvider> logger)
@@ -179,28 +179,13 @@ namespace Sma5h.ResourceProviders
 
             var hex = colorId.TrimStart('#');
             if (colorId.StartsWith("#") && (hex.Length == 6 || hex.Length == 8) &&
-                uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out var parsed))
+                uint.TryParse(hex.Length == 8 ? hex.Substring(0, 6) : hex, System.Globalization.NumberStyles.HexNumber, null, out var parsed))
             {
-                byte alpha;
-                byte red;
-                byte green;
-                byte blue;
-                if (hex.Length == 8)
-                {
-                    alpha = (byte)((parsed >> 24) & 0xFF);
-                    red = (byte)((parsed >> 16) & 0xFF);
-                    green = (byte)((parsed >> 8) & 0xFF);
-                    blue = (byte)(parsed & 0xFF);
-                }
-                else
-                {
-                    alpha = 0xFF;
-                    red = (byte)((parsed >> 16) & 0xFF);
-                    green = (byte)((parsed >> 8) & 0xFF);
-                    blue = (byte)(parsed & 0xFF);
-                }
+                var red = (byte)((parsed >> 16) & 0xFF);
+                var green = (byte)((parsed >> 8) & 0xFF);
+                var blue = (byte)(parsed & 0xFF);
 
-                color = new MsbtTextColor(colorId, red, green, blue, alpha);
+                color = new MsbtTextColor(colorId, red, green, blue);
                 return true;
             }
 
@@ -213,18 +198,17 @@ namespace Sma5h.ResourceProviders
             bytes.Add(color.Red);
             bytes.Add(color.Green);
             bytes.Add(color.Blue);
-            bytes.Add(color.Alpha);
+            bytes.Add(color.IsDefault ? (byte)0x00 : (byte)0xFF);
         }
 
         private class MsbtTextColor
         {
-            public MsbtTextColor(string id, byte red, byte green, byte blue, byte alpha, bool isDefault = false)
+            public MsbtTextColor(string id, byte red, byte green, byte blue, bool isDefault = false)
             {
                 Id = id;
                 Red = red;
                 Green = green;
                 Blue = blue;
-                Alpha = alpha;
                 IsDefault = isDefault;
             }
 
@@ -232,7 +216,6 @@ namespace Sma5h.ResourceProviders
             public byte Red { get; }
             public byte Green { get; }
             public byte Blue { get; }
-            public byte Alpha { get; }
             public bool IsDefault { get; }
         }
 

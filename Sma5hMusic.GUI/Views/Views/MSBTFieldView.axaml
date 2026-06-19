@@ -61,7 +61,7 @@
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <ComboBox x:Name="TextColorComboBox" Classes="noBorder" IsVisible="{Binding EnableColorFormatting}" Width="108"
+      <ComboBox x:Name="TextColorComboBox" Classes="noBorder" IsVisible="{Binding EnableColorFormatting}" Width="128"
                 SelectedItem="{Binding SelectedTextColor, Mode=TwoWay}" Items="{Binding TextColorOptions}">
         <ComboBox.ItemTemplate>
           <DataTemplate>

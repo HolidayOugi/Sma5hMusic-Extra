@@ -193,7 +193,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             bytes.Add(color.Red);
             bytes.Add(color.Green);
             bytes.Add(color.Blue);
-            bytes.Add(color.Alpha);
+            bytes.Add(0xFF);
         }
 
         private static void AddDefaultColorMarkerBytes(List<byte> bytes)
