@@ -15,6 +15,7 @@ namespace Sma5h.Mods.Music.Helpers
         {
             new MsbtTextColor("default", "Default", 0xFF, 0xFF, 0xFF, true),
             new MsbtTextColor("white", "White", 0xFF, 0xFF, 0xFF),
+            new MsbtTextColor("black", "Black", 0x11, 0x11, 0x11),
             new MsbtTextColor("red", "Red", 0xFF, 0x00, 0x00),
             new MsbtTextColor("orange", "Orange", 0xFF, 0xA5, 0x00),
             new MsbtTextColor("yellow", "Yellow", 0xFF, 0xFF, 0x00),
