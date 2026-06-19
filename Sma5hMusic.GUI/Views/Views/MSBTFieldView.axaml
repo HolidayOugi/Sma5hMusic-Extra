@@ -26,6 +26,17 @@
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
     </Style>
+    <Style Selector="Button#SmallTextMarkerButton">
+      <Setter Property="Width" Value="28"/>
+      <Setter Property="MinWidth" Value="28"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0,1,0,0"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
   </UserControl.Styles>
   <StackPanel>
     <StackPanel x:Name="MsbtToolbar" Orientation="Horizontal" Spacing="6">
@@ -43,6 +54,13 @@
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
+      <ComboBox Classes="noBorder" Width="90" PlaceholderText="Copy..." SelectedItem="{Binding SelectedCopyAction, Mode=TwoWay}" Items="{Binding CopyActions}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
       <ComboBox x:Name="TextColorComboBox" Classes="noBorder" IsVisible="{Binding EnableColorFormatting}" Width="108"
                 SelectedItem="{Binding SelectedTextColor, Mode=TwoWay}" Items="{Binding TextColorOptions}">
         <ComboBox.ItemTemplate>
@@ -54,21 +72,17 @@
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <ComboBox Classes="noBorder" Width="90" PlaceholderText="Copy..." SelectedItem="{Binding SelectedCopyAction, Mode=TwoWay}" Items="{Binding CopyActions}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate>
-            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
     </StackPanel>
     <TextBox IsVisible="{Binding !EnableColorFormatting}" Classes="jpnSupport" Text="{Binding CurrentLocalizedValue}" AcceptsReturn="{Binding AcceptsReturn}"/>
-    <Grid IsVisible="{Binding EnableColorFormatting}">
-      <Border x:Name="RichTextEditorFrame" BorderBrush="#777" BorderThickness="1" CornerRadius="2"
-              Background="Transparent" MinHeight="28" Padding="4,5" Margin="0,1,0,0">
-        <StackPanel x:Name="RichTextPreview" Orientation="Horizontal"/>
-      </Border>
-      <TextBox x:Name="RichTextEditor" Classes="jpnSupport" AcceptsReturn="{Binding AcceptsReturn}"/>
+    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding EnableColorFormatting}">
+      <Grid Grid.Column="0">
+        <Border x:Name="RichTextEditorFrame" BorderBrush="#777" BorderThickness="1" CornerRadius="2"
+                Background="Transparent" MinHeight="28" Padding="4,5" Margin="0,1,0,0">
+          <StackPanel x:Name="RichTextPreview" Orientation="Horizontal"/>
+        </Border>
+        <TextBox x:Name="RichTextEditor" Classes="jpnSupport" AcceptsReturn="{Binding AcceptsReturn}"/>
+      </Grid>
+      <Button x:Name="SmallTextMarkerButton" Grid.Column="1" Content="S" IsVisible="{Binding EnableColorFormatting}"/>
     </Grid>
   </StackPanel>
 </UserControl>

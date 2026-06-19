@@ -21,7 +21,8 @@ namespace Sma5hMusic.GUI.Views
             _richTextController = new MsbtRichTextEditorController(
                 this.FindControl<TextBox>("RichTextEditor"),
                 this.FindControl<StackPanel>("RichTextPreview"),
-                this.FindControl<ComboBox>("TextColorComboBox"));
+                this.FindControl<ComboBox>("TextColorComboBox"),
+                this.FindControl<Button>("SmallTextMarkerButton"));
         }
 
         protected override void OnDataContextChanged(EventArgs e)

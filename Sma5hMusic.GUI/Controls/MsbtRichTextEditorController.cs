@@ -18,6 +18,7 @@ namespace Sma5hMusic.GUI.Controls
         private readonly TextBox _editor;
         private readonly StackPanel _richTextPreview;
         private readonly ComboBox _textColorComboBox;
+        private readonly Button _smallTextMarkerButton;
         private readonly IDisposable _editorTextSubscription;
         private readonly IDisposable _selectionStartSubscription;
         private readonly IDisposable _selectionEndSubscription;
@@ -35,11 +36,12 @@ namespace Sma5hMusic.GUI.Controls
         private bool _isSyncing;
         private MsbtTextColor _lastTextColor = MsbtRichTextColorHelper.DefaultColor;
 
-        public MsbtRichTextEditorController(TextBox editor, StackPanel richTextPreview, ComboBox textColorComboBox)
+        public MsbtRichTextEditorController(TextBox editor, StackPanel richTextPreview, ComboBox textColorComboBox, Button smallTextMarkerButton)
         {
             _editor = editor;
             _richTextPreview = richTextPreview;
             _textColorComboBox = textColorComboBox;
+            _smallTextMarkerButton = smallTextMarkerButton;
 
             if (_editor != null)
             {
@@ -55,6 +57,12 @@ namespace Sma5hMusic.GUI.Controls
                 _textColorComboBox.SelectionChanged += TextColorComboBoxSelectionChanged;
                 _dropDownOpenSubscription = _textColorComboBox.GetObservable(ComboBox.IsDropDownOpenProperty)
                     .Subscribe(TextColorDropDownOpenChanged);
+            }
+
+            if (_smallTextMarkerButton != null)
+            {
+                _smallTextMarkerButton.PointerPressed += SmallTextMarkerButtonPointerPressed;
+                _smallTextMarkerButton.Click += SmallTextMarkerButtonClick;
             }
         }
 
@@ -82,6 +90,11 @@ namespace Sma5hMusic.GUI.Controls
                 _textColorComboBox.PointerPressed -= TextColorComboBoxPointerPressed;
                 _textColorComboBox.SelectionChanged -= TextColorComboBoxSelectionChanged;
             }
+            if (_smallTextMarkerButton != null)
+            {
+                _smallTextMarkerButton.PointerPressed -= SmallTextMarkerButtonPointerPressed;
+                _smallTextMarkerButton.Click -= SmallTextMarkerButtonClick;
+            }
 
             _editorTextSubscription?.Dispose();
             _selectionStartSubscription?.Dispose();
@@ -97,6 +110,50 @@ namespace Sma5hMusic.GUI.Controls
         private void TextColorComboBoxPointerPressed(object sender, PointerPressedEventArgs e)
         {
             StorePendingColorSelection();
+        }
+
+        private void SmallTextMarkerButtonPointerPressed(object sender, PointerPressedEventArgs e)
+        {
+            StorePendingColorSelection();
+        }
+
+        private void SmallTextMarkerButtonClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (_editor == null || !(_dataContext is MSBTFieldViewModel viewModel) || !viewModel.EnableColorFormatting)
+                return;
+
+            var start = Math.Min(_selectionStart, _selectionEnd);
+            var end = Math.Max(_selectionStart, _selectionEnd);
+            if (end <= start)
+            {
+                start = _pendingColorSelectionStart;
+                end = _pendingColorSelectionEnd;
+            }
+
+            var chars = ToColoredCharacters();
+            var markerColorId = MsbtRichTextColorHelper.DefaultColor.Id;
+            if (end > start)
+            {
+                start = Math.Max(0, Math.Min(start, chars.Count));
+                end = Math.Max(start, Math.Min(end, chars.Count));
+                chars.InsertRange(end, "}}".Select(p => new ColoredCharacter(p, markerColorId)));
+                chars.InsertRange(start, "{{".Select(p => new ColoredCharacter(p, markerColorId)));
+            }
+            else
+            {
+                start = chars.Count;
+                chars.AddRange("{{}}".Select(p => new ColoredCharacter(p, markerColorId)));
+            }
+
+            _spans = FromColoredCharacters(chars);
+            _plainText = MsbtRichTextColorHelper.ToPlainText(_spans);
+            _isSyncing = true;
+            _editor.Text = _plainText;
+            _isSyncing = false;
+            SaveToViewModel(viewModel);
+            UpdatePreview();
+            CollapseEditorSelection(end > start ? end + 4 : _plainText.Length);
+            ClearPendingColorSelection();
         }
 
         private void TextColorDropDownOpenChanged(bool isOpen)
