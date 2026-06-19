@@ -198,7 +198,7 @@ namespace Sma5h.ResourceProviders
             bytes.Add(color.Red);
             bytes.Add(color.Green);
             bytes.Add(color.Blue);
-            bytes.Add(color.IsDefault ? (byte)0x00 : (byte)0xFF);
+            bytes.Add(0xFF);
         }
 
         private class MsbtTextColor
