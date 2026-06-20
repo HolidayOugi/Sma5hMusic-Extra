@@ -79,14 +79,18 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return Task.Run(() => BuildInternal(selected, CskPackBuildMode.Single, locale));
         }
 
-        public Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null)
+        public Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null, bool includeCoreOverrideOnly = false)
         {
             return Task.Run<IReadOnlyList<CskPackSeriesOption>>(() =>
             {
                 _currentBuildLocale.Value = locale;
                 try
                 {
-                    var contexts = LoadModContexts(GetMusicMods());
+                    var mods = GetMusicMods();
+                    var contexts = LoadModContexts(mods);
+                    if (includeCoreOverrideOnly && mods.Count == 0 && contexts.Count == 0)
+                        contexts = LoadCoreOverrideContexts(LoadBuildResources());
+
                     return contexts
                         .SelectMany(context => context.SeriesList.Select(series => CreateSeriesOption(context, series)))
                         .OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -111,11 +115,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
             try
             {
                 var mods = GetMusicMods();
-                if (mods.Count == 0)
-                    throw new InvalidOperationException("No music mods were found.");
+                var buildResources = LoadBuildResources();
 
                 var contexts = LoadModContexts(mods);
-                if (contexts.Count == 0)
+                var coreOverrideOnly = buildMode == CskPackBuildMode.Single && mods.Count == 0 && contexts.Count == 0 && buildResources.HasCoreOverrides;
+                if (coreOverrideOnly)
+                    contexts = LoadCoreOverrideContexts(buildResources);
+                else if (mods.Count == 0)
+                    throw new InvalidOperationException("No music mods were found.");
+                else if (contexts.Count == 0)
                     throw new InvalidOperationException("No metadata_mod.json files were found in the currently loaded music mods.");
 
                 if (selectedSeriesKeys == null)
@@ -128,13 +136,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 if (selectedSeriesKeys.Count == 0)
                     throw new InvalidOperationException("No CSK pack series were selected.");
 
-                var buildResources = LoadBuildResources();
                 var outputRoot = PrepareOutputRoot();
                 var tempRoot = Path.Combine(outputRoot, CskTempFolder);
 
                 try
                 {
-                    var includeAudio = buildMode != CskPackBuildMode.MetadataOnly;
+                    var includeAudio = buildMode != CskPackBuildMode.MetadataOnly && !coreOverrideOnly;
                     _unavailableBgmNameIds.Value = includeAudio
                         ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                         : null;

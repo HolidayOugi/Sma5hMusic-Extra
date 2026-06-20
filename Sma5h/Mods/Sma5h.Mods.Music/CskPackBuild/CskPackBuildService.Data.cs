@@ -31,11 +31,42 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public Dictionary<string, string> CoreGameSeriesById { get; set; }
             public HashSet<string> CoreBgmIds { get; set; }
             public JObject PlaylistData { get; set; }
+            public bool HasCoreOverrides { get; set; }
             public JObject OrderOverride { get; set; }
+            public JObject RawCoreBgmOverride { get; set; }
+            public JObject RawCoreGameOverride { get; set; }
+            public JObject RawCoreSeriesOverride { get; set; }
             public JObject CoreBgmOverride { get; set; }
             public JObject CoreGameOverride { get; set; }
             public JObject CoreSeriesOverride { get; set; }
             public JObject StageOverride { get; set; }
+        }
+
+        private class CoreOverrideMusicMod : IMusicMod
+        {
+            private readonly MusicModInformation _mod;
+
+            public CoreOverrideMusicMod(string modPath)
+            {
+                ModPath = modPath;
+                _mod = new MusicModInformation
+                {
+                    Name = "Replaced Songs"
+                };
+            }
+
+            public string Id => "core_overrides";
+            public string Name => _mod.Name;
+            public string ModPath { get; }
+            public MusicModInformation Mod => _mod;
+
+            public bool UpdateModInformation(MusicModInformation configBase) => false;
+            public MusicModEntries GetMusicModEntries() => new MusicModEntries();
+            public System.Threading.Tasks.Task<bool> AddOrUpdateMusicModEntries(MusicModEntries musicModEntries) => System.Threading.Tasks.Task.FromResult(false);
+            public bool ReorderSongs(List<string> list) => false;
+            public bool AdjustSongVolumes(float amount, float minimumVolume, float maximumVolume) => false;
+            public bool SetSongVolumes(float volume, float minimumVolume, float maximumVolume) => false;
+            public bool RemoveMusicModEntries(MusicModDeleteEntries musicModDeleteEntries) => false;
         }
 
         #endregion
@@ -83,6 +114,138 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
 
             return contexts;
+        }
+
+        private List<CskModContext> LoadCoreOverrideContexts(CskBuildResources buildResources)
+        {
+            if (buildResources?.HasCoreOverrides != true)
+                return new List<CskModContext>();
+
+            var seriesList = CreateCoreOverrideSeries(buildResources).ToList();
+            if (seriesList.Count == 0)
+                return new List<CskModContext>();
+
+            var modPath = Path.Combine(_config.CurrentValue.Sma5hMusicOverride.ModPath ?? "CoreOverrides", "_core_overrides");
+            var mod = new CoreOverrideMusicMod(modPath);
+            var metadata = new JObject
+            {
+                ["name"] = mod.Name,
+                ["series"] = new JArray(seriesList.Select(p => p.DeepClone()))
+            };
+
+            return new List<CskModContext>
+            {
+                new CskModContext
+                {
+                    Mod = mod,
+                    MetadataPath = "replaced songs",
+                    Metadata = metadata,
+                    PackName = mod.Name,
+                    SafePackName = SanitizePathSegment(mod.Name, "replaced songs", "pack folder name"),
+                    SeriesList = seriesList,
+                    SeriesIdToName = seriesList
+                        .Where(p => !string.IsNullOrEmpty(GetString(p, "ui_series_id")) && !string.IsNullOrEmpty(GetString(p, "name_id")))
+                        .GroupBy(p => GetString(p, "ui_series_id"), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(p => p.Key, p => GetString(p.First(), "name_id"), StringComparer.OrdinalIgnoreCase)
+                }
+            };
+        }
+
+        private IEnumerable<JObject> CreateCoreOverrideSeries(CskBuildResources buildResources)
+        {
+            foreach (var uiSeriesId in GetCoreOverrideSeriesIds(buildResources).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var series = buildResources.CoreSeriesOverride?[uiSeriesId] as JObject ??
+                             CreateFallbackCoreOverrideSeries(uiSeriesId);
+                if (series == null)
+                    continue;
+
+                var output = (JObject)series.DeepClone();
+                output["games"] = CreateCoreOverrideGames(uiSeriesId, buildResources);
+                yield return output;
+            }
+        }
+
+        private IEnumerable<string> GetCoreOverrideSeriesIds(CskBuildResources buildResources)
+        {
+            foreach (var property in buildResources.RawCoreSeriesOverride?.Properties() ?? Enumerable.Empty<JProperty>())
+                yield return property.Name;
+
+            foreach (var property in buildResources.RawCoreGameOverride?.Properties() ?? Enumerable.Empty<JProperty>())
+            {
+                var game = buildResources.CoreGameOverride?[property.Name] as JObject;
+                var uiSeriesId = GetString(game, "ui_series_id");
+                if (!string.IsNullOrEmpty(uiSeriesId))
+                    yield return uiSeriesId;
+            }
+
+            var dbRoots = buildResources.RawCoreBgmOverride?["CoreBgmDbRootOverrides"] as JObject;
+            foreach (var property in dbRoots?.Properties() ?? Enumerable.Empty<JProperty>())
+            {
+                var db = buildResources.CoreBgmOverride?["CoreBgmDbRootOverrides"]?[property.Name] as JObject;
+                var uiSeriesId = GetCoreBgmUiSeriesId(db, buildResources.CoreGameOverride);
+                if (!string.IsNullOrEmpty(uiSeriesId))
+                    yield return uiSeriesId;
+            }
+        }
+
+        private JArray CreateCoreOverrideGames(string uiSeriesId, CskBuildResources buildResources)
+        {
+            var gameIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var property in buildResources.RawCoreGameOverride?.Properties() ?? Enumerable.Empty<JProperty>())
+            {
+                var game = buildResources.CoreGameOverride?[property.Name] as JObject;
+                if (string.Equals(GetString(game, "ui_series_id"), uiSeriesId, StringComparison.OrdinalIgnoreCase))
+                    gameIds.Add(property.Name);
+            }
+
+            var dbRoots = buildResources.RawCoreBgmOverride?["CoreBgmDbRootOverrides"] as JObject;
+            foreach (var property in dbRoots?.Properties() ?? Enumerable.Empty<JProperty>())
+            {
+                var db = buildResources.CoreBgmOverride?["CoreBgmDbRootOverrides"]?[property.Name] as JObject;
+                if (!string.Equals(GetCoreBgmUiSeriesId(db, buildResources.CoreGameOverride), uiSeriesId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var uiGameTitleId = GetString(db, "ui_gametitle_id");
+                if (!string.IsNullOrEmpty(uiGameTitleId))
+                    gameIds.Add(uiGameTitleId);
+            }
+
+            var games = new JArray();
+            foreach (var uiGameTitleId in gameIds)
+            {
+                var game = buildResources.CoreGameOverride?[uiGameTitleId] as JObject;
+                if (game == null)
+                    continue;
+
+                var output = (JObject)game.DeepClone();
+                output["bgms"] = new JArray();
+                games.Add(output);
+            }
+
+            return games;
+        }
+
+        private static JObject CreateFallbackCoreOverrideSeries(string uiSeriesId)
+        {
+            if (string.IsNullOrEmpty(uiSeriesId))
+                return null;
+
+            var nameId = uiSeriesId.StartsWith(MusicConstants.InternalIds.SERIES_ID_PREFIX, StringComparison.OrdinalIgnoreCase)
+                ? uiSeriesId.Substring(MusicConstants.InternalIds.SERIES_ID_PREFIX.Length)
+                : uiSeriesId;
+
+            return new JObject
+            {
+                ["ui_series_id"] = uiSeriesId,
+                ["name_id"] = nameId,
+                ["disp_order"] = 0,
+                ["disp_order_sound"] = 0,
+                ["save_no"] = 0,
+                ["msbt_title"] = new JObject(),
+                ["games"] = new JArray()
+            };
         }
 
         #endregion

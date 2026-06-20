@@ -310,7 +310,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, ref orderCounter);
             PopulateVanillaPlaylists(songData, seriesName, playlistData, coreBgmIds, coreBgmOverride, orderOverride);
             PopulateStageDatabaseEntries(songData, seriesName, stageOverride, playlistData);
-            ProcessCoreBgmOverrides(songData, msgBgmEntries, msgTitleEntries, seriesName, seriesIdToName, coreBgmOverride, orderOverride, coreGameOverride);
+            ProcessCoreBgmOverrides(songData, playlistData, msgBgmEntries, msgTitleEntries, seriesName, seriesIdToName, coreBgmOverride, orderOverride, coreGameOverride, ref orderCounter);
             AddCoreGameOverridesForNewSeries(songData, series, seriesName, coreGameOverride);
         }
 

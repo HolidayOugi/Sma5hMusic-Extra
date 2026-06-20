@@ -80,15 +80,32 @@ namespace Sma5h.Mods.Music.CskPackBuild
             Dictionary<string, string> seriesIdToName,
             JObject coreGameOverride)
         {
-            var gameOverride = coreGameOverride != null && !string.IsNullOrEmpty(uiGameTitleId)
-                ? coreGameOverride[uiGameTitleId] as JObject
-                : null;
-            var gameSeriesId = GetString(gameOverride, "ui_series_id");
+            var gameSeriesId = GetCoreBgmUiSeriesId(uiGameTitleId, dbSeriesId, coreGameOverride);
             var gameSeriesName = GetSeriesNameFromUiSeriesId(gameSeriesId, seriesIdToName);
             if (!string.IsNullOrEmpty(gameSeriesName))
                 return gameSeriesName;
 
             return GetSeriesNameFromUiSeriesId(dbSeriesId, seriesIdToName);
+        }
+
+        private static string GetCoreBgmUiSeriesId(JObject db, JObject coreGameOverride)
+        {
+            return GetCoreBgmUiSeriesId(
+                GetString(db, "ui_gametitle_id"),
+                GetString(db, "ui_series_id"),
+                coreGameOverride);
+        }
+
+        private static string GetCoreBgmUiSeriesId(string uiGameTitleId, string dbSeriesId, JObject coreGameOverride)
+        {
+            if (!string.IsNullOrEmpty(dbSeriesId))
+                return dbSeriesId;
+
+            var gameOverride = coreGameOverride != null && !string.IsNullOrEmpty(uiGameTitleId)
+                ? coreGameOverride[uiGameTitleId] as JObject
+                : null;
+
+            return GetString(gameOverride, "ui_series_id");
         }
 
         private static string GetSeriesNameFromUiSeriesId(string uiSeriesId, Dictionary<string, string> seriesIdToName)
@@ -235,13 +252,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private void ProcessCoreBgmOverrides(
             JObject songData,
+            JObject playlistOverride,
             List<string> msgBgmEntries,
             List<string> msgTitleEntries,
             string seriesName,
             Dictionary<string, string> seriesIdToName,
             JObject coreBgmOverride,
             JObject orderOverride,
-            JObject coreGameOverride)
+            JObject coreGameOverride,
+            ref int orderCounter)
         {
             if (coreBgmOverride == null)
                 return;
@@ -250,7 +269,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var dbRoots = coreBgmOverride["CoreBgmDbRootOverrides"] as JObject ?? new JObject();
             var streamSets = coreBgmOverride["CoreBgmStreamSetOverrides"] as JObject ?? new JObject();
             var assignedInfos = coreBgmOverride["CoreBgmAssignedInfoOverrides"] as JObject ?? new JObject();
+            var streamProperties = coreBgmOverride["CoreBgmStreamPropertyOverrides"] as JObject ?? new JObject();
+            var bgmProperties = coreBgmOverride["CoreBgmPropertyOverrides"] as JObject ?? new JObject();
             var addedAssignedInfos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var addedStreamProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var addedBgmProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var dbProperty in dbRoots.Properties())
             {
@@ -285,6 +308,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ["record_type"] = GetString(db, "record_type", "record_original")
                 });
 
+                orderCounter = AddToPlaylists(uiBgmId, songData, playlistOverride, seriesName, orderCounter);
+
                 AddUniqueJObjectByKey(songData, "stream_set_entries", "stream_set_id", CreateStreamSetEntry(streamSetData, streamSetId));
 
                 for (var i = 0; i < 16; i++)
@@ -296,6 +321,25 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                     if (addedAssignedInfos.Add(infoKey))
                         AddUniqueJObjectByKey(songData, "assigned_info_entries", "info_id", CreateAssignedInfoEntry(assigned));
+
+                    var streamId = GetString(assigned, "stream_id");
+                    if (string.IsNullOrEmpty(streamId))
+                        continue;
+
+                    var streamProperty = streamProperties[streamId] as JObject;
+                    if (streamProperty == null)
+                        continue;
+
+                    if (addedStreamProperties.Add(streamId))
+                        AddUniqueJObjectByKey(songData, "stream_property_entries", "stream_id", (JObject)streamProperty.DeepClone());
+
+                    var streamName = GetString(streamProperty, "data_name0");
+                    if (string.IsNullOrEmpty(streamName))
+                        continue;
+
+                    var bgmProperty = bgmProperties[streamName] as JObject;
+                    if (bgmProperty != null && addedBgmProperties.Add(streamName))
+                        AddUniqueJObjectByKey(songData, "bgm_property_entries", "stream_name", CreateCskBgmPropertyEntry(bgmProperty, streamName));
                 }
 
                 AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_title_{nameId}", db["msbt_title"]);
@@ -314,6 +358,20 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         msgTitleEntries.Add(MakeEntry(entryId, gameTitle));
                 }
             }
+        }
+
+        private static JObject CreateCskBgmPropertyEntry(JObject bgmProperty, string streamName)
+        {
+            return new JObject
+            {
+                ["stream_name"] = string.IsNullOrEmpty(streamName) ? GetString(bgmProperty, "name_id") : streamName,
+                ["loop_start_ms"] = GetInt(bgmProperty, "loop_start_ms", 0),
+                ["loop_start_sample"] = GetInt(bgmProperty, "loop_start_sample", 0),
+                ["loop_end_ms"] = GetInt(bgmProperty, "loop_end_ms", 0),
+                ["loop_end_sample"] = GetInt(bgmProperty, "loop_end_sample", 0),
+                ["duration_ms"] = GetInt(bgmProperty, "duration_ms", GetInt(bgmProperty, "total_time_ms", 0)),
+                ["duration_sample"] = GetInt(bgmProperty, "duration_sample", GetInt(bgmProperty, "total_samples", 0))
+            };
         }
 
         #endregion

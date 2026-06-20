@@ -10,6 +10,6 @@ namespace Sma5h.Mods.Music.Interfaces
         Task Build(IEnumerable<string> selectedSeriesKeys, string locale = null);
         Task BuildMetadataOnly(string locale = null);
         Task BuildSingle(IEnumerable<string> selectedSeriesKeys, string locale = null);
-        Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null);
+        Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null, bool includeCoreOverrideOnly = false);
     }
 }

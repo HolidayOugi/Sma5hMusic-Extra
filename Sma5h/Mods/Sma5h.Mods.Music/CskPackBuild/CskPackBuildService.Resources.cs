@@ -24,13 +24,22 @@ namespace Sma5h.Mods.Music.CskPackBuild
             {
                 CoreGameSeriesById = BuildCoreGameSeriesById(effectiveCoreGameOverride),
                 CoreBgmIds = BuildCoreBgmIds(),
+                HasCoreOverrides = HasJsonValues(coreBgmOverride) || HasJsonValues(coreGameOverride) || HasJsonValues(coreSeriesOverride),
                 OrderOverride = BuildEffectiveOrderData(orderOverride),
                 PlaylistData = BuildEffectivePlaylistData(playlistOverride),
+                RawCoreBgmOverride = coreBgmOverride,
+                RawCoreGameOverride = coreGameOverride,
+                RawCoreSeriesOverride = coreSeriesOverride,
                 CoreBgmOverride = BuildEffectiveCoreBgmOverrideData(coreBgmOverride),
                 CoreGameOverride = effectiveCoreGameOverride,
                 CoreSeriesOverride = BuildEffectiveCoreSeriesData(coreSeriesOverride),
                 StageOverride = BuildEffectiveStageData(stageOverride)
             };
+        }
+
+        private static bool HasJsonValues(JObject value)
+        {
+            return value != null && value.HasValues;
         }
 
         #endregion
