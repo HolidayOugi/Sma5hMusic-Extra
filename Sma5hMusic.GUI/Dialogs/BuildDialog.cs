@@ -24,12 +24,14 @@ namespace Sma5hMusic.GUI.Dialogs
         private readonly IMusicModManagerService _musicModManagerService;
         private readonly IOptionsMonitor<Sma5hMusicOptions> _musicConfig;
         private readonly IOptionsMonitor<Sma5hMusicOverrideOptions> _musicOverrideConfig;
+        private readonly IAudioStateService _audioStateService;
         private readonly IStateManager _stateManager;
         private readonly IOptionsMonitor<Sma5hOptions> _config;
 
         public BuildDialog(IOptionsMonitor<Sma5hOptions> config, IServiceProvider serviceProvider,
             IStateManager stateManager, IMessageDialog messageDialog, IMusicModManagerService musicModManagerService,
             IOptionsMonitor<Sma5hMusicOptions> musicConfig, IOptionsMonitor<Sma5hMusicOverrideOptions> musicOverrideConfig,
+            IAudioStateService audioStateService,
             ILogger<BuildDialog> logger)
         {
             _logger = logger;
@@ -40,6 +42,7 @@ namespace Sma5hMusic.GUI.Dialogs
             _musicModManagerService = musicModManagerService;
             _musicConfig = musicConfig;
             _musicOverrideConfig = musicOverrideConfig;
+            _audioStateService = audioStateService;
         }
 
         public async Task Init(Func<bool, Task> callbackSuccess = null, Func<Exception, Task> callbackError = null)
@@ -174,6 +177,8 @@ namespace Sma5hMusic.GUI.Dialogs
                             await callbackError?.Invoke(new Exception("StateManager Exception"));
                             return;
                         }
+
+                        DeleteCoreReplacementOnlyOutputFolders();
                         _logger.LogInformation("Build Complete");
                     }
                     catch (Exception e)
@@ -258,6 +263,27 @@ namespace Sma5hMusic.GUI.Dialogs
             _config.CurrentValue.OutputPath = outputPath;
             _musicConfig.CurrentValue.OutputPath = musicOutputPath;
             _musicOverrideConfig.CurrentValue.OutputPath = musicOverrideOutputPath;
+        }
+
+        private void DeleteCoreReplacementOnlyOutputFolders()
+        {
+            var modEntries = _audioStateService.GetModBgmDbRootEntries().ToList();
+            var onlyCoreReplacements = modEntries.Count > 0 &&
+                                       modEntries.All(p => p.Source == Sma5h.Mods.Music.Models.EntrySource.Core && p.MusicMod != null);
+            if (!onlyCoreReplacements)
+                return;
+
+            DeleteDirectoryIfExists(Path.Combine(_config.CurrentValue.OutputPath, "ui", "param"));
+            DeleteDirectoryIfExists(Path.Combine(_config.CurrentValue.OutputPath, "sound"));
+        }
+
+        private void DeleteDirectoryIfExists(string path)
+        {
+            if (!Directory.Exists(path))
+                return;
+
+            Directory.Delete(path, true);
+            _logger.LogInformation("Deleted core replacement-only output folder {Path}", path);
         }
 
         private string GetMusicPackFolderName()

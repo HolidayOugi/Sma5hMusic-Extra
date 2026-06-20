@@ -21,7 +21,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
             string outputRoot,
             HashSet<string> selectedSeriesKeys,
             Dictionary<string, int> seriesSoundOrder,
-            JObject coreSeriesOverride)
+            JObject coreSeriesOverride,
+            bool onlyCoreReplacements)
         {
             var seriesEntries = CreateCoreOnlyVanillaSeriesOrderEntries(
                 contexts,
@@ -44,6 +45,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var songData = CreateSeriesOrderSongData(seriesEntries);
             var outputJsonPath = Path.Combine(databaseFolder, "series_order.json");
             File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
+            if (onlyCoreReplacements)
+                DeleteDirectoryIfExists(Path.Combine(outputRoot, folderName), "[CSK] Deleted core series order pack {Path}");
             _logger.LogInformation("[CSK] Saved series order pack: {SavedPath}", outputJsonPath);
         }
 
