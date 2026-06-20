@@ -26,7 +26,7 @@ namespace Sma5h.ResourceProviders
         private static readonly IReadOnlyDictionary<string, MsbtTextColor> ColorMap =
             new List<MsbtTextColor>
             {
-                new MsbtTextColor("default", 0xFF, 0xFF, 0xFF, true),
+                new MsbtTextColor("default", 0x00, 0x00, 0x00, true),
                 new MsbtTextColor("white", 0xFF, 0xFF, 0xFF),
                 new MsbtTextColor("black", 0x11, 0x11, 0x11),
                 new MsbtTextColor("red", 0xFF, 0x00, 0x00),
