@@ -91,6 +91,27 @@ namespace Sma5h.Mods.Music.CskPackBuild
             entries.Add(entry);
         }
 
+        private static void AddOrReplaceJObjectByKey(JObject songData, string arrayName, string key, JObject entry)
+        {
+            if (entry == null)
+                return;
+
+            var entryKey = GetString(entry, key);
+            var entries = GetArray(songData, arrayName);
+            if (!string.IsNullOrEmpty(entryKey))
+            {
+                foreach (var existingEntry in entries
+                    .OfType<JObject>()
+                    .Where(p => string.Equals(GetString(p, key), entryKey, StringComparison.OrdinalIgnoreCase))
+                    .ToList())
+                {
+                    existingEntry.Remove();
+                }
+            }
+
+            entries.Add(entry);
+        }
+
         private static void DeduplicatePlaylists(JObject songData)
         {
             var playlists = songData["playlist_entries"] as JObject;

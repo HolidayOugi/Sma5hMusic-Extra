@@ -67,8 +67,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private HashSet<string> BuildCoreBgmIds()
         {
-            return _audioStateService.GetBgmDbRootEntries()
-                .Where(p => p.Source == EntrySource.Core && !string.IsNullOrEmpty(p.UiBgmId))
+            return _audioStateService.GetOriginalCoreBgmDbRootEntries()
+                .Where(p => !string.IsNullOrEmpty(p.UiBgmId))
                 .Select(p => p.UiBgmId)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
@@ -86,7 +86,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 return;
 
             var bgmEntries = GetArray(songData, "bgm_database_entries");
-            var db = _audioStateService.GetBgmDbRootEntries()
+            var db = _audioStateService.GetOriginalCoreBgmDbRootEntries()
                 .FirstOrDefault(p => string.Equals(p.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase));
             if (db == null)
                 return;
@@ -289,6 +289,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             string seriesFolderName,
             string outputRoot,
             string generatedBgmFolder,
+            HashSet<string> metadataBgmIds,
             bool includeAudio,
             int orderCounter)
         {
@@ -306,14 +307,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 return orderCounter;
             }
 
-            var handledByCoreBgmOverride = IsCoreBgmOverride(coreBgmOverride, uiBgmId);
             var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
+            var alreadyAdded = HasBgmDatabaseEntry(songData, uiBgmId);
+            var alreadyAddedFromMetadata = metadataBgmIds?.Contains(uiBgmId) == true;
+            var shouldWriteMetadata = !alreadyAdded || !alreadyAddedFromMetadata;
 
-            // If this song is present in CoreBgmOverride, let ProcessCoreBgmOverrides add the
-            // database/stream/message entries. ProcessBgm still handles playlists and file copy.
-            if (!handledByCoreBgmOverride && !HasBgmDatabaseEntry(songData, uiBgmId))
+            if (shouldWriteMetadata)
             {
-                GetArray(songData, "bgm_database_entries").Add(new JObject
+                AddOrReplaceJObjectByKey(songData, "bgm_database_entries", "ui_bgm_id", new JObject
                 {
                     ["ui_bgm_id"] = uiBgmId,
                     ["clone_from_ui_bgm_id"] = CloneBgmId,
@@ -324,8 +325,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ["record_type"] = GetString(db, "record_type", "record_original")
                 });
 
-                AddUniqueJObjectByKey(songData, "stream_set_entries", "stream_set_id", CreateStreamSetEntry(streamSet));
-                AddUniqueJObjectByKey(songData, "assigned_info_entries", "info_id", new JObject
+                AddOrReplaceJObjectByKey(songData, "stream_set_entries", "stream_set_id", CreateStreamSetEntry(streamSet));
+                AddOrReplaceJObjectByKey(songData, "assigned_info_entries", "info_id", new JObject
                 {
                     ["info_id"] = GetString(assigned, "info_id"),
                     ["stream_id"] = GetString(assigned, "stream_id"),
@@ -335,13 +336,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ["menu_change_fadeout_frame"] = 60
                 });
 
-                AddUniqueJObjectByKey(songData, "stream_property_entries", "stream_id", new JObject
+                AddOrReplaceJObjectByKey(songData, "stream_property_entries", "stream_id", new JObject
                 {
                     ["stream_id"] = GetString(streamProp, "stream_id"),
                     ["data_name0"] = GetString(streamProp, "data_name0")
                 });
 
-                AddUniqueJObjectByKey(songData, "bgm_property_entries", "stream_name", new JObject
+                AddOrReplaceJObjectByKey(songData, "bgm_property_entries", "stream_name", new JObject
                 {
                     ["stream_name"] = GetString(streamProp, "data_name0"),
                     ["loop_start_ms"] = GetInt(bgmProp, "loop_start_ms", 0),
@@ -353,13 +354,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 });
 
                 var titleText = GetLocalizedString(db["msbt_title"], nameId);
-                AddUniqueMessage(msgBgmEntries, $"bgm_title_{nameId}", titleText);
+                AddOrReplaceMessage(msgBgmEntries, $"bgm_title_{nameId}", titleText);
 
                 var authorText = GetLocalizedString(db["msbt_author"]);
-                AddUniqueMessage(msgBgmEntries, $"bgm_author_{nameId}", authorText);
+                AddOrReplaceMessage(msgBgmEntries, $"bgm_author_{nameId}", authorText);
 
                 var copyrightText = GetLocalizedString(db["msbt_copyright"]);
-                AddUniqueMessage(msgBgmEntries, $"bgm_copyright_{nameId}", copyrightText);
+                AddOrReplaceMessage(msgBgmEntries, $"bgm_copyright_{nameId}", copyrightText);
+
+                metadataBgmIds?.Add(uiBgmId);
             }
 
             orderCounter = AddToPlaylists(uiBgmId, songData, playlistOverride, seriesName, orderCounter);

@@ -98,6 +98,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var songData = CreateSongData();
             var msgBgmEntries = new List<string>();
             var msgTitleEntries = new List<string>();
+            var metadataBgmIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var item in selectedSeries)
             {
@@ -123,6 +124,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     buildResources.CoreSeriesOverride,
                     item.Context.Metadata,
                     buildResources.CoreBgmIds,
+                    metadataBgmIds,
                     includeAudio);
             }
 
@@ -233,6 +235,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 coreSeriesOverride,
                 metadata,
                 coreBgmIds,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 includeAudio);
 
             var outputJsonPath = Path.Combine(seriesDbFolder, databaseFileName);
@@ -261,6 +264,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             JObject coreSeriesOverride,
             JObject metadata,
             HashSet<string> coreBgmIds,
+            HashSet<string> metadataBgmIds,
             bool includeAudio)
         {
             var seriesName = GetString(series, "name_id");
@@ -304,10 +308,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 msgTitleEntries.Add(MakeEntry($"tit_{gameName}", gameTitle));
 
                 foreach (JObject bgm in GetArray(game, "bgms"))
-                    orderCounter = ProcessBgm(bgm, songData, playlistData, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, orderCounter);
+                    orderCounter = ProcessBgm(bgm, songData, playlistData, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, orderCounter);
             }
 
-            ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, ref orderCounter);
+            ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, ref orderCounter);
             PopulateVanillaPlaylists(songData, seriesName, playlistData, coreBgmIds, coreBgmOverride, orderOverride);
             PopulateStageDatabaseEntries(songData, seriesName, stageOverride, playlistData);
             ProcessCoreBgmOverrides(songData, playlistData, msgBgmEntries, msgTitleEntries, seriesName, seriesIdToName, coreBgmOverride, orderOverride, coreGameOverride, ref orderCounter);

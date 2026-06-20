@@ -274,7 +274,10 @@ namespace Sma5hMusic.GUI.ViewModels
                         }
                     }
 
-                    var uiBgmId = await _guiStateManager.CreateNewMusicModFromToneId(toneId, importFile, managerMod.MusicMod);
+                    var coreSongReplacement = _vmToneIdCreation.GetCoreSongReplacement();
+                    var uiBgmId = coreSongReplacement != null
+                        ? await _guiStateManager.CreateCoreMusicModFromToneId(coreSongReplacement, importFile, managerMod.MusicMod)
+                        : await _guiStateManager.CreateNewMusicModFromToneId(toneId, importFile, managerMod.MusicMod);
                     if (!string.IsNullOrEmpty(uiBgmId))
                     {
                         var vmBgmDbRootEntry = _viewModelManager.GetBgmDbRootViewModel(uiBgmId);

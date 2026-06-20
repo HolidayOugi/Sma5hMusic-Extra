@@ -518,7 +518,10 @@ namespace Sma5hMusic.GUI.ViewModels
                         //TODO - When supported more complex mods this needs to be updated 
                         //Right now, it is tied to v2 mods
                         var deleteMusicModEntries = new BgmEntryViewModel(vmBgmEntry).GetMusicModDeleteEntries();
-                        await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        if (vmBgmEntry.IsCoreReplacement)
+                            await _guiStateManager.RemoveCoreMusicModReplacement(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        else
+                            await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
 
                         _logger.LogInformation("{ToneId} deleted.", vmBgmEntry.ToneId);
                     }
@@ -542,7 +545,10 @@ namespace Sma5hMusic.GUI.ViewModels
                         //TODO - When supported more complex mods this needs to be updated 
                         //Right now, it is tied to v2 mods
                         var deleteMusicModEntries = new BgmEntryViewModel(vmBgmEntry).GetMusicModDeleteEntries();
-                        await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        if (vmBgmEntry.IsCoreReplacement)
+                            await _guiStateManager.RemoveCoreMusicModReplacement(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        else
+                            await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
 
                         _logger.LogInformation("{ToneId} deleted.", vmBgmEntry.ToneId);
                     }

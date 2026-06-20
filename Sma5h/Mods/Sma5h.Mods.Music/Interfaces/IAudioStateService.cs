@@ -6,14 +6,19 @@ namespace Sma5h.Mods.Music.Interfaces
     public interface IAudioStateService
     {
         IEnumerable<BgmDbRootEntry> GetBgmDbRootEntries();
+        IEnumerable<BgmDbRootEntry> GetOriginalCoreBgmDbRootEntries();
         IEnumerable<BgmDbRootEntry> GetModBgmDbRootEntries();
         IEnumerable<BgmStreamSetEntry> GetBgmStreamSetEntries();
+        IEnumerable<BgmStreamSetEntry> GetOriginalCoreBgmStreamSetEntries();
         IEnumerable<BgmStreamSetEntry> GetModBgmStreamSetEntries();
         IEnumerable<BgmAssignedInfoEntry> GetBgmAssignedInfoEntries();
+        IEnumerable<BgmAssignedInfoEntry> GetOriginalCoreBgmAssignedInfoEntries();
         IEnumerable<BgmAssignedInfoEntry> GetModBgmAssignedInfoEntries();
         IEnumerable<BgmStreamPropertyEntry> GetBgmStreamPropertyEntries();
+        IEnumerable<BgmStreamPropertyEntry> GetOriginalCoreBgmStreamPropertyEntries();
         IEnumerable<BgmStreamPropertyEntry> GetModBgmStreamPropertyEntries();
         IEnumerable<BgmPropertyEntry> GetBgmPropertyEntries();
+        IEnumerable<BgmPropertyEntry> GetOriginalCoreBgmPropertyEntries();
         IEnumerable<BgmPropertyEntry> GetModBgmPropertyEntries();
         IEnumerable<SeriesEntry> GetSeriesEntries();
         IEnumerable<GameTitleEntry> GetGameTitleEntries();
@@ -38,6 +43,7 @@ namespace Sma5h.Mods.Music.Interfaces
         bool AddSeriesEntry(SeriesEntry seriesEntry);
         bool AddGameTitleEntry(GameTitleEntry gameTitleEntry);
         bool AddPlaylistEntry(PlaylistEntry playlistEntry);
+        bool ApplyCoreMusicModEntries(MusicModEntries musicModEntries);
 
         bool RemoveBgmDbRootEntry(string uiBgmId);
         bool RemoveBgmStreamSetEntry(string streamSetId);

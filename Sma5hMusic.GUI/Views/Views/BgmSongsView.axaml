@@ -114,7 +114,7 @@
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
                 <TextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center" 
-                           Foreground="{Binding TestDispOrder, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding ModName, Mode=OneWay}">
+                           Foreground="{Binding Converter={StaticResource ModNameForegroundConverter}}" Text="{Binding ModName, Mode=OneWay}">
                   <TextBlock.ContextMenu>
                     <ContextMenu IsVisible="{Binding IsMod}">
                       <MenuItem Header="[EXPERIMENTAL] Rename Tone ID..." Command="{Binding $parent[DataGrid].DataContext.ActionRenameToneId, Mode=OneWay}" CommandParameter="{Binding}"/>
@@ -130,7 +130,7 @@
               <DataTemplate>
                 <StackPanel Orientation="Horizontal">
                   <Button Width="40" HorizontalContentAlignment="Center" FontFamily="Segoe UI Symbol" Content="&#9998;" Command="{Binding $parent[DataGrid].DataContext.ActionEditBgm, Mode=OneWay}" CommandParameter="{Binding}"/>
-                  <Button Width="40" IsEnabled="{Binding IsMod}" FontFamily="Segoe UI Symbol" HorizontalContentAlignment="Center" Content="&#x274C;" Command="{Binding $parent[DataGrid].DataContext.ActionDeleteBgm, Mode=OneWay}" CommandParameter="{Binding}"/>
+                  <Button Width="40" IsEnabled="{Binding CanDelete}" FontFamily="Segoe UI Symbol" HorizontalContentAlignment="Center" Content="&#x274C;" Command="{Binding $parent[DataGrid].DataContext.ActionDeleteBgm, Mode=OneWay}" CommandParameter="{Binding}"/>
                 </StackPanel>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>

@@ -82,6 +82,45 @@ namespace Sma5hMusic.GUI.Services
             return string.Empty;
         }
 
+        public async Task<string> CreateCoreMusicModFromToneId(CoreSongReplacementOption coreSong, string filename, IMusicMod musicMod)
+        {
+            try
+            {
+                if (coreSong == null || string.IsNullOrWhiteSpace(coreSong.UiBgmId) || musicMod == null)
+                    throw new Exception("Core song or music mod is missing.");
+
+                _logger.LogInformation("Create Core Music Mod replacement from ToneId: {ToneId}, UiBgmId: {UiBgmId}, Filename: {Filename}, Mod: {ModId}, Path: {ModPath}",
+                    coreSong.ToneId, coreSong.UiBgmId, filename, musicMod?.Id, musicMod?.ModPath);
+
+                var musicModEntries = CreateCoreReplacementMusicModEntriesSet(coreSong.UiBgmId, filename, musicMod);
+                var newBgmPropertyEntry = musicModEntries.BgmPropertyEntries.FirstOrDefault();
+
+                var audioCuePoints = await UpdateAudioCuePoints(filename);
+                if (audioCuePoints == null)
+                    throw new Exception();
+                _mapper.Map(audioCuePoints, newBgmPropertyEntry);
+                newBgmPropertyEntry.ChangeFilename(filename);
+
+                if (!await PersistMusicModEntryChanges(musicModEntries, musicMod))
+                    throw new Exception($"At least one entry could not be added to the mod.\r\nPlease check the logs.");
+
+                ReloadMusicModsIntoState();
+
+                return coreSong.UiBgmId;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error while creating core song replacement entry");
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                await _messageDialog.ShowError("Replace Core Song Error", "There was an error while creating a core song replacement. Please check the logs.");
+            }, DispatcherPriority.Background);
+
+            return string.Empty;
+        }
+
         public async Task<bool> RenameMusicModToneId(MusicModEntries musicModEntries, IMusicMod musicMod, string newToneId)
         {
             //TODO - "Simple" way to rename a song, it should become more flexible
@@ -613,6 +652,39 @@ namespace Sma5hMusic.GUI.Services
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
                     await _messageDialog.ShowError("Delete Music Mod Entries Error", "There was an error while persisting some modifications. Please check the logs.");
+                }, DispatcherPriority.Background);
+            }
+
+            return result;
+        }
+
+        public async Task<bool> RemoveCoreMusicModReplacement(MusicModDeleteEntries musicModDeleteEntries, IMusicMod musicMod)
+        {
+            bool result = false;
+            if (musicModDeleteEntries != null && musicMod != null)
+            {
+                try
+                {
+                    _logger.LogInformation("Delete Core Music Mod Replacement: DbRoot: {DbRoot}, BgmProperty: {BgmProperty}, Mod: {ModId}",
+                        musicModDeleteEntries.BgmDbRootEntries.Count, musicModDeleteEntries.BgmPropertyEntries.Count, musicMod?.Id);
+
+                    result = musicMod.RemoveMusicModEntries(musicModDeleteEntries);
+
+                    if (result)
+                        ReloadMusicModsIntoState();
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Error while deleting core music mod replacement");
+                    result = false;
+                }
+            }
+
+            if (!result)
+            {
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await _messageDialog.ShowError("Delete Core Replacement Error", "There was an error while removing the core song replacement. Please check the logs.");
                 }, DispatcherPriority.Background);
             }
 
@@ -1778,6 +1850,85 @@ namespace Sma5hMusic.GUI.Services
             musicModEntries.BgmPropertyEntries.Add(newBgmPropertyEntry);
 
             return musicModEntries;
+        }
+
+        private MusicModEntries CreateCoreReplacementMusicModEntriesSet(string uiBgmId, string filename, IMusicMod musicMod)
+        {
+            var coreDbRootViewModel = _viewModelManager.GetBgmDbRootViewModel(uiBgmId);
+            if (coreDbRootViewModel == null)
+                return null;
+
+            var coreStreamSetViewModel = coreDbRootViewModel.StreamSetViewModel;
+            var coreAssignedInfoViewModel = coreDbRootViewModel.AssignedInfoViewModel;
+            var coreStreamPropertyViewModel = coreDbRootViewModel.StreamPropertyViewModel;
+            var coreBgmPropertyViewModel = coreDbRootViewModel.BgmPropertyViewModel;
+            var coreGameTitleViewModel = coreDbRootViewModel.GameTitleViewModel;
+            var coreSeriesViewModel = coreDbRootViewModel.SeriesViewModel;
+
+            var bgmDbRootEntry = _mapper.Map(coreDbRootViewModel.GetReferenceEntity(), new BgmDbRootEntry(coreDbRootViewModel.UiBgmId, musicMod));
+            var bgmStreamSetEntry = _mapper.Map(coreStreamSetViewModel.GetReferenceEntity(), new BgmStreamSetEntry(coreStreamSetViewModel.StreamSetId, musicMod));
+            var bgmAssignedInfoEntry = _mapper.Map(coreAssignedInfoViewModel.GetReferenceEntity(), new BgmAssignedInfoEntry(coreAssignedInfoViewModel.InfoId, musicMod));
+            var bgmStreamPropertyEntry = _mapper.Map(coreStreamPropertyViewModel.GetReferenceEntity(), new BgmStreamPropertyEntry(coreStreamPropertyViewModel.StreamId, musicMod));
+            var bgmPropertyEntry = _mapper.Map(coreBgmPropertyViewModel.GetReferenceEntity(), new BgmPropertyEntry(coreBgmPropertyViewModel.NameId, filename, musicMod));
+            bgmDbRootEntry.MusicMod = musicMod;
+            bgmStreamSetEntry.MusicMod = musicMod;
+            bgmAssignedInfoEntry.MusicMod = musicMod;
+            bgmStreamPropertyEntry.MusicMod = musicMod;
+            bgmPropertyEntry.ChangeFilename(filename);
+            bgmPropertyEntry.MusicMod = musicMod;
+
+            var gameTitleEntry = _mapper.Map(coreGameTitleViewModel.GetReferenceEntity(), new GameTitleEntry(coreGameTitleViewModel.UiGameTitleId, EntrySource.Mod));
+            gameTitleEntry.MusicMod = musicMod;
+
+            var seriesEntry = _mapper.Map(coreSeriesViewModel.GetReferenceEntity(), new SeriesEntry(coreSeriesViewModel.UiSeriesId, EntrySource.Mod));
+            seriesEntry.MusicMod = musicMod;
+
+            var musicModEntries = new MusicModEntries();
+            musicModEntries.BgmDbRootEntries.Add(bgmDbRootEntry);
+            musicModEntries.BgmStreamSetEntries.Add(bgmStreamSetEntry);
+            musicModEntries.BgmAssignedInfoEntries.Add(bgmAssignedInfoEntry);
+            musicModEntries.BgmStreamPropertyEntries.Add(bgmStreamPropertyEntry);
+            musicModEntries.BgmPropertyEntries.Add(bgmPropertyEntry);
+            musicModEntries.GameTitleEntries.Add(gameTitleEntry);
+            musicModEntries.SeriesEntries.Add(seriesEntry);
+
+            return musicModEntries;
+        }
+
+        private void ReloadMusicModsIntoState()
+        {
+            _audioState.InitBgmEntriesFromStateManager();
+            var musicMods = _musicModManagerService.RefreshMusicMods();
+
+            foreach (var musicMod in musicMods)
+            {
+                var musicModEntries = musicMod.GetMusicModEntries();
+                _audioState.ApplyCoreMusicModEntries(musicModEntries);
+
+                foreach (var seriesEntry in musicModEntries.SeriesEntries)
+                    if (_audioState.CanAddSeriesEntry(seriesEntry.UiSeriesId))
+                        _audioState.AddSeriesEntry(seriesEntry);
+                foreach (var gameTitleEntry in musicModEntries.GameTitleEntries)
+                    if (_audioState.CanAddGameTitleEntry(gameTitleEntry.UiGameTitleId))
+                        _audioState.AddGameTitleEntry(gameTitleEntry);
+                foreach (var bgmPropertyEntry in musicModEntries.BgmPropertyEntries)
+                    if (_audioState.CanAddBgmPropertyEntry(bgmPropertyEntry.NameId))
+                        _audioState.AddBgmPropertyEntry(bgmPropertyEntry);
+                foreach (var bgmStreamPropertyEntry in musicModEntries.BgmStreamPropertyEntries)
+                    if (_audioState.CanAddBgmStreamPropertyEntry(bgmStreamPropertyEntry.StreamId))
+                        _audioState.AddBgmStreamPropertyEntry(bgmStreamPropertyEntry);
+                foreach (var bgmAssignedInfoEntry in musicModEntries.BgmAssignedInfoEntries)
+                    if (_audioState.CanAddBgmAssignedInfoEntry(bgmAssignedInfoEntry.InfoId))
+                        _audioState.AddBgmAssignedInfoEntry(bgmAssignedInfoEntry);
+                foreach (var bgmStreamSetEntry in musicModEntries.BgmStreamSetEntries)
+                    if (_audioState.CanAddBgmStreamSetEntry(bgmStreamSetEntry.StreamSetId))
+                        _audioState.AddBgmStreamSetEntry(bgmStreamSetEntry);
+                foreach (var bgmDbRootEntry in musicModEntries.BgmDbRootEntries)
+                    if (_audioState.CanAddBgmDbRootEntry(bgmDbRootEntry.UiBgmId))
+                        _audioState.AddBgmDbRootEntry(bgmDbRootEntry);
+            }
+
+            _viewModelManager.Init();
         }
 
         private float GetDefaultSongVolume()

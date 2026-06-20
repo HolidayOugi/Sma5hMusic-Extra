@@ -51,7 +51,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 ModPath = modPath;
                 _mod = new MusicModInformation
                 {
-                    Name = "Replaced Songs"
+                    Name = "Core Overrides"
                 };
             }
 
@@ -138,10 +138,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 new CskModContext
                 {
                     Mod = mod,
-                    MetadataPath = "replaced songs",
+                    MetadataPath = "core overrides",
                     Metadata = metadata,
                     PackName = mod.Name,
-                    SafePackName = SanitizePathSegment(mod.Name, "replaced songs", "pack folder name"),
+                    SafePackName = SanitizePathSegment(mod.Name, "core overrides", "pack folder name"),
                     SeriesList = seriesList,
                     SeriesIdToName = seriesList
                         .Where(p => !string.IsNullOrEmpty(GetString(p, "ui_series_id")) && !string.IsNullOrEmpty(GetString(p, "name_id")))

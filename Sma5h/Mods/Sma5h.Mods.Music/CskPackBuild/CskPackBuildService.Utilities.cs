@@ -84,6 +84,16 @@ namespace Sma5h.Mods.Music.CskPackBuild
             entries.Add(MakeEntry(label, text));
         }
 
+        private static void AddOrReplaceMessage(List<string> entries, string label, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(label))
+                return;
+
+            var pattern = $"<entry label=\"{label}\"";
+            entries.RemoveAll(p => p.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0);
+            entries.Add(MakeEntry(label, text));
+        }
+
         private static void WriteXmsbt(string path, IEnumerable<string> entries)
         {
             var content = new StringBuilder();

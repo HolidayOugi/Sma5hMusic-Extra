@@ -10,7 +10,16 @@
       <TextBlock Classes="required" IsVisible="{Binding $parent[UserControl].IsRequired}" Text="*"/>
       <TextBlock Text="&#128712;" Classes="tooltip" ToolTip.Tip="{Binding $parent[UserControl].ToolTip}"/>
     </StackPanel>
-    <TextBox AcceptsReturn="{Binding $parent[UserControl].AcceptsReturn}" IsReadOnly="{Binding $parent[UserControl].IsReadOnly}" Text="{Binding $parent[UserControl].Text}"></TextBox>
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBox AcceptsReturn="{Binding $parent[UserControl].AcceptsReturn}" IsReadOnly="{Binding $parent[UserControl].IsReadOnly}" Text="{Binding $parent[UserControl].Text}"></TextBox>
+      <Button Grid.Column="1"
+              Content="{Binding $parent[UserControl].ButtonContent}"
+              Command="{Binding $parent[UserControl].ButtonCommand}"
+              CommandParameter="{Binding $parent[UserControl].ButtonCommandParameter}"
+              IsVisible="{Binding $parent[UserControl].IsButtonVisible}"
+              VerticalAlignment="Stretch"
+              Margin="8,0,8,0"/>
+    </Grid>
     <TextBlock Classes="error" Text="{Binding $parent[UserControl].ValidationError}"/>
   </StackPanel>
 </UserControl>

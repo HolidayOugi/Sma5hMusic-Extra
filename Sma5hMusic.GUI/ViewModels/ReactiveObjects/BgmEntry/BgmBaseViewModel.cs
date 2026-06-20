@@ -26,7 +26,9 @@ namespace Sma5hMusic.GUI.ViewModels
         public string ModId { get { return MusicMod?.Id; } }
         public string ModPath { get { return MusicMod?.ModPath; } }
         public bool IsMod { get { return Source == EntrySource.Mod; } }
-        public string ModName { get { return IsMod ? MusicModViewModel?.Name : string.Empty; } }
+        public bool IsCoreReplacement { get { return Source == EntrySource.Core && MusicMod != null; } }
+        public bool CanDelete { get { return IsMod || IsCoreReplacement; } }
+        public string ModName { get { return MusicMod != null ? MusicModViewModel?.Name : string.Empty; } }
 
         public BgmBaseViewModel(IViewModelManager viewModeManager, IMapper mapper, T bgmBaseEntity)
         {

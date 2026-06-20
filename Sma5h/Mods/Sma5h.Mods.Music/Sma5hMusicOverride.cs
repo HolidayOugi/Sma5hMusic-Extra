@@ -93,7 +93,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmDbRootEntry in _audioStateService.GetBgmDbRootEntries())
                     {
-                        if (bgmDbRootEntry.Source == EntrySource.Core && coreDbRootOverrides.ContainsKey(bgmDbRootEntry.UiBgmId))
+                        if (bgmDbRootEntry.Source == EntrySource.Core &&
+                            bgmDbRootEntry.MusicMod == null &&
+                            coreDbRootOverrides.ContainsKey(bgmDbRootEntry.UiBgmId))
                         {
                             _mapper.Map(coreDbRootOverrides[bgmDbRootEntry.UiBgmId], bgmDbRootEntry);
                         }
@@ -105,7 +107,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmStreamSetEntry in _audioStateService.GetBgmStreamSetEntries())
                     {
-                        if (bgmStreamSetEntry.Source == EntrySource.Core && coreStreamSetOverrides.ContainsKey(bgmStreamSetEntry.StreamSetId))
+                        if (bgmStreamSetEntry.Source == EntrySource.Core &&
+                            bgmStreamSetEntry.MusicMod == null &&
+                            coreStreamSetOverrides.ContainsKey(bgmStreamSetEntry.StreamSetId))
                         {
                             var streamSetObj = GetUpdatedStreamSetConfig(coreStreamSetOverrides[bgmStreamSetEntry.StreamSetId]);
                             _mapper.Map(streamSetObj, bgmStreamSetEntry);
@@ -118,7 +122,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmAssignedInfoEntry in _audioStateService.GetBgmAssignedInfoEntries())
                     {
-                        if (bgmAssignedInfoEntry.Source == EntrySource.Core && coreAssignedInfoOverrides.ContainsKey(bgmAssignedInfoEntry.InfoId))
+                        if (bgmAssignedInfoEntry.Source == EntrySource.Core &&
+                            bgmAssignedInfoEntry.MusicMod == null &&
+                            coreAssignedInfoOverrides.ContainsKey(bgmAssignedInfoEntry.InfoId))
                         {
                             var assignedInfoObj = GetUpdatedBgmAssignedInfoConfig(coreAssignedInfoOverrides[bgmAssignedInfoEntry.InfoId]);
                             _mapper.Map(assignedInfoObj, bgmAssignedInfoEntry);
@@ -131,7 +137,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmStreamPropertyEntry in _audioStateService.GetBgmStreamPropertyEntries())
                     {
-                        if (bgmStreamPropertyEntry.Source == EntrySource.Core && coreStreamPropertyOverrides.ContainsKey(bgmStreamPropertyEntry.StreamId))
+                        if (bgmStreamPropertyEntry.Source == EntrySource.Core &&
+                            bgmStreamPropertyEntry.MusicMod == null &&
+                            coreStreamPropertyOverrides.ContainsKey(bgmStreamPropertyEntry.StreamId))
                         {
                             _mapper.Map(coreStreamPropertyOverrides[bgmStreamPropertyEntry.StreamId], bgmStreamPropertyEntry);
                         }
@@ -143,7 +151,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmPropertyEntry in _audioStateService.GetBgmPropertyEntries())
                     {
-                        if (bgmPropertyEntry.Source == EntrySource.Core && coreBgmPropertyOverrides.ContainsKey(bgmPropertyEntry.NameId))
+                        if (bgmPropertyEntry.Source == EntrySource.Core &&
+                            bgmPropertyEntry.MusicMod == null &&
+                            coreBgmPropertyOverrides.ContainsKey(bgmPropertyEntry.NameId))
                         {
                             _mapper.Map(coreBgmPropertyOverrides[bgmPropertyEntry.NameId], bgmPropertyEntry);
                         }

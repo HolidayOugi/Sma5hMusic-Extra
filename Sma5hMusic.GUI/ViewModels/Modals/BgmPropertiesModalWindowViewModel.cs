@@ -82,6 +82,7 @@ namespace Sma5hMusic.GUI.ViewModels
         [Reactive]
         public bool IsInSoundTest { get; set; }
 
+        [Reactive]
         public bool IsModSong { get; set; }
 
         public ReadOnlyObservableCollection<SeriesEntryViewModel> Series { get { return _series; } }
@@ -629,5 +630,6 @@ namespace Sma5hMusic.GUI.ViewModels
             }
             return false;
         }
+
     }
 }

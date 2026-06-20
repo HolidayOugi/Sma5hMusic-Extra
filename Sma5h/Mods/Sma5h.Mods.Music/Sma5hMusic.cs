@@ -55,20 +55,28 @@ namespace Sma5h.Mods.Music
             {
                 //Add to Audio State Service
                 var musicModEntries = musicMod.GetMusicModEntries();
+                _audioStateService.ApplyCoreMusicModEntries(musicModEntries);
                 foreach (var bgmDbRootEntry in musicModEntries.BgmDbRootEntries)
-                    _audioStateService.AddBgmDbRootEntry(bgmDbRootEntry);
+                    if (_audioStateService.CanAddBgmDbRootEntry(bgmDbRootEntry.UiBgmId))
+                        _audioStateService.AddBgmDbRootEntry(bgmDbRootEntry);
                 foreach (var bgmAssignedInfoEntry in musicModEntries.BgmAssignedInfoEntries)
-                    _audioStateService.AddBgmAssignedInfoEntry(bgmAssignedInfoEntry);
+                    if (_audioStateService.CanAddBgmAssignedInfoEntry(bgmAssignedInfoEntry.InfoId))
+                        _audioStateService.AddBgmAssignedInfoEntry(bgmAssignedInfoEntry);
                 foreach (var bgmStreamSetEntry in musicModEntries.BgmStreamSetEntries)
-                    _audioStateService.AddBgmStreamSetEntry(bgmStreamSetEntry);
+                    if (_audioStateService.CanAddBgmStreamSetEntry(bgmStreamSetEntry.StreamSetId))
+                        _audioStateService.AddBgmStreamSetEntry(bgmStreamSetEntry);
                 foreach (var bgmStreamPropertyEntry in musicModEntries.BgmStreamPropertyEntries)
-                    _audioStateService.AddBgmStreamPropertyEntry(bgmStreamPropertyEntry);
+                    if (_audioStateService.CanAddBgmStreamPropertyEntry(bgmStreamPropertyEntry.StreamId))
+                        _audioStateService.AddBgmStreamPropertyEntry(bgmStreamPropertyEntry);
                 foreach (var seriesEntry in musicModEntries.SeriesEntries)
-                    _audioStateService.AddSeriesEntry(seriesEntry);
+                    if (_audioStateService.CanAddSeriesEntry(seriesEntry.UiSeriesId))
+                        _audioStateService.AddSeriesEntry(seriesEntry);
                 foreach (var gameTitleEntry in musicModEntries.GameTitleEntries)
-                    _audioStateService.AddGameTitleEntry(gameTitleEntry);
+                    if (_audioStateService.CanAddGameTitleEntry(gameTitleEntry.UiGameTitleId))
+                        _audioStateService.AddGameTitleEntry(gameTitleEntry);
                 foreach (var bgmPropertiesEntry in musicModEntries.BgmPropertyEntries)
-                    _audioStateService.AddBgmPropertyEntry(bgmPropertiesEntry);
+                    if (_audioStateService.CanAddBgmPropertyEntry(bgmPropertiesEntry.NameId))
+                        _audioStateService.AddBgmPropertyEntry(bgmPropertiesEntry);
             }
 
             return true;

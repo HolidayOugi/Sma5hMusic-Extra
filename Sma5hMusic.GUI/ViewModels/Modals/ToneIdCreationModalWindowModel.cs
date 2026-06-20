@@ -9,7 +9,9 @@ using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Models;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
+using Sma5hMusic.GUI.Views;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
@@ -22,13 +24,16 @@ namespace Sma5hMusic.GUI.ViewModels
     public partial class ToneIdCreationModalWindowModel : ReactiveValidationObject
     {
         private readonly ILogger _logger;
+        private readonly IViewModelManager _viewModelManager;
         private readonly ReadOnlyObservableCollection<BgmPropertyEntryViewModel> _bgmPropertyEntries;
+        private CoreSongReplacementOption _selectedCoreSongReplacement;
         private const string REGEX_REPLACE = @"[^a-zA-Z0-9_]";
         private const string REGEX_VALIDATION = @"^[a-z0-9_]+$";
 
         public ReactiveCommand<Window, Unit> ActionCancel { get; }
         public ReactiveCommand<Window, Unit> ActionCancelAll { get; }
         public ReactiveCommand<Window, Unit> ActionCreate { get; }
+        public ReactiveCommand<Window, Unit> ActionReplaceCoreSong { get; }
 
         [Reactive]
         public string Filename { get; set; }
@@ -49,9 +54,16 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public MusicModEntries NewMusicModEntries { get; private set; }
 
+        public CoreSongReplacementOption SelectedCoreSongReplacement
+        {
+            get => _selectedCoreSongReplacement;
+            private set => this.RaiseAndSetIfChanged(ref _selectedCoreSongReplacement, value);
+        }
+
         public ToneIdCreationModalWindowModel(ILogger<ToneIdCreationModalWindowModel> logger, IViewModelManager viewModelManager, IAudioImportService audioImportService, IMessageDialog messageDialog, IVGMMusicPlayer musicPlayer)
         {
             _logger = logger;
+            _viewModelManager = viewModelManager;
             _audioImportService = audioImportService;
             _messageDialog = messageDialog;
             _musicPlayer = musicPlayer;
@@ -69,6 +81,9 @@ namespace Sma5hMusic.GUI.ViewModels
                     this.RaisePropertyChanged(nameof(WindowTitle));
                     this.RaisePropertyChanged(nameof(ResetLoopButtonText));
                 });
+
+            this.WhenAnyValue(x => x.IsLoopPreviewOnly, x => x.IsImportingSong)
+                .Subscribe(_ => this.RaisePropertyChanged(nameof(CanReplaceCoreSong)));
 
             viewModelManager.ObservableBgmPropertyEntries.Connect()
                .ObserveOn(RxApp.MainThreadScheduler)
@@ -89,7 +104,7 @@ namespace Sma5hMusic.GUI.ViewModels
              $"The ToneId is too short. Minimum is {MusicConstants.GameResources.ToneIdMinimumSize}");
 
             this.ValidationRule(p => p.ToneId,
-               p => !string.IsNullOrEmpty(p) && !_bgmPropertyEntries.Select(p2 => p2.NameId).Contains(p),
+               p => !string.IsNullOrEmpty(p) && IsToneIdAvailable(p),
                $"The ToneId already exists in the database");
 
             this.ValidationRule(p => p.LoopEndSample,
@@ -143,6 +158,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionCancel = ReactiveCommand.Create<Window>(Cancel);
             ActionCancelAll = ReactiveCommand.Create<Window>(CancelAll);
             ActionCreate = ReactiveCommand.Create<Window>(Select, canExecute);
+            ActionReplaceCoreSong = ReactiveCommand.CreateFromTask<Window>(ReplaceCoreSong);
             ActionPreviewLoop = ReactiveCommand.CreateFromTask(PreviewLoop, canPreview);
             ActionStopPreview = ReactiveCommand.CreateFromTask(StopPreview);
             ActionResetLoopDefaults = ReactiveCommand.Create(ResetLoopDefaults);
@@ -171,10 +187,36 @@ namespace Sma5hMusic.GUI.ViewModels
             this.WhenAnyValue(p => p.SelectedAutoLoop)
                 .Where(p => p != null)
                 .Subscribe(ApplyAutoLoop);
+
+            this.WhenAnyValue(p => p.ToneId)
+                .Subscribe(p =>
+                {
+                    if (SelectedCoreSongReplacement != null &&
+                        !string.Equals(SelectedCoreSongReplacement.ToneId, p, StringComparison.OrdinalIgnoreCase))
+                    {
+                        SelectedCoreSongReplacement = null;
+                    }
+                });
+        }
+
+        public CoreSongReplacementOption GetCoreSongReplacement()
+        {
+            if (_viewModelManager == null)
+                return null;
+
+            if (SelectedCoreSongReplacement != null &&
+                string.Equals(SelectedCoreSongReplacement.ToneId, ToneId, StringComparison.OrdinalIgnoreCase))
+            {
+                return SelectedCoreSongReplacement;
+            }
+
+            return GetCoreSongReplacementOptions()
+                .FirstOrDefault(p => string.Equals(p.ToneId, ToneId, StringComparison.OrdinalIgnoreCase));
         }
 
         public void LoadToneId(string toneId)
         {
+            SelectedCoreSongReplacement = null;
             var sanitizedToneId = Regex.Replace(toneId.Replace(" ", "_"), REGEX_REPLACE, string.Empty).ToLower();
             ToneId = string.IsNullOrEmpty(sanitizedToneId) ? Guid.NewGuid().ToString("N") : sanitizedToneId;
         }
@@ -232,6 +274,56 @@ namespace Sma5hMusic.GUI.ViewModels
                 _logger.LogError(e, "Error while stopping loop preview on choose.");
             }
             window.Close(window);
+        }
+
+        private async System.Threading.Tasks.Task ReplaceCoreSong(Window window)
+        {
+            var pickerViewModel = new CoreSongPickerModalWindowViewModel(GetCoreSongReplacementOptions());
+            var pickerWindow = new CoreSongPickerModalWindow { DataContext = pickerViewModel };
+            var result = await pickerWindow.ShowDialog<CoreSongPickerModalWindow>(window);
+
+            if (result != null && pickerViewModel.SelectedSong != null)
+            {
+                SelectedCoreSongReplacement = pickerViewModel.SelectedSong.Option;
+                ToneId = SelectedCoreSongReplacement.ToneId;
+            }
+        }
+
+        private IEnumerable<CoreSongReplacementOption> GetCoreSongReplacementOptions()
+        {
+            return _viewModelManager.GetBgmDbRootEntriesViewModels()
+                .Where(p => p.Source == EntrySource.Core &&
+                            p.BgmPropertyViewModel != null &&
+                            p.BgmPropertyViewModel.MusicMod == null &&
+                            !string.IsNullOrWhiteSpace(p.ToneId))
+                .Select(p => new CoreSongReplacementOption
+                {
+                    UiBgmId = p.UiBgmId,
+                    UiSeriesId = p.SeriesId,
+                    SeriesTitle = p.SeriesViewModel?.Title ?? p.SeriesId,
+                    Title = p.Title,
+                    ToneId = p.ToneId,
+                    TestDispOrder = p.TestDispOrder
+                });
+        }
+
+        private bool IsToneIdAvailable(string toneId)
+        {
+            if (_bgmPropertyEntries == null)
+                return true;
+
+            var matches = _bgmPropertyEntries
+                .Where(p => string.Equals(p.NameId, toneId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (matches.Count == 0)
+                return true;
+
+            if (matches.Any(p => p.Source == EntrySource.Mod))
+                return false;
+
+            var coreMatch = matches.FirstOrDefault(p => p.Source == EntrySource.Core);
+            return coreMatch != null && coreMatch.MusicMod == null;
         }
     }
 }

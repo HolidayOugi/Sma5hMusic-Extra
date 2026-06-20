@@ -97,7 +97,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 .CountChanged()
                 .Subscribe((o) =>
                 {
-                    NbrBgms = $"{_items.Count} songs ({_items.Count(p => p.IsMod)} mods)";
+                    NbrBgms = $"{_items.Count} songs ({_items.Count(p => p.IsCoreReplacement)} replaced) ({_items.Count(p => p.IsMod)} mods)";
                 });
 
             ActionNewMod = ReactiveCommand.Create(AddNewMod);

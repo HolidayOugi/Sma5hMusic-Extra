@@ -24,6 +24,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             string seriesFolderName,
             string outputRoot,
             string generatedBgmFolder,
+            HashSet<string> metadataBgmIds,
             bool includeAudio,
             ref int orderCounter)
         {
@@ -36,7 +37,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 msgTitleEntries.Add(MakeEntry($"tit_{GetString(gameMeta, "name_id")}", gameTitle));
 
                 foreach (JObject bgm in GetArray(gameMeta, "bgms"))
-                    orderCounter = ProcessBgm(bgm, songData, playlistOverride, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, orderCounter);
+                    orderCounter = ProcessBgm(bgm, songData, playlistOverride, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, orderCounter);
             }
         }
 
@@ -182,19 +183,19 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var streamProperties = EnsureObject(output, "CoreBgmStreamPropertyOverrides");
             var bgmProperties = EnsureObject(output, "CoreBgmPropertyOverrides");
 
-            var dbRootEntries = _audioStateService.GetBgmDbRootEntries()
+            var dbRootEntries = _audioStateService.GetOriginalCoreBgmDbRootEntries()
                 .Where(p => !string.IsNullOrEmpty(p.UiBgmId))
                 .ToDictionary(p => p.UiBgmId, p => p, StringComparer.OrdinalIgnoreCase);
-            var streamSetEntries = _audioStateService.GetBgmStreamSetEntries()
+            var streamSetEntries = _audioStateService.GetOriginalCoreBgmStreamSetEntries()
                 .Where(p => !string.IsNullOrEmpty(p.StreamSetId))
                 .ToDictionary(p => p.StreamSetId, p => p, StringComparer.OrdinalIgnoreCase);
-            var assignedInfoEntries = _audioStateService.GetBgmAssignedInfoEntries()
+            var assignedInfoEntries = _audioStateService.GetOriginalCoreBgmAssignedInfoEntries()
                 .Where(p => !string.IsNullOrEmpty(p.InfoId))
                 .ToDictionary(p => p.InfoId, p => p, StringComparer.OrdinalIgnoreCase);
-            var streamPropertyEntries = _audioStateService.GetBgmStreamPropertyEntries()
+            var streamPropertyEntries = _audioStateService.GetOriginalCoreBgmStreamPropertyEntries()
                 .Where(p => !string.IsNullOrEmpty(p.StreamId))
                 .ToDictionary(p => p.StreamId, p => p, StringComparer.OrdinalIgnoreCase);
-            var bgmPropertyEntries = _audioStateService.GetBgmPropertyEntries()
+            var bgmPropertyEntries = _audioStateService.GetOriginalCoreBgmPropertyEntries()
                 .Where(p => !string.IsNullOrEmpty(p.NameId))
                 .ToDictionary(p => p.NameId, p => p, StringComparer.OrdinalIgnoreCase);
 
