@@ -397,6 +397,15 @@ namespace Sma5hMusic.GUI.Services
                 playlist.RemoveSong(uiBgmId);
             }
         }
+
+        public bool RefreshBgmDbRootView(string uiBgmId)
+        {
+            if (!_vmDictBgmDbRootEntries.TryGetValue(uiBgmId, out var viewModel))
+                return false;
+
+            _vmObsvBgmDbRootEntries.AddOrUpdate(viewModel);
+            return true;
+        }
         #endregion
 
         #region CREATE

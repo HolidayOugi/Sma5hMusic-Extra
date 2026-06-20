@@ -21,7 +21,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         //Helper Getters
         public ModEntryViewModel MusicModViewModel { get { return _viewModelManager.GetModEntryViewModel(ModId); } }
-        public IMusicMod MusicMod { get; }
+        public IMusicMod MusicMod { get { return _refBgmBaseEntity?.MusicMod; } }
         public EntrySource Source { get { return _refBgmBaseEntity.Source; } }
         public string ModId { get { return MusicMod?.Id; } }
         public string ModPath { get { return MusicMod?.ModPath; } }
@@ -35,7 +35,6 @@ namespace Sma5hMusic.GUI.ViewModels
             _viewModelManager = viewModeManager;
             _refBgmBaseEntity = bgmBaseEntity;
             _mapper = mapper;
-            MusicMod = bgmBaseEntity?.MusicMod;
         }
 
         public T GetReferenceEntity()
