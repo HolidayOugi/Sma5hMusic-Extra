@@ -112,6 +112,9 @@
         <MenuItem Header="Sort Songs Alphabetically by Game"
                   ToolTip.Tip="Sorts selected games alphabetically."
                   Command="{Binding ActionSortSongsAlphabeticallyByGame}"></MenuItem>
+        <MenuItem Header="Sort Songs Alphabetically by Series"
+                  ToolTip.Tip="Sorts selected series alphabetically, ignoring games."
+                  Command="{Binding ActionSortSongsAlphabeticallyBySeries}"></MenuItem>
       </MenuItem>
       <MenuItem Header="Settings">
         <MenuItem Header="Show Advanced BGM Options" Command="{Binding ActionToggleAdvanced}">

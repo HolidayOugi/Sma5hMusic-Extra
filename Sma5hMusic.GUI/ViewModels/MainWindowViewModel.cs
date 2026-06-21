@@ -93,6 +93,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Unit, Unit> ActionAdjustModSongVolumes { get; }
         public ReactiveCommand<Unit, Unit> ActionSetModSongVolumes { get; }
         public ReactiveCommand<Unit, Unit> ActionSortSongsAlphabeticallyByGame { get; }
+        public ReactiveCommand<Unit, Unit> ActionSortSongsAlphabeticallyBySeries { get; }
         public ReactiveCommand<string, Unit> ActionCreateSongSpreadsheet { get; }
         public ReactiveCommand<Unit, Unit> ActionGenerateModFromBuildFiles { get; }
         public ReactiveCommand<bool, Unit> ActionUpdateBgmSelector { get; }
@@ -231,6 +232,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionAdjustModSongVolumes = ReactiveCommand.CreateFromTask(AdjustModSongVolumes);
             ActionSetModSongVolumes = ReactiveCommand.CreateFromTask(SetModSongVolumes);
             ActionSortSongsAlphabeticallyByGame = ReactiveCommand.CreateFromTask(SortSongsAlphabeticallyByGame);
+            ActionSortSongsAlphabeticallyBySeries = ReactiveCommand.CreateFromTask(SortSongsAlphabeticallyBySeries);
             ActionCreateSongSpreadsheet = ReactiveCommand.CreateFromTask<string>(CreateSongSpreadsheet);
             ActionGenerateModFromBuildFiles = ReactiveCommand.CreateFromTask(GenerateModFromBuildFiles);
             ActionUpdateBgmSelector = ReactiveCommand.CreateFromTask<bool>((enabled) => UpdateBgmSelector(enabled));
@@ -438,6 +440,19 @@ namespace Sma5hMusic.GUI.ViewModels
                 return;
 
             await _guiStateManager.SortSongsAlphabeticallyByGame(pickerVm.GetSelectedGameTitleIds());
+        }
+
+        public async Task SortSongsAlphabeticallyBySeries()
+        {
+            var pickerVm = new SeriesMultiPickerModalWindowViewModel(
+                _guiStateManager.GetSortableSeriesOptions());
+            var picker = new SeriesMultiPickerModalWindow() { DataContext = pickerVm };
+            var result = await picker.ShowDialog<SeriesMultiPickerModalWindow>(_rootDialog.Window);
+
+            if (result == null)
+                return;
+
+            await _guiStateManager.SortSongsAlphabeticallyBySeries(pickerVm.GetSelectedSeriesIds());
         }
 
         public async Task UpdateBgmSelector(bool enable)
