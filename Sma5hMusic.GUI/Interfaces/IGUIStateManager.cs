@@ -26,6 +26,8 @@ namespace Sma5hMusic.GUI.Interfaces
         Task<bool> SetModSongVolumes(float volume);
         IEnumerable<GameTitleSortOption> GetSortableGameTitleOptions();
         Task<bool> SortSongsAlphabeticallyByGame(IEnumerable<string> gameTitleIds);
+        IEnumerable<SeriesSortOption> GetSortableSeriesOptions();
+        Task<bool> SortSongsAlphabeticallyBySeries(IEnumerable<string> seriesIds);
         Task<bool> ResetModOverrideFile(string file);
         #endregion
 

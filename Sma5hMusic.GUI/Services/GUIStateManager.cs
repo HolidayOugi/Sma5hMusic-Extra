@@ -10,6 +10,7 @@ using Sma5h.Mods.Music.Models;
 using Sma5h.Mods.Music.Models.PlaylistEntryModels;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
+using Sma5hMusic.GUI.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1229,8 +1230,61 @@ namespace Sma5hMusic.GUI.Services
             var selectedGameTitleIds = new HashSet<string>(
                 gameTitleIds ?? Enumerable.Empty<string>(),
                 StringComparer.OrdinalIgnoreCase);
+            selectedGameTitleIds.Remove(SmashUltimateGameTitleId);
 
-            if (selectedGameTitleIds.Count == 0)
+            return await SortSongsAlphabeticallyByGroup(
+                selectedGameTitleIds,
+                p => p.UiGameTitleId,
+                "Sort Songs Alphabetically by Game",
+                "This script will sort songs alphabetically inside each selected game.\r\nContinue?",
+                "Error while sorting songs alphabetically by game",
+                "Error while sorting songs alphabetically by game.");
+        }
+
+        public IEnumerable<SeriesSortOption> GetSortableSeriesOptions()
+        {
+            return _viewModelManager.GetBgmDbRootEntriesViewModels()
+                .Where(p => !p.HiddenInSoundTest)
+                .Where(p => !string.IsNullOrEmpty(p.SeriesId))
+                .GroupBy(p => p.SeriesId, StringComparer.OrdinalIgnoreCase)
+                .Select(p =>
+                {
+                    var series = _viewModelManager.GetSeriesViewModel(p.Key);
+                    return new SeriesSortOption
+                    {
+                        UiSeriesId = p.Key,
+                        Title = !string.IsNullOrWhiteSpace(series?.Title) ? series.Title : p.Key,
+                        SongCount = p.Count()
+                    };
+                })
+                .OrderBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.UiSeriesId, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public async Task<bool> SortSongsAlphabeticallyBySeries(IEnumerable<string> seriesIds)
+        {
+            return await SortSongsAlphabeticallyByGroup(
+                seriesIds,
+                p => p.SeriesId,
+                "Sort Songs Alphabetically by Series",
+                "This script will sort songs alphabetically inside each selected series, ignoring games.\r\nContinue?",
+                "Error while sorting songs alphabetically by series",
+                "Error while sorting songs alphabetically by series.");
+        }
+
+        private async Task<bool> SortSongsAlphabeticallyByGroup(
+            IEnumerable<string> groupIds,
+            Func<BgmDbRootEntryViewModel, string> groupIdSelector,
+            string title,
+            string confirmMessage,
+            string errorLogMessage,
+            string errorUserMessage)
+        {
+            var selectedGroupIds = new HashSet<string>(
+                groupIds ?? Enumerable.Empty<string>(),
+                StringComparer.OrdinalIgnoreCase);
+
+            if (selectedGroupIds.Count == 0)
                 return false;
 
             bool confirm = false;
@@ -1238,9 +1292,7 @@ namespace Sma5hMusic.GUI.Services
 
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                confirm = await _messageDialog.ShowWarningConfirm("Sort Songs Alphabetically by Game",
-                    $"This script will sort songs alphabetically inside each selected game.\r\n" +
-                    "Continue?");
+                confirm = await _messageDialog.ShowWarningConfirm(title, confirmMessage);
             }, DispatcherPriority.Background);
 
             if (!confirm)
@@ -1250,23 +1302,20 @@ namespace Sma5hMusic.GUI.Services
             {
                 await BackupProject(false, false);
 
-                foreach (var gameTitleId in selectedGameTitleIds)
+                foreach (var groupId in selectedGroupIds)
                 {
-                    if (string.Equals(gameTitleId, SmashUltimateGameTitleId, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    var gameSongs = _viewModelManager.GetBgmDbRootEntriesViewModels()
+                    var groupSongs = _viewModelManager.GetBgmDbRootEntriesViewModels()
                         .Where(p => !p.HiddenInSoundTest)
-                        .Where(p => string.Equals(p.UiGameTitleId, gameTitleId, StringComparison.OrdinalIgnoreCase))
+                        .Where(p => string.Equals(groupIdSelector(p), groupId, StringComparison.OrdinalIgnoreCase))
                         .OrderBy(p => p.TestDispOrder)
                         .ToList();
 
-                    var orderSlots = gameSongs
+                    var orderSlots = groupSongs
                         .Select(p => p.TestDispOrder)
                         .OrderBy(p => p)
                         .ToList();
 
-                    var sortedSongs = gameSongs
+                    var sortedSongs = groupSongs
                         .OrderBy(p => p.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                         .ThenBy(p => p.UiBgmId, StringComparer.OrdinalIgnoreCase)
                         .ToList();
@@ -1282,41 +1331,43 @@ namespace Sma5hMusic.GUI.Services
                     _viewModelManager.GetBgmDbRootEntriesViewModels().ToDictionary(p => p.UiBgmId, p => p.TestDispOrder));
 
                 if (result)
-                {
-                    var allModSongs = _viewModelManager.GetBgmDbRootEntriesViewModels()
-                        .Where(p => p.MusicMod != null)
-                        .OrderBy(p => p.TestDispOrder);
-
-                    foreach (var mod in _musicModManagerService.MusicMods)
-                    {
-                        var orderedModSongs = allModSongs
-                            .Where(p => p.MusicMod.Id == mod.Id)
-                            .Select(p => p.UiBgmId)
-                            .ToList();
-
-                        if (!mod.ReorderSongs(orderedModSongs))
-                        {
-                            result = false;
-                            break;
-                        }
-                    }
-                }
+                    result = ReorderMusicModSongs();
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error while sorting songs alphabetically by game");
+                _logger.LogError(e, errorLogMessage);
                 result = false;
             }
 
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
                 if (result)
-                    await _messageDialog.ShowInformation("Sort Songs Alphabetically by Game", "Done!");
+                    await _messageDialog.ShowInformation(title, "Done!");
                 else
-                    await _messageDialog.ShowError("Sort Songs Alphabetically by Game", "Error while sorting songs alphabetically by game.");
+                    await _messageDialog.ShowError(title, errorUserMessage);
             }, DispatcherPriority.Background);
 
             return result;
+        }
+
+        private bool ReorderMusicModSongs()
+        {
+            var allModSongs = _viewModelManager.GetBgmDbRootEntriesViewModels()
+                .Where(p => p.MusicMod != null)
+                .OrderBy(p => p.TestDispOrder);
+
+            foreach (var mod in _musicModManagerService.MusicMods)
+            {
+                var orderedModSongs = allModSongs
+                    .Where(p => p.MusicMod.Id == mod.Id)
+                    .Select(p => p.UiBgmId)
+                    .ToList();
+
+                if (!mod.ReorderSongs(orderedModSongs))
+                    return false;
+            }
+
+            return true;
         }
 
         public async Task<bool> AdjustModSongVolumes(float amount)
