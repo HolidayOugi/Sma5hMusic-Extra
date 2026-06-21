@@ -39,7 +39,7 @@ namespace Sma5hMusic.GUI.Views
                 return;
 
             var text = _hexTextBox.Text ?? string.Empty;
-            var sanitized = text.ToUpperInvariant();
+            var sanitized = NormalizeHexText(text);
 
             if (!string.Equals(text, sanitized, StringComparison.Ordinal))
             {
@@ -60,6 +60,16 @@ namespace Sma5hMusic.GUI.Views
         {
             return (value >= '0' && value <= '9') ||
                    (value >= 'A' && value <= 'F');
+        }
+
+        private static string NormalizeHexText(string text)
+        {
+            var sanitized = (text ?? string.Empty).Trim();
+
+            if (sanitized.StartsWith("#"))
+                sanitized = sanitized.Substring(1);
+
+            return sanitized.ToUpperInvariant();
         }
     }
 }
