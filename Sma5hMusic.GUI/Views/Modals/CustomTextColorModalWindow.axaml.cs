@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using System;
 using System.Linq;
 
@@ -10,6 +11,7 @@ namespace Sma5hMusic.GUI.Views
     {
         private TextBox _hexTextBox;
         private TextBlock _validationText;
+        private Border _colorPreview;
         private Button _okButton;
         private Button _cancelButton;
         private bool _isSyncing;
@@ -24,6 +26,7 @@ namespace Sma5hMusic.GUI.Views
             AvaloniaXamlLoader.Load(this);
             _hexTextBox = this.FindControl<TextBox>("HexTextBox");
             _validationText = this.FindControl<TextBlock>("ValidationText");
+            _colorPreview = this.FindControl<Border>("ColorPreview");
             _okButton = this.FindControl<Button>("OkButton");
             _cancelButton = this.FindControl<Button>("CancelButton");
 
@@ -51,6 +54,8 @@ namespace Sma5hMusic.GUI.Views
             var hasOnlyHexDigits = sanitized.All(IsAsciiHexDigit);
             var valid = sanitized.Length == 6 && hasOnlyHexDigits;
             _okButton.IsEnabled = valid;
+            _colorPreview.IsVisible = valid;
+            _colorPreview.Background = valid ? Brush.Parse("#" + sanitized) : null;
             _validationText.Text = string.IsNullOrEmpty(sanitized) || valid
                 ? string.Empty
                 : hasOnlyHexDigits ? "Use 6 hex digits." : "Use only hex digits.";
