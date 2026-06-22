@@ -14,6 +14,7 @@ namespace Sma5hMusic.GUI.Views
         private Border _colorPreview;
         private Button _okButton;
         private Button _cancelButton;
+        private IDisposable _hexTextSubscription;
         private bool _isSyncing;
 
         public CustomTextColorModalWindow()
@@ -32,7 +33,8 @@ namespace Sma5hMusic.GUI.Views
 
             _okButton.Click += (_, _) => Close("#" + (_hexTextBox.Text ?? string.Empty));
             _cancelButton.Click += (_, _) => Close();
-            _hexTextBox.GetObservable(TextBox.TextProperty).Subscribe(_ => ValidateHexText());
+            _hexTextSubscription = _hexTextBox.GetObservable(TextBox.TextProperty).Subscribe(_ => ValidateHexText());
+            Closed += (_, _) => _hexTextSubscription?.Dispose();
             ValidateHexText();
         }
 

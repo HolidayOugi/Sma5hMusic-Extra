@@ -284,6 +284,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 return;
 
             string previewFilename = null;
+            ToneIdCreationModalWindowModel vmToneIdCreation = null;
 
             try
             {
@@ -300,7 +301,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     : BgmPropertyViewModel.Filename;
 
                 var audioInfo = await _audioImportService.GetAudioInfo(previewFilename);
-                var vmToneIdCreation = ActivatorUtilities.CreateInstance<ToneIdCreationModalWindowModel>(_serviceProvider);
+                vmToneIdCreation = ActivatorUtilities.CreateInstance<ToneIdCreationModalWindowModel>(_serviceProvider);
                 vmToneIdCreation.LoadQueueStatus(0);
                 vmToneIdCreation.LoadLoopPreviewOnlyInfo(
                     previewFilename,
@@ -352,6 +353,7 @@ namespace Sma5hMusic.GUI.ViewModels
             }
             finally
             {
+                vmToneIdCreation?.Dispose();
                 DeleteTemporaryPreviewFile(BgmPropertyViewModel.Filename, previewFilename);
             }
         }

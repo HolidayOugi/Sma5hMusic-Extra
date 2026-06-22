@@ -15,18 +15,21 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 using VGMMusic;
 
 namespace Sma5hMusic.GUI.ViewModels
 {
-    public partial class ToneIdCreationModalWindowModel : ReactiveValidationObject
+    public partial class ToneIdCreationModalWindowModel : ReactiveValidationObject, IDisposable
     {
         private readonly ILogger _logger;
         private readonly IViewModelManager _viewModelManager;
         private readonly ReadOnlyObservableCollection<BgmPropertyEntryViewModel> _bgmPropertyEntries;
+        private readonly CompositeDisposable _subscriptions = new CompositeDisposable();
         private CoreSongReplacementOption _selectedCoreSongReplacement;
+        private bool _disposed;
         private const string REGEX_REPLACE = @"[^a-zA-Z0-9_]";
         private const string REGEX_VALIDATION = @"^[a-z0-9_]+$";
 
@@ -75,21 +78,21 @@ namespace Sma5hMusic.GUI.ViewModels
             AutoLoopPoints = new ObservableCollection<AutoLoopPoint>();
 
             //Bind observables
-            this.WhenAnyValue(x => x.IsAudioImport, x => x.IsLoopPreviewOnly)
+            _subscriptions.Add(this.WhenAnyValue(x => x.IsAudioImport, x => x.IsLoopPreviewOnly)
                 .Subscribe(_ =>
                 {
                     this.RaisePropertyChanged(nameof(WindowTitle));
                     this.RaisePropertyChanged(nameof(ResetLoopButtonText));
-                });
+                }));
 
-            this.WhenAnyValue(x => x.IsLoopPreviewOnly, x => x.IsImportingSong)
-                .Subscribe(_ => this.RaisePropertyChanged(nameof(CanReplaceCoreSong)));
+            _subscriptions.Add(this.WhenAnyValue(x => x.IsLoopPreviewOnly, x => x.IsImportingSong)
+                .Subscribe(_ => this.RaisePropertyChanged(nameof(CanReplaceCoreSong))));
 
-            viewModelManager.ObservableBgmPropertyEntries.Connect()
+            _subscriptions.Add(viewModelManager.ObservableBgmPropertyEntries.Connect()
                .ObserveOn(RxApp.MainThreadScheduler)
                .Bind(out _bgmPropertyEntries)
                .DisposeMany()
-               .Subscribe();
+               .Subscribe());
 
             this.ValidationRule(p => p.ToneId,
                 p => !string.IsNullOrEmpty(p) && Regex.IsMatch(p, REGEX_VALIDATION),
@@ -166,29 +169,29 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionLoadMoreAutoLoops = ReactiveCommand.Create(LoadMoreAutoLoops);
             ActionPreviewAutoLoop = ReactiveCommand.CreateFromTask<AutoLoopPoint>(PreviewAutoLoop);
 
-            this.WhenAnyValue(p => p.LoopStartSample)
-                .Subscribe(p => UpdateLoopStartMsFromSample(p));
+            _subscriptions.Add(this.WhenAnyValue(p => p.LoopStartSample)
+                .Subscribe(p => UpdateLoopStartMsFromSample(p)));
 
-            this.WhenAnyValue(p => p.LoopEndSample)
-                .Subscribe(p => UpdateLoopEndMsFromSample(p));
+            _subscriptions.Add(this.WhenAnyValue(p => p.LoopEndSample)
+                .Subscribe(p => UpdateLoopEndMsFromSample(p)));
 
-            this.WhenAnyValue(p => p.LoopStartMs)
-                .Subscribe(p => UpdateLoopStartSampleFromMs(p));
+            _subscriptions.Add(this.WhenAnyValue(p => p.LoopStartMs)
+                .Subscribe(p => UpdateLoopStartSampleFromMs(p)));
 
-            this.WhenAnyValue(p => p.LoopEndMs)
-                .Subscribe(p => UpdateLoopEndSampleFromMs(p));
+            _subscriptions.Add(this.WhenAnyValue(p => p.LoopEndMs)
+                .Subscribe(p => UpdateLoopEndSampleFromMs(p)));
 
-            this.WhenAnyValue(p => p.LoopStartMinutes, p => p.LoopStartSeconds, p => p.LoopStartMilliseconds)
-                .Subscribe(_ => UpdateLoopStartFromTimeParts());
+            _subscriptions.Add(this.WhenAnyValue(p => p.LoopStartMinutes, p => p.LoopStartSeconds, p => p.LoopStartMilliseconds)
+                .Subscribe(_ => UpdateLoopStartFromTimeParts()));
 
-            this.WhenAnyValue(p => p.LoopEndMinutes, p => p.LoopEndSeconds, p => p.LoopEndMilliseconds)
-                .Subscribe(_ => UpdateLoopEndFromTimeParts());
+            _subscriptions.Add(this.WhenAnyValue(p => p.LoopEndMinutes, p => p.LoopEndSeconds, p => p.LoopEndMilliseconds)
+                .Subscribe(_ => UpdateLoopEndFromTimeParts()));
 
-            this.WhenAnyValue(p => p.SelectedAutoLoop)
+            _subscriptions.Add(this.WhenAnyValue(p => p.SelectedAutoLoop)
                 .Where(p => p != null)
-                .Subscribe(ApplyAutoLoop);
+                .Subscribe(ApplyAutoLoop));
 
-            this.WhenAnyValue(p => p.ToneId)
+            _subscriptions.Add(this.WhenAnyValue(p => p.ToneId)
                 .Subscribe(p =>
                 {
                     if (SelectedCoreSongReplacement != null &&
@@ -196,7 +199,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     {
                         SelectedCoreSongReplacement = null;
                     }
-                });
+                }));
         }
 
         public CoreSongReplacementOption GetCoreSongReplacement()
@@ -229,6 +232,17 @@ namespace Sma5hMusic.GUI.ViewModels
             QueueStatusText = songsRemaining == 1
                 ? "1 Song left in queue..."
                 : $"{songsRemaining} Songs left in queue...";
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            StopAutoLoopStatusAnimation();
+            DisposePreviewProgressTimer();
+            _subscriptions.Dispose();
         }
 
         private async void CancelAll(Window w)
