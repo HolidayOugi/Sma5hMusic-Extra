@@ -242,7 +242,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .Select(p => p.First().UiGameTitleId)
                 .ToList();
 
-            var index = 0;
+            var index = GetStartingOrderForSeries();
             foreach (var gameId in sortedGames)
             {
                 if (!gameEntries.ContainsKey(gameId))
@@ -304,7 +304,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var ranked = seriesMinOverride
                     .OrderBy(p => p.Value)
                     .ThenBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
-                    .Select((p, i) => new { p.Key, Index = i })
+                    .Select((p, i) => new { p.Key, Index = GetStartingOrderForSeries() + i })
                     .ToDictionary(p => p.Key, p => p.Index, StringComparer.OrdinalIgnoreCase);
 
                 foreach (var alias in aliases)
@@ -341,7 +341,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Helpers
 
-        private static int GetSeriesSoundOrder(Dictionary<string, int> seriesSoundOrder, JObject series)
+        private int GetSeriesSoundOrder(Dictionary<string, int> seriesSoundOrder, JObject series)
         {
             var uiSeriesId = GetString(series, "ui_series_id");
             if (!string.IsNullOrEmpty(uiSeriesId) && seriesSoundOrder.ContainsKey(uiSeriesId))
@@ -351,7 +351,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (!string.IsNullOrEmpty(nameId) && seriesSoundOrder.ContainsKey(nameId))
                 return seriesSoundOrder[nameId];
 
-            return 0;
+            return GetStartingOrderForSeries();
+        }
+
+        private int GetStartingOrderForSeries()
+        {
+            var value = _config.CurrentValue.Sma5hMusicGUI?.StartingOrderForSeries ?? 1;
+            return Math.Clamp(value, 0, 39);
         }
 
         private static void SetSeriesOrderKey(Dictionary<string, int> seriesOrder, string key, int value)

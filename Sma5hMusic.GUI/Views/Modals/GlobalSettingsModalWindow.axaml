@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        Height="760" MinHeight="760"
+        Height="840" MinHeight="840"
         x:Class="Sma5hMusic.GUI.Views.GlobalSettingsModalWindow"
         xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
         Classes="globalSettings" ShowInTaskbar="False" Title="Global Settings">
@@ -124,6 +124,13 @@
             <fields:PropertyField Grid.Column="1" Label="Auto-Mapping Incidence" ToolTip="Indicate how likely a track is to get picked up when selecting a stage. Incidence when a BGM is automatically inserted to a playlist at build time..">
               <fields:PropertyField.FieldContent>
                 <NumericUpDown IsEnabled="{Binding !IsPlaylistGenerationModeManual}" Value="{Binding SelectedItem.PlaylistAutoMappingIncidence, Mode=TwoWay}" Maximum="10000" Minimum="0"/>
+              </fields:PropertyField.FieldContent>
+            </fields:PropertyField>
+          </Grid>
+          <Grid ColumnDefinitions="*,*">
+            <fields:PropertyField Grid.Column="0" Label="Starting Order for Series" ToolTip="Starting disp_order_sound value used in a CSK Pack build.">
+              <fields:PropertyField.FieldContent>
+                <NumericUpDown Value="{Binding SelectedItem.StartingOrderForSeries, Mode=TwoWay}" Minimum="0" Maximum="39" Increment="1"/>
               </fields:PropertyField.FieldContent>
             </fields:PropertyField>
           </Grid>

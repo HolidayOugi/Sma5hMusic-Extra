@@ -171,6 +171,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
             if (item != null && (item.LoopPreviewSeconds < 2 || item.LoopPreviewSeconds > 10))
                 item.LoopPreviewSeconds = 6;
+
+            if (item != null && (item.StartingOrderForSeries < 0 || item.StartingOrderForSeries > 39))
+                item.StartingOrderForSeries = 1;
         }
 
         protected override Task<bool> SaveChanges()

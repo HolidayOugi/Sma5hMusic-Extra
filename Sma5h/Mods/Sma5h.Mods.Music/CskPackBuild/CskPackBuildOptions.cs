@@ -16,6 +16,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         {
             public string DefaultGUILocale { get; set; }
             public string DefaultMSBTLocale { get; set; }
+            public int StartingOrderForSeries { get; set; }
         }
     }
 }

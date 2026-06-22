@@ -84,6 +84,8 @@ namespace Sma5hMusic.GUI.ViewModels
         public double AudioNormalizationTargetLufs { get; set; }
         [Reactive]
         public uint LoopPreviewSeconds { get; set; }
+        [Reactive]
+        public int StartingOrderForSeries { get; set; }
 
         public ApplicationSettings GetReference()
         {
