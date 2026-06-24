@@ -1,0 +1,127 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1080" d:DesignHeight="560"
+        Width="1080" Height="560" MinWidth="1020" MinHeight="480"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
+        x:Class="Sma5hMusic.GUI.Views.GenerateVictoryThemesModalWindow"
+        Title="Generate Victory Themes">
+  <DockPanel Classes="modal" LastChildFill="True" HorizontalAlignment="Stretch">
+    <Border Classes="headerTitle" DockPanel.Dock="Top">
+      <TextBlock Text="Generate Victory Themes"/>
+    </Border>
+
+    <StackPanel Classes="modalActions" DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Content="Add Entry" Command="{Binding ActionAddEntry}" IsEnabled="{Binding !IsGenerating}" />
+      <Button Content="Load Victory Themes" Command="{Binding ActionLoadVictoryThemes}" CommandParameter="{Binding $parent[Window]}" IsEnabled="{Binding !IsGenerating}" />
+      <Button Content="Generate" Command="{Binding ActionGenerate}" CommandParameter="{Binding $parent[Window]}" IsEnabled="{Binding !IsGenerating}" />
+      <Button Content="Cancel" Command="{Binding ActionCancel}" CommandParameter="{Binding $parent[Window]}" IsEnabled="{Binding !IsGenerating}" />
+    </StackPanel>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel Classes="content">
+        <ItemsControl Items="{Binding Entries}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="#404040" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,12">
+                <Grid ColumnDefinitions="1.1*,1.1*,Auto,1.35*,Auto,0.8*,Auto"
+                      RowDefinitions="Auto,Auto,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0" Text="Fighter" Margin="6,0,6,2"/>
+                  <TextBlock Grid.Row="0" Grid.Column="1" Text="Custom name" Margin="6,0,6,2"/>
+                  <TextBlock Grid.Row="0" Grid.Column="2" Text="Default" Margin="6,0,6,2"/>
+                  <TextBlock Grid.Row="0" Grid.Column="3" Text="Audio" Margin="6,0,6,2"/>
+                  <TextBlock Grid.Row="0" Grid.Column="4" Text="Normalize" Margin="6,0,6,2"/>
+                  <TextBlock Grid.Row="0" Grid.Column="5" Text="Volume" Margin="6,0,6,2"/>
+
+                  <ComboBox Grid.Row="1"
+                            Grid.Column="0"
+                            Margin="6,0,6,0"
+                            Items="{Binding DataContext.FighterOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                            SelectedItem="{Binding SelectedFighter, Mode=TwoWay}">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding DisplayName}" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+
+                  <TextBox Grid.Row="1"
+                           Grid.Column="1"
+                           Margin="6,0,6,0"
+                           Text="{Binding CustomName, Mode=TwoWay}"
+                           MaxLength="41"
+                           IsEnabled="{Binding IsCustomNameEnabled}"
+                           TextWrapping="NoWrap"
+                           Watermark="mario" />
+
+                  <CheckBox Grid.Row="1"
+                              Grid.Column="2"
+                              Margin="12,0,12,0"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              IsEnabled="{Binding IsDefaultNameEnabled}"
+                              IsChecked="{Binding UseDefaultName, Mode=TwoWay}" />
+
+                  <StackPanel Grid.Row="1"
+                              Grid.Column="3"
+                              Orientation="Horizontal"
+                              Margin="6,0,6,0"
+                              Spacing="8"
+                              VerticalAlignment="Center">
+                    <Button Content="Choose Audio"
+                            Command="{Binding DataContext.ActionChooseAudio, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}" />
+                    <TextBlock Text="{Binding SourceFileName}"
+                               VerticalAlignment="Center" />
+                  </StackPanel>
+
+                  <CheckBox Grid.Row="1"
+                            Grid.Column="4"
+                            Margin="12,0,12,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsChecked="{Binding ApplyNormalization, Mode=TwoWay}" />
+
+                  <NumericUpDown Grid.Row="1"
+                                 Grid.Column="5"
+                                 Margin="6,0,6,0"
+                                 MinWidth="140"
+                                 Minimum="-20"
+                                 Maximum="20"
+                                 Increment="0.1"
+                                 FormatString="0.0"
+                                 Value="{Binding Volume, Mode=TwoWay}" />
+
+                  <Button Grid.Row="1"
+                          Grid.Column="6"
+                          Margin="6,0,6,0"
+                          Content="Remove"
+                          Command="{Binding DataContext.ActionRemoveEntry, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" />
+
+                  <StackPanel Grid.Row="2"
+                              Grid.Column="0"
+                              Grid.ColumnSpan="4"
+                              Orientation="Horizontal"
+                              Margin="6,8,6,0"
+                              Spacing="8"
+                              VerticalAlignment="Center">
+                    <TextBlock Text="Tone ID" VerticalAlignment="Center"/>
+                    <TextBox MinWidth="360"
+                             MaxWidth="460"
+                             ClipToBounds="True"
+                             TextWrapping="NoWrap"
+                             MaxLength="47"
+                             Text="{Binding ToneIdPreview, Mode=OneWay}"
+                             IsReadOnly="True" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

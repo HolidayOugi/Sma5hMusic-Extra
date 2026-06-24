@@ -28,6 +28,7 @@ namespace Sma5hMusic.GUI.ViewModels
     public partial class MainWindowViewModel : ViewModelBase
     {
         private readonly IDevToolsService _devTools;
+        private readonly IServiceProvider _serviceProvider;
         private readonly IGUIStateManager _guiStateManager;
         private readonly IViewModelManager _viewModelManager;
         private readonly IVGMMusicPlayer _musicPlayer;
@@ -96,6 +97,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Unit, Unit> ActionSortSongsAlphabeticallyBySeries { get; }
         public ReactiveCommand<string, Unit> ActionCreateSongSpreadsheet { get; }
         public ReactiveCommand<Unit, Unit> ActionGenerateModFromBuildFiles { get; }
+        public ReactiveCommand<Unit, Unit> ActionGenerateVictoryThemes { get; }
         public ReactiveCommand<bool, Unit> ActionUpdateBgmSelector { get; }
         public ReactiveCommand<string, Unit> ActionResetModOverrideFile { get; }
         public ReactiveCommand<bool, Unit> ActionBackupProject { get; }
@@ -104,6 +106,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public MainWindowViewModel(IServiceProvider serviceProvider, IViewModelManager viewModelManager, IGUIStateManager guiStateManager, IMapper mapper, IVGMMusicPlayer musicPlayer,
                IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IMusicModManagerService musicModManagerService, IMusicModReverseService musicModReverseService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
         {
+            _serviceProvider = serviceProvider;
             _viewModelManager = viewModelManager;
             _guiStateManager = guiStateManager;
             _musicPlayer = musicPlayer;
@@ -235,6 +238,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionSortSongsAlphabeticallyBySeries = ReactiveCommand.CreateFromTask(SortSongsAlphabeticallyBySeries);
             ActionCreateSongSpreadsheet = ReactiveCommand.CreateFromTask<string>(CreateSongSpreadsheet);
             ActionGenerateModFromBuildFiles = ReactiveCommand.CreateFromTask(GenerateModFromBuildFiles);
+            ActionGenerateVictoryThemes = ReactiveCommand.CreateFromTask(GenerateVictoryThemes);
             ActionUpdateBgmSelector = ReactiveCommand.CreateFromTask<bool>((enabled) => UpdateBgmSelector(enabled));
             ActionResetModOverrideFile = ReactiveCommand.CreateFromTask<string>((file) => ResetModOverrideFile(file));
             ActionBackupProject = ReactiveCommand.CreateFromTask<bool>((fullBackup) => _guiStateManager.BackupProject(fullBackup));
@@ -427,6 +431,13 @@ namespace Sma5hMusic.GUI.ViewModels
 
             if (await _guiStateManager.SetModSongVolumes((float)volumePickerVm.VolumeAdjustment))
                 await OnInitData();
+        }
+
+        public async Task GenerateVictoryThemes()
+        {
+            var vm = ActivatorUtilities.CreateInstance<GenerateVictoryThemesModalWindowViewModel>(_serviceProvider);
+            var dialog = new GenerateVictoryThemesModalWindow { DataContext = vm };
+            await dialog.ShowDialog<GenerateVictoryThemesModalWindow>(_rootDialog.Window);
         }
 
         public async Task SortSongsAlphabeticallyByGame()
