@@ -170,6 +170,7 @@ namespace Sma5hMusic.GUI
                 { "Sma5hMusicGUI:SkipWarningGameVersion", "false" },
                 { "Sma5hMusicGUI:AutoBackupAtStart", "true" },
                 { "Sma5hMusicGUI:InGameVolume", "false" },
+                { "Sma5hMusicGUI:BuildNus3bankForCoreSongs", "true" },
                 { "Sma5hMusicGUI:LoopPreviewSeconds", "6" },
                 { "Sma5hMusicGUI:StartingOrderForSeries", "1" },
                 { "Sma5hMusicGUI:HideIndexColumn", "false" },

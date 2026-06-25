@@ -141,18 +141,23 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                 try
                 {
-                    var includeAudio = buildMode != CskPackBuildMode.MetadataOnly && !coreOverrideOnly;
+                    var contextList = contexts.ToList();
+                    var audioOnlySingleBuild = buildMode == CskPackBuildMode.Single &&
+                                               IsSelectedAudioOnlyBuild(contextList, selectedSeriesKeys, buildResources);
+                    var includeAudio = buildMode != CskPackBuildMode.MetadataOnly;
                     _unavailableBgmNameIds.Value = includeAudio
                         ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                         : null;
                     var generatedBgmFolder = includeAudio
-                        ? GenerateBgmFiles(contexts, tempRoot, selectedSeriesKeys, buildResources.CoreGameOverride)
+                        ? GenerateBgmFiles(contextList, tempRoot, selectedSeriesKeys, buildResources)
                         : null;
 
-                    if (buildMode == CskPackBuildMode.Single)
-                        GenerateSingleCskPack(contexts, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
+                    if (audioOnlySingleBuild)
+                        GenerateSingleAudioOnlyCskPack(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources);
+                    else if (buildMode == CskPackBuildMode.Single)
+                        GenerateSingleCskPack(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
                     else
-                        GenerateCskPacks(contexts, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
+                        GenerateCskPacks(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
                 }
                 finally
                 {

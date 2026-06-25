@@ -18,13 +18,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public string NameId { get; set; }
             public float AudioVolume { get; set; }
             public string Filename { get; set; }
+            public bool BankOnly { get; set; }
         }
 
         #endregion
 
         #region BGM Files
 
-        private string GenerateBgmFiles(IEnumerable<CskModContext> contexts, string tempRoot, HashSet<string> selectedSeriesKeys, JObject coreGameOverride)
+        private string GenerateBgmFiles(IEnumerable<CskModContext> contexts, string tempRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources)
         {
             ClearDirectory(tempRoot);
 
@@ -33,9 +34,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             _nus3AudioService.ResetGeneratedNus3BankIds();
 
-            var bgmEntries = contexts
-                .SelectMany(context => GetSelectedBgmBuildEntries(context, selectedSeriesKeys, coreGameOverride))
-                .Where(p => !string.IsNullOrEmpty(p.NameId) && !string.IsNullOrEmpty(p.Filename))
+            var contextList = contexts.ToList();
+            var selectedSeriesNames = GetSelectedSeriesNames(contextList, selectedSeriesKeys);
+            var bgmEntries = contextList
+                .SelectMany(context => GetSelectedBgmBuildEntries(context, selectedSeriesKeys, buildResources.CoreGameOverride))
+                .Concat(GetSelectedCoreVolumeOverrideBuildEntries(selectedSeriesNames, buildResources))
+                .Where(p => !string.IsNullOrEmpty(p.NameId) && (p.BankOnly || !string.IsNullOrEmpty(p.Filename)))
                 .GroupBy(p => p.NameId, StringComparer.OrdinalIgnoreCase)
                 .Select(p => p.First())
                 .ToList();
@@ -47,7 +51,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var nusBankOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
                 var nusAudioOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, bgmPropertyEntry.NameId));
 
-                if (!File.Exists(bgmPropertyEntry.Filename))
+                if (!bgmPropertyEntry.BankOnly && !File.Exists(bgmPropertyEntry.Filename))
                 {
                     _unavailableBgmNameIds.Value?.Add(bgmPropertyEntry.NameId);
                     _logger.LogWarning(
@@ -59,6 +63,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                 _logger.LogInformation("Generating Nus3Bank for {NameId} with volume {Volume}", bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume);
                 _nus3AudioService.GenerateNus3Bank(bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume, nusBankOutputFile);
+
+                if (bgmPropertyEntry.BankOnly)
+                    continue;
 
                 if (File.Exists(nusAudioOutputFile))
                     File.Delete(nusAudioOutputFile);
@@ -102,6 +109,70 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         yield return CreateBgmBuildEntry(context.Mod.ModPath, bgm);
                 }
             }
+        }
+
+        private HashSet<string> GetSelectedSeriesNames(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
+        {
+            return contexts
+                .SelectMany(context => context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
+                .Select(series => GetString(series, "name_id"))
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private bool IsSelectedAudioOnlyBuild(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources)
+        {
+            var selectedBgms = GetSelectedBgms(contexts, selectedSeriesKeys).ToList();
+            var hasNonCoreBgms = selectedBgms.Any(p => !IsCoreBgm(p, buildResources.CoreBgmIds));
+            var selectedSeriesNames = GetSelectedSeriesNames(contexts, selectedSeriesKeys);
+            var hasCoreVolumeOverrides = GetSelectedCoreVolumeOverrideBuildEntries(selectedSeriesNames, buildResources).Any();
+
+            return !hasNonCoreBgms && (selectedBgms.Count > 0 || hasCoreVolumeOverrides);
+        }
+
+        private IEnumerable<JObject> GetSelectedBgms(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
+        {
+            foreach (var context in contexts)
+            {
+                foreach (var series in context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
+                {
+                    foreach (JObject game in GetArray(series, "games"))
+                    {
+                        foreach (JObject bgm in GetArray(game, "bgms"))
+                            yield return bgm;
+                    }
+                }
+            }
+        }
+
+        private static bool IsCoreBgm(JObject bgm, HashSet<string> coreBgmIds)
+        {
+            var uiBgmId = GetString(bgm["db_root"], "ui_bgm_id");
+            return !string.IsNullOrEmpty(uiBgmId) && coreBgmIds?.Contains(uiBgmId) == true;
+        }
+
+        private IEnumerable<BgmBuildEntry> GetSelectedCoreVolumeOverrideBuildEntries(HashSet<string> selectedSeriesNames, CskBuildResources buildResources)
+        {
+            if (!ShouldBuildCoreNus3Banks())
+                yield break;
+
+            foreach (var entry in GetCoreVolumeOverrideEntries(buildResources))
+            {
+                if (!string.IsNullOrEmpty(entry.SeriesName) && !selectedSeriesNames.Contains(entry.SeriesName))
+                    continue;
+
+                yield return new BgmBuildEntry
+                {
+                    NameId = entry.NameId,
+                    AudioVolume = entry.Volume,
+                    BankOnly = true
+                };
+            }
+        }
+
+        private bool ShouldBuildCoreNus3Banks()
+        {
+            return _config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs == true;
         }
 
         private BgmBuildEntry CreateBgmBuildEntry(string modPath, JObject bgm)

@@ -34,6 +34,7 @@ namespace Sma5h.Mods.Music.MusicOverride
             public Dictionary<string, BgmAssignedInfoConfig> CoreBgmAssignedInfoOverrides { get; set; }
             public Dictionary<string, BgmStreamPropertyConfig> CoreBgmStreamPropertyOverrides { get; set; }
             public Dictionary<string, BgmPropertyEntryConfig> CoreBgmPropertyOverrides { get; set; }
+            public Dictionary<string, CoreBgmVolumeConfig> CoreBgmVolumeOverrides { get; set; }
 
             public CoreBgmOverrides()
             {
@@ -42,7 +43,20 @@ namespace Sma5h.Mods.Music.MusicOverride
                 CoreBgmAssignedInfoOverrides = new Dictionary<string, BgmAssignedInfoConfig>();
                 CoreBgmStreamPropertyOverrides = new Dictionary<string, BgmStreamPropertyConfig>();
                 CoreBgmPropertyOverrides = new Dictionary<string, BgmPropertyEntryConfig>();
+                CoreBgmVolumeOverrides = new Dictionary<string, CoreBgmVolumeConfig>();
             }
+        }
+
+        public class CoreBgmVolumeConfig
+        {
+            [JsonProperty("name_id")]
+            public string NameId { get; set; }
+
+            [JsonProperty("original_volume")]
+            public float OriginalVolume { get; set; }
+
+            [JsonProperty("volume")]
+            public float Volume { get; set; }
         }
 
         public class PlaylistConfig

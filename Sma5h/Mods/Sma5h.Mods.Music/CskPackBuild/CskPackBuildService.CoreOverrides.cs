@@ -97,6 +97,23 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 coreGameOverride);
         }
 
+        private string GetCoreBgmUiSeriesIdByNameId(string nameId, JObject coreGameOverride)
+        {
+            var db = GetOriginalCoreDbRootByNameId(nameId);
+            return db == null
+                ? null
+                : GetCoreBgmUiSeriesId(db.UiGameTitleId, null, coreGameOverride);
+        }
+
+        private BgmDbRootEntry GetOriginalCoreDbRootByNameId(string nameId)
+        {
+            if (string.IsNullOrEmpty(nameId))
+                return null;
+
+            return _audioStateService.GetOriginalCoreBgmDbRootEntries()
+                .FirstOrDefault(p => string.Equals(p.NameId, nameId, StringComparison.OrdinalIgnoreCase));
+        }
+
         private static string GetCoreBgmUiSeriesId(string uiGameTitleId, string dbSeriesId, JObject coreGameOverride)
         {
             if (!string.IsNullOrEmpty(dbSeriesId))
@@ -120,6 +137,38 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return uiSeriesId.StartsWith("ui_series_", StringComparison.OrdinalIgnoreCase)
                 ? uiSeriesId.Substring("ui_series_".Length)
                 : uiSeriesId;
+        }
+
+        private IEnumerable<CoreBgmVolumeOverrideEntry> GetCoreVolumeOverrideEntries(CskBuildResources buildResources)
+        {
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs != true)
+                yield break;
+
+            var volumeOverrides = buildResources.RawCoreBgmOverride?["CoreBgmVolumeOverrides"] as JObject;
+            if (volumeOverrides == null)
+                yield break;
+
+            foreach (var property in volumeOverrides.Properties())
+            {
+                var db = GetOriginalCoreDbRootByNameId(property.Name);
+                if (db == null)
+                    continue;
+
+                var volumeConfig = property.Value as JObject;
+                var volume = GetFloat(volumeConfig, "volume", 2.7f);
+                var seriesId = GetCoreBgmUiSeriesId(db.UiGameTitleId, null, buildResources.CoreGameOverride);
+                var seriesName = !string.IsNullOrEmpty(seriesId) &&
+                                 buildResources.CoreGameSeriesById.TryGetValue(db.UiGameTitleId, out var gameSeriesName)
+                    ? gameSeriesName
+                    : GetSeriesNameFromUiSeriesId(seriesId, buildResources.CoreGameSeriesById);
+
+                yield return new CoreBgmVolumeOverrideEntry
+                {
+                    NameId = property.Name,
+                    SeriesName = seriesName,
+                    Volume = volume
+                };
+            }
         }
 
         #endregion

@@ -42,6 +42,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public JObject StageOverride { get; set; }
         }
 
+        private class CoreBgmVolumeOverrideEntry
+        {
+            public string NameId { get; set; }
+            public string SeriesName { get; set; }
+            public float Volume { get; set; }
+        }
+
         private class CoreOverrideMusicMod : IMusicMod
         {
             private readonly MusicModInformation _mod;
@@ -51,7 +58,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 ModPath = modPath;
                 _mod = new MusicModInformation
                 {
-                    Name = "Core Overrides"
+                    Name = "Music Pack"
                 };
             }
 
@@ -187,6 +194,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 if (!string.IsNullOrEmpty(uiSeriesId))
                     yield return uiSeriesId;
             }
+
+            var volumeOverrides = buildResources.RawCoreBgmOverride?["CoreBgmVolumeOverrides"] as JObject;
+            foreach (var property in volumeOverrides?.Properties() ?? Enumerable.Empty<JProperty>())
+            {
+                var uiSeriesId = GetCoreBgmUiSeriesIdByNameId(property.Name, buildResources.CoreGameOverride);
+                if (!string.IsNullOrEmpty(uiSeriesId))
+                    yield return uiSeriesId;
+            }
         }
 
         private JArray CreateCoreOverrideGames(string uiSeriesId, CskBuildResources buildResources)
@@ -210,6 +225,21 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var uiGameTitleId = GetString(db, "ui_gametitle_id");
                 if (!string.IsNullOrEmpty(uiGameTitleId))
                     gameIds.Add(uiGameTitleId);
+            }
+
+            var volumeOverrides = buildResources.RawCoreBgmOverride?["CoreBgmVolumeOverrides"] as JObject;
+            foreach (var property in volumeOverrides?.Properties() ?? Enumerable.Empty<JProperty>())
+            {
+                var db = GetOriginalCoreDbRootByNameId(property.Name);
+                if (db == null)
+                    continue;
+
+                var bgmSeriesId = GetCoreBgmUiSeriesId(db.UiGameTitleId, null, buildResources.CoreGameOverride);
+                if (!string.Equals(bgmSeriesId, uiSeriesId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!string.IsNullOrEmpty(db.UiGameTitleId))
+                    gameIds.Add(db.UiGameTitleId);
             }
 
             var games = new JArray();

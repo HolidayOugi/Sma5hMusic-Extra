@@ -7,9 +7,9 @@ namespace Sma5h.Mods.Music
     {
         public Sma5hMusicOverrideOptionsSection Sma5hMusicOverride { get; set; }
 
-        public Sma5hMusicGuiOptionsSection Sma5hMusicGUI { get; set; }
+        public new Sma5hMusicGuiOptionsSection Sma5hMusicGUI { get; set; }
 
-        public class Sma5hMusicGuiOptionsSection
+        public new class Sma5hMusicGuiOptionsSection
         {
             public bool Advanced { get; set; }
             public bool PlaylistAdvanced { get; set; }
@@ -23,6 +23,7 @@ namespace Sma5h.Mods.Music
             public bool SkipWarningGameVersion { get; set; }
             public bool AutoBackupAtStart { get; set; }
             public bool InGameVolume { get; set; }
+            public bool BuildNus3bankForCoreSongs { get; set; }
             public double AudioNormalizationTargetLufs { get; set; }
             public uint LoopPreviewSeconds { get; set; }
             public int StartingOrderForSeries { get; set; }

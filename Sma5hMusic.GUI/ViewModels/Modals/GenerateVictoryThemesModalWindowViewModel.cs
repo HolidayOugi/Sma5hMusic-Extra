@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json.Linq;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using Sma5h.Mods.Music;
@@ -216,6 +217,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 .Where(p => !string.IsNullOrWhiteSpace(p))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            var fighterJingleByToneId = ReadFighterJingleByToneId(folder);
 
             var entries = new List<VictoryThemeEntryViewModel>();
             foreach (var toneId in toneIds)
@@ -227,7 +229,6 @@ namespace Sma5hMusic.GUI.ViewModels
                 var tempNus3AudioFile = Path.Combine(_loadTempRoot, Path.GetFileName(nus3AudioFile));
                 File.Copy(nus3AudioFile, tempNus3AudioFile, true);
 
-                var fighterByToneId = FighterOptions.FirstOrDefault(p => !p.IsCustom && string.Equals(p.ToneId, toneId, StringComparison.OrdinalIgnoreCase));
                 var entry = new VictoryThemeEntryViewModel(GetToneIdForCharaName)
                 {
                     SourceFile = tempNus3AudioFile,
@@ -235,21 +236,78 @@ namespace Sma5hMusic.GUI.ViewModels
                     Volume = _defaultVolume
                 };
 
-                if (fighterByToneId != null)
-                    entry.SelectedFighter = fighterByToneId;
-                else
-                {
-                    var customName = GetCustomNameFromToneId(toneId);
-                    var fighterByCustomName = FighterOptions.FirstOrDefault(p => !p.IsCustom && string.Equals(p.CharaName, customName, StringComparison.OrdinalIgnoreCase));
-                    entry.SelectedFighter = fighterByCustomName ?? GetCustomFighterOption();
-                    entry.UseDefaultName = false;
-                    entry.CustomName = customName;
-                }
+                ApplyLoadedEntryIdentity(entry, toneId, fighterJingleByToneId.TryGetValue(toneId, out var charaName) ? charaName : null);
 
                 entries.Add(entry);
             }
 
             return entries;
+        }
+
+        private void ApplyLoadedEntryIdentity(VictoryThemeEntryViewModel entry, string toneId, string charaName)
+        {
+            if (!string.IsNullOrWhiteSpace(charaName))
+            {
+                var fighterByCharaName = FighterOptions.FirstOrDefault(p => !p.IsCustom && string.Equals(p.CharaName, charaName, StringComparison.OrdinalIgnoreCase));
+                if (fighterByCharaName != null)
+                {
+                    entry.SelectedFighter = fighterByCharaName;
+                    entry.UseDefaultName = string.Equals(fighterByCharaName.ToneId, toneId, StringComparison.OrdinalIgnoreCase);
+                    return;
+                }
+
+                entry.SelectedFighter = GetCustomFighterOption();
+                entry.UseDefaultName = false;
+                entry.CustomName = charaName;
+                return;
+            }
+
+            var fighterByToneId = FighterOptions.FirstOrDefault(p => !p.IsCustom && string.Equals(p.ToneId, toneId, StringComparison.OrdinalIgnoreCase));
+            if (fighterByToneId != null)
+            {
+                entry.SelectedFighter = fighterByToneId;
+                return;
+            }
+
+            var customName = GetCustomNameFromToneId(toneId);
+            var fighterByCustomName = FighterOptions.FirstOrDefault(p => !p.IsCustom && string.Equals(p.CharaName, customName, StringComparison.OrdinalIgnoreCase));
+            entry.SelectedFighter = fighterByCustomName ?? GetCustomFighterOption();
+            entry.UseDefaultName = false;
+            entry.CustomName = customName;
+        }
+
+        private static IReadOnlyDictionary<string, string> ReadFighterJingleByToneId(string folder)
+        {
+            var jsonFile = Path.Combine(folder, "database", "victory.json");
+            if (!File.Exists(jsonFile))
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var songData = JObject.Parse(File.ReadAllText(jsonFile));
+            if (songData["fighter_jingle"] is not JObject fighterJingle)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var output = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in fighterJingle.Properties())
+            {
+                var toneId = (string)property.Value;
+                var charaName = GetCharaNameFromCharaId(property.Name);
+                if (!string.IsNullOrWhiteSpace(toneId) &&
+                    !string.IsNullOrWhiteSpace(charaName) &&
+                    !output.ContainsKey(toneId))
+                {
+                    output[toneId] = charaName;
+                }
+            }
+
+            return output;
+        }
+
+        private static string GetCharaNameFromCharaId(string charaId)
+        {
+            const string prefix = "ui_chara_";
+            return charaId != null && charaId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                ? charaId.Substring(prefix.Length)
+                : charaId;
         }
 
         private static string GetToneIdFromNus3AudioFileName(string file)

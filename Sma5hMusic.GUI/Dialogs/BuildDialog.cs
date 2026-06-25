@@ -7,6 +7,7 @@ using Sma5h.Interfaces;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
+using Sma5h.Mods.Music.Models;
 using Sma5hMusic.GUI.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -27,6 +28,13 @@ namespace Sma5hMusic.GUI.Dialogs
         private readonly IAudioStateService _audioStateService;
         private readonly IStateManager _stateManager;
         private readonly IOptionsMonitor<Sma5hOptions> _config;
+
+        private enum StateWriteMode
+        {
+            Full,
+            MusicMessagesOnly,
+            None
+        }
 
         public BuildDialog(IOptionsMonitor<Sma5hOptions> config, IServiceProvider serviceProvider,
             IStateManager stateManager, IMessageDialog messageDialog, IMusicModManagerService musicModManagerService,
@@ -171,14 +179,21 @@ namespace Sma5hMusic.GUI.Dialogs
                             }
                         }
 
-                        if (!_stateManager.WriteChanges())
+                        var stateWriteMode = GetStateWriteMode();
+                        var writeChangesSucceeded = stateWriteMode switch
+                        {
+                            StateWriteMode.None => true,
+                            StateWriteMode.MusicMessagesOnly => _stateManager.WriteChanges(IsMusicMessageResource),
+                            _ => _stateManager.WriteChanges()
+                        };
+
+                        if (!writeChangesSucceeded)
                         {
                             await ShowBuildFailedError();
                             await callbackError?.Invoke(new Exception("StateManager Exception"));
                             return;
                         }
 
-                        DeleteCoreReplacementOnlyOutputFolders();
                         _logger.LogInformation("Build Complete");
                     }
                     catch (Exception e)
@@ -265,25 +280,52 @@ namespace Sma5hMusic.GUI.Dialogs
             _musicOverrideConfig.CurrentValue.OutputPath = musicOverrideOutputPath;
         }
 
-        private void DeleteCoreReplacementOnlyOutputFolders()
+        private StateWriteMode GetStateWriteMode()
         {
             var modEntries = _audioStateService.GetModBgmDbRootEntries().ToList();
-            var onlyCoreReplacements = modEntries.Count > 0 &&
-                                       modEntries.All(p => p.Source == Sma5h.Mods.Music.Models.EntrySource.Core && p.MusicMod != null);
-            if (!onlyCoreReplacements)
-                return;
+            var hasCoreReplacementSongs = modEntries.Any(IsCoreReplacement);
+            var hasNonReplacementSongs = modEntries.Any(p => !IsCoreReplacement(p));
+            var hasCoreVolumeOverrides = _musicConfig.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs == true &&
+                                         GetCoreVolumeOverrideEntries().Any();
 
-            DeleteDirectoryIfExists(Path.Combine(_config.CurrentValue.OutputPath, "ui", "param"));
-            DeleteDirectoryIfExists(Path.Combine(_config.CurrentValue.OutputPath, "sound"));
+            if (hasNonReplacementSongs)
+                return StateWriteMode.Full;
+
+            if (hasCoreReplacementSongs)
+                return StateWriteMode.MusicMessagesOnly;
+
+            if (hasCoreVolumeOverrides)
+                return StateWriteMode.None;
+
+            return StateWriteMode.Full;
         }
 
-        private void DeleteDirectoryIfExists(string path)
+        private static bool IsCoreReplacement(BgmDbRootEntry entry)
         {
-            if (!Directory.Exists(path))
-                return;
+            return entry.Source == EntrySource.Core && entry.MusicMod != null;
+        }
 
-            Directory.Delete(path, true);
-            _logger.LogInformation("Deleted core replacement-only output folder {Path}", path);
+        private IEnumerable<BgmPropertyEntry> GetCoreVolumeOverrideEntries()
+        {
+            var originalCoreByNameId = _audioStateService.GetOriginalCoreBgmPropertyEntries()
+                .ToDictionary(p => p.NameId, StringComparer.OrdinalIgnoreCase);
+
+            return _audioStateService.GetBgmPropertyEntries()
+                .Where(p => p.Source == EntrySource.Core && p.MusicMod == null)
+                .Where(p => originalCoreByNameId.TryGetValue(p.NameId, out var original) &&
+                    Math.Abs(RoundVolume(original.AudioVolume) - RoundVolume(p.AudioVolume)) >= 0.0001f)
+                .ToList();
+        }
+
+        private static bool IsMusicMessageResource(string resourcePath)
+        {
+            var normalizedPath = resourcePath.Replace('\\', '/');
+            return normalizedPath.StartsWith("ui/message/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static float RoundVolume(float value)
+        {
+            return (float)Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
         private string GetMusicPackFolderName()

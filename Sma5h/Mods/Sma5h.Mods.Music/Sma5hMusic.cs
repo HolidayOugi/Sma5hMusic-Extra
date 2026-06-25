@@ -21,6 +21,16 @@ namespace Sma5h.Mods.Music
         private readonly INus3AudioService _nus3AudioService;
         private const string SmashBattlePlaylistId = "bgmsmashbtl";
 
+        private class StandardBuildPlan
+        {
+            public IReadOnlyList<BgmPropertyEntry> ModBgmEntries { get; set; } = new List<BgmPropertyEntry>();
+            public IReadOnlyList<BgmPropertyEntry> CoreVolumeOverrideEntries { get; set; } = new List<BgmPropertyEntry>();
+            public bool HasNonReplacementSongs { get; set; }
+            public bool HasAudio => ModBgmEntries.Count > 0 || CoreVolumeOverrideEntries.Count > 0;
+            public bool HasOnlyCoreVolumeOverrides => ModBgmEntries.Count == 0 && CoreVolumeOverrideEntries.Count > 0;
+            public bool IsAudioOnly => !HasNonReplacementSongs && HasAudio;
+        }
+
         public override string ModName => "Sma5hMusic";
 
         public Sma5hMusic(IOptionsMonitor<Sma5hMusicOptions> config, IMusicModManagerService musicModManagerService, IAudioStateService audioStateService,
@@ -100,21 +110,52 @@ namespace Sma5h.Mods.Music
         {
             _logger.LogInformation("Starting Build...");
 
-            //AutoAddToBgmSelector - TODO Optimize :-)
-            ProcessPlaylistAutoMapping();
+            var buildPlan = CreateStandardBuildPlan();
 
-            //Sort Series by Sound Test - TODO Allow for manual ordering
-            ProcessSeriesOrderAutoMapping();
+            if (!buildPlan.HasOnlyCoreVolumeOverrides)
+            {
+                if (!buildPlan.IsAudioOnly)
+                {
+                    //AutoAddToBgmSelector - TODO Optimize :-)
+                    ProcessPlaylistAutoMapping();
 
-            //Persist DB changes
-            _audioStateService.SaveBgmEntriesToStateManager();
+                    //Sort Series by Sound Test - TODO Allow for manual ordering
+                    ProcessSeriesOrderAutoMapping();
+                }
+
+                //Persist DB changes
+                _audioStateService.SaveBgmEntriesToStateManager();
+            }
 
             if (useCache)
                 Directory.CreateDirectory(_config.CurrentValue.Sma5hMusic.CachePath);
 
+            GenerateBgmFiles(useCache, buildPlan);
+
+            if (!buildPlan.IsAudioOnly)
+                CopySeriesIcons();
+
+            return true;
+        }
+
+        private StandardBuildPlan CreateStandardBuildPlan()
+        {
+            var modBgmEntries = _audioStateService.GetModBgmPropertyEntries().ToList();
+            var modDbRootEntries = _audioStateService.GetModBgmDbRootEntries().ToList();
+
+            return new StandardBuildPlan
+            {
+                ModBgmEntries = modBgmEntries,
+                CoreVolumeOverrideEntries = GetCoreVolumeOverrideEntries().ToList(),
+                HasNonReplacementSongs = modDbRootEntries.Any(p => p.Source != EntrySource.Core || p.MusicMod == null)
+            };
+        }
+
+        private void GenerateBgmFiles(bool useCache, StandardBuildPlan buildPlan)
+        {
             //Save NUS3Audio/Nus3Bank
             _nus3AudioService.ResetGeneratedNus3BankIds();
-            foreach (var bgmPropertyEntry in _audioStateService.GetModBgmPropertyEntries())
+            foreach (var bgmPropertyEntry in buildPlan.ModBgmEntries)
             {
                 var nusBankOutputFile = Path.Combine(_config.CurrentValue.OutputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
                 var nusAudioOutputFile = Path.Combine(_config.CurrentValue.OutputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, bgmPropertyEntry.NameId));
@@ -129,8 +170,40 @@ namespace Sma5h.Mods.Music
                     _logger.LogError("Error! The song with ToneId {NameId}, File {Filename} could not be processed.", bgmPropertyEntry.NameId, bgmPropertyEntry.Filename);
             }
 
-            CopySeriesIcons();
-            return true;
+            GenerateCoreVolumeOverrideNus3Banks(buildPlan.CoreVolumeOverrideEntries);
+        }
+
+        private void GenerateCoreVolumeOverrideNus3Banks(IEnumerable<BgmPropertyEntry> coreVolumeOverrideEntries)
+        {
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs != true)
+                return;
+
+            foreach (var bgmPropertyEntry in coreVolumeOverrideEntries)
+            {
+                var nusBankOutputFile = Path.Combine(_config.CurrentValue.OutputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
+                _logger.LogInformation("Generating core Nus3Bank for {NameId} with volume {Volume}", bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume);
+                _nus3AudioService.GenerateNus3Bank(bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume, nusBankOutputFile);
+            }
+        }
+
+        private IEnumerable<BgmPropertyEntry> GetCoreVolumeOverrideEntries()
+        {
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs != true)
+                return Enumerable.Empty<BgmPropertyEntry>();
+
+            var originalCoreByNameId = _audioStateService.GetOriginalCoreBgmPropertyEntries()
+                .ToDictionary(p => p.NameId, StringComparer.OrdinalIgnoreCase);
+
+            return _audioStateService.GetBgmPropertyEntries()
+                .Where(p => p.Source == EntrySource.Core && p.MusicMod == null)
+                .Where(p => originalCoreByNameId.TryGetValue(p.NameId, out var original) &&
+                    Math.Abs(RoundVolume(original.AudioVolume) - RoundVolume(p.AudioVolume)) >= 0.0001f)
+                .ToList();
+        }
+
+        private static float RoundVolume(float value)
+        {
+            return (float)Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
         private void CopySeriesIcons()

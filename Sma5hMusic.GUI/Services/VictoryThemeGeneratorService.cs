@@ -10,7 +10,6 @@ using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using Sma5h.ResourceProviders;
 using Sma5h.ResourceProviders.Constants;
-using Sma5h.ResourceProviders.Prc.Helpers;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
 using System;
@@ -67,8 +66,6 @@ namespace Sma5hMusic.GUI.Services
 
             var normalizedEntries = entries.Select(NormalizeEntry).ToList();
             var shouldWriteFighterJinglePatch = normalizedEntries.Any(p => p.PatchFighterJingle);
-            if (shouldWriteFighterJinglePatch && _prcProvider == null)
-                throw new InvalidOperationException("PRC resource provider is not available.");
 
             var duplicateCharacters = normalizedEntries
                 .GroupBy(p => p.CharaId, StringComparer.OrdinalIgnoreCase)
@@ -79,7 +76,6 @@ namespace Sma5hMusic.GUI.Services
             var outputRoot = Path.GetFullPath(Path.Combine(_config.CurrentValue.OutputPath, "Victory Themes"));
             var databaseOutputFolder = Path.Combine(outputRoot, "database");
             var bgmOutputFolder = Path.Combine(outputRoot, "stream;", "sound", "bgm");
-            var prcOutputFolder = Path.Combine(outputRoot, "ui", "param", "database");
             var tempRoot = Path.GetFullPath(Path.Combine(_config.CurrentValue.TempPath, "VictoryThemes"));
 
             EnsureDirectoriesDoNotOverlap(outputRoot, tempRoot, "output", "temporary");
@@ -91,7 +87,6 @@ namespace Sma5hMusic.GUI.Services
             if (shouldWriteFighterJinglePatch)
             {
                 Directory.CreateDirectory(databaseOutputFolder);
-                Directory.CreateDirectory(prcOutputFolder);
             }
             Directory.CreateDirectory(tempRoot);
 
@@ -100,9 +95,6 @@ namespace Sma5hMusic.GUI.Services
                 var coreBgmDb = _prcProvider != null ? ReadCoreBgmDatabase() : null;
                 var coreBgmProperties = ReadCoreBgmProperties();
                 var songData = CreateSongData();
-                var bgmDbPatch = shouldWriteFighterJinglePatch
-                    ? CreateFighterJinglePatchDatabase(coreBgmDb)
-                    : new VictoryThemeBgmPatchDatabase();
 
                 _nus3AudioService.ResetGeneratedNus3BankIds();
 
@@ -121,7 +113,7 @@ namespace Sma5hMusic.GUI.Services
                     {
                         var coreData = coreBgmDb != null ? FindCoreData(entry.ToneId, coreBgmDb, coreBgmProperties) : null;
                         AddVictoryJsonEntries(songData, entry.ToneId, coreData, nus3AudioOutputFile);
-                        AddFighterJinglePatchEntry(bgmDbPatch, entry.CharaId, entry.ToneId);
+                        AddFighterJingleJsonEntry(songData, entry.CharaId, entry.ToneId);
                     }
                 }
 
@@ -129,11 +121,6 @@ namespace Sma5hMusic.GUI.Services
                 {
                     var jsonOutputFile = Path.Combine(databaseOutputFolder, "victory.json");
                     File.WriteAllText(jsonOutputFile, songData.ToString(Formatting.Indented));
-
-                    var sourceBgmDb = GetCoreResourcePath(PrcExtConstants.PRC_UI_BGM_DB_PATH);
-                    var prcxOutputFile = Path.Combine(prcOutputFolder, "ui_bgm_db.prcx");
-                    if (!_prcProvider.WriteFile(sourceBgmDb, prcxOutputFile, bgmDbPatch))
-                        throw new InvalidOperationException("Could not generate ui_bgm_db.prcx.");
                 }
 
                 _logger.LogInformation("Generated victory themes output at {OutputRoot}", outputRoot);
@@ -340,30 +327,15 @@ namespace Sma5hMusic.GUI.Services
             return info;
         }
 
-        private static void AddFighterJinglePatchEntry(VictoryThemeBgmPatchDatabase bgmDbPatch, string charaId, string toneId)
+        private static void AddFighterJingleJsonEntry(JObject songData, string charaId, string toneId)
         {
-            bgmDbPatch.FighterJingleEntries[charaId] = new PrcBgmFighterJingleBgmEntry
+            if (songData["fighter_jingle"] is not JObject fighterJingle)
             {
-                UiCharaId = charaId,
-                DataName = toneId
-            };
-        }
+                fighterJingle = new JObject();
+                songData["fighter_jingle"] = fighterJingle;
+            }
 
-        private static VictoryThemeBgmPatchDatabase CreateFighterJinglePatchDatabase(PrcUiBgmDatabase coreBgmDb)
-        {
-            return new VictoryThemeBgmPatchDatabase
-            {
-                FighterJingleEntries = coreBgmDb?.FighterJingleEntries?
-                    .ToDictionary(
-                        p => p.Key,
-                        p => new PrcBgmFighterJingleBgmEntry
-                        {
-                            UiCharaId = p.Value.UiCharaId,
-                            DataName = p.Value.DataName
-                        },
-                        StringComparer.OrdinalIgnoreCase)
-                    ?? new Dictionary<string, PrcBgmFighterJingleBgmEntry>(StringComparer.OrdinalIgnoreCase)
-            };
+            fighterJingle[charaId] = toneId;
         }
 
         private string GetCoreResourcePath(string relativePath)
@@ -505,14 +477,6 @@ namespace Sma5hMusic.GUI.Services
             public Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmAssignedInfoEntry AssignedInfo { get; set; }
             public Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmStreamPropertyEntry StreamProperty { get; set; }
             public Sma5h.Mods.Data.Sound.Config.BgmPropertyStructs.BgmPropertyEntry BgmProperty { get; set; }
-        }
-
-        private class VictoryThemeBgmPatchDatabase : IStateManagerDb
-        {
-            [PrcDictionary("ui_chara_id")]
-            [PrcHexMapping("fighter_jingle")]
-            public Dictionary<string, PrcBgmFighterJingleBgmEntry> FighterJingleEntries { get; set; }
-                = new Dictionary<string, PrcBgmFighterJingleBgmEntry>(StringComparer.OrdinalIgnoreCase);
         }
     }
 }
