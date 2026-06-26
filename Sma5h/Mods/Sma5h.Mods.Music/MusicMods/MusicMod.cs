@@ -546,7 +546,16 @@ namespace Sma5h.Mods.Music.MusicMods
             var saveMod = musicModConfig ?? _musicModConfig;
             NormalizeMusicModConfigVolumes(saveMod);
             var metadataJsonFile = Path.Combine(ModPath, MusicConstants.MusicModFiles.MUSIC_MOD_METADATA_JSON_FILE);
-            File.WriteAllText(metadataJsonFile, JsonConvert.SerializeObject(saveMod, Formatting.Indented));
+            var tempMetadataJsonFile = $"{metadataJsonFile}.tmp";
+
+            using (var streamWriter = new StreamWriter(tempMetadataJsonFile))
+            using (var jsonWriter = new JsonTextWriter(streamWriter) { Formatting = Formatting.Indented })
+            {
+                JsonSerializer.CreateDefault().Serialize(jsonWriter, saveMod);
+            }
+
+            File.Copy(tempMetadataJsonFile, metadataJsonFile, true);
+            File.Delete(tempMetadataJsonFile);
 
             return true;
         }
