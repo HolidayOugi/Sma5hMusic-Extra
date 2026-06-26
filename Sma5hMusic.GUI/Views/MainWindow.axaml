@@ -87,7 +87,7 @@
                   ToolTip.Tip="Creates a new music mod from an already built output folder."
                   Command="{Binding ActionGenerateModFromBuildFiles}"></MenuItem>
         <Separator></Separator>
-        <MenuItem Header="[EXP.] Generate Victory Themes"
+        <MenuItem Header="Generate Victory Themes"
                   Command="{Binding ActionGenerateVictoryThemes}"></MenuItem>
         <Separator></Separator>
         <MenuItem Header="Create Song Spreadsheet">

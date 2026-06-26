@@ -1,9 +1,25 @@
 # Sma5hMusic Extra
 
-This is a fork of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original executable.
+This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original executable.
 
 > [!WARNING]
-> The various new features are experimental and have not yet been tested extensively. Please make backups of your JSONs and music files before using them.
+> This tool is experimental, please make a backup of your music files and jsons before using it.
+
+Like the original release, a dump of the following files from data.arc is needed:
+
+* bgm_property.bin
+* msg_bgm+[region].bin
+* msg_title+[region].bin
+* ui_bgm_db.prc
+* ui_gametitle_db.prc
+* ui_series_db.prc
+* ui_stage_db.prc
+
+After extraction, the files are to be copied (with their directories) in the Resources/Game directory.
+
+A full tutorial on how to use Sma5hMusic can be found [here](https://gamebanana.com/tuts/13677).
+
+Here's a rundown of the added features.
 
 ## CSK Pack Building
 
@@ -83,17 +99,86 @@ The songs can be imported either from their URL or from a text file containing a
 > [!TIP]
 > Playlists are also supported. The software notifies the user that all the songs from a given playlist will be downloaded.
 
+## Colored Text
+
+Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors or by inputting the hex value of the color of your choice. If a portion of text is selected when choosing the new color, that text will be in the new color.
+
+![Colored](https://elixi.re/i/t07dd.png)
+
+The chosen colors will then display in-game in the Music Select screen.
+
+![In-Game](https://elixi.re/i/zxppl.png)
+
+> [!TIP]
+> Choose colors that are visibile both on  light and dark backgrounds, otherwise they might be unreadable in certain contexts.
+
+## Replace Core Songs
+
+Core Songs can now be replaced in order to generate wifi-safe music packs. When importing a song, either from a nus3audio or audio file, there'll be an option to choose a core song to replace.
+
+![Core Songs](https://elixi.re/i/bia5p.png)
+
+After importing, replaced songs will be denoted in the GUI with gold text, to differentiate them from added songs.
+
+![Gold](https://elixi.re/i/5svqc.png)
+
+> [!WARNING]
+> To keep the pack wifi-safe, refrain from editing playlist/stage data. Keep the edits only to song names and audio.
+
+## Generate Victory Themes
+
+> [!NOTE]
+> Requires the latest [CSK Collection](https://gamebanana.com/mods/499008) update released in June 2026.
+
+Custom Victory Themes can now be generated from an option in the Extra submenu.
+
+Victory themes can be generated for both base-game and custom characters. When generating one for a base-game character, the user can either replace the default victory theme or assign a custom Tone ID, allowing characters that normally share a victory theme to use separate ones.
+
+![Victory](https://elixi.re/i/o3oru.png)
+
 ## Miscellaneous fixes and improvements
 
 * (*Should have*) fixed bug where songs would stop playing in-game due to their order in the global song list.
-* Packs now are output in a subfolder of the build folder.
-* The default volume for a song can now be set in settings.
+* Packs now are output in a subfolder of the build folder. This can be disabled in settings.
+* The default volume for a new song can now be set in settings.
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
 * The Song List can now be exported in a spreadsheet.
+* [Experimental] A mod can now be imported from an old Music Pack build from an option in the Extra submenu.
+* Small text now shows correctly in GUI.
+* A display box has been added to the BGM Properties window to show how the text will appear in game, with both colors and small text.
+* A button has been added to the BGM Properties window to automatically add Small text brackets. If a portion of text is selected when pressing the button, it will apply the brackets to that selection.
+* Changes to core songs volume are now saved and the corresponding nus3bank can now be built.
 * Songs can now be sorted alphabetically per game or per series automatically.
 * If a song from custom Series was not manually added to a playlist, the software will automatically add it to the Battlefield playlist to ensure it shows up in-game.
 * Settings can now be saved when output folder is missing.
 * Fixed importing of files with Japanese characters.
+
+## FAQ
+
+### What are CSK Packs and how are they different from normal music packs?
+
+Compared to a normal build, the CSK Music Packs have the following advantages:
+
+* Compatible with other CSK Music Packs or mods that edit the prc database files.
+* Better load times with bigger music packs.
+* Easily editable in notepad for small changes.
+* Can be easily split into smaller packs.
+
+### I have an old Sma5hMusic setup on my PC, how do I convert my mods to the CSK Format?
+
+Just load the Mods in Sma5hMusic Extra and build a CSK Pack(s) from the Project submenu.
+
+### Where can I find yt-dlp and ffmpeg?
+
+[Here](https://github.com/yt-dlp/yt-dlp) and [here](https://github.com/btbn/ffmpeg-builds). Then, set the path to their executable in Global Settings.
+
+### How do I install Pymusiclooper?
+
+Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/PyMusicLooper), it should then be recognized automatically.
+
+## Issues
+
+If you encounter any problems using the software, submit an issue here on GitHub.
 
 ## Thanks & Repos of the different tools
 1.  Original Code and Author: Deinonychus71
