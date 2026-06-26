@@ -31,6 +31,7 @@ namespace Sma5h.Mods.Music
         public class Sma5hMusicGuiOptionsSection
         {
             public bool BuildNus3bankForCoreSongs { get; set; }
+            public bool SaveOutputToSubfolder { get; set; }
         }
 
         public enum PlaylistGeneration

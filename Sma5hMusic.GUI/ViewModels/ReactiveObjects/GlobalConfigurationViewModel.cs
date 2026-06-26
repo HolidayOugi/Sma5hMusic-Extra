@@ -20,6 +20,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public bool SkipOutputPathCleanupConfirmation { get; set; }
         public bool InGameVolume { get; set; }
         public bool BuildNus3bankForCoreSongs { get; set; }
+        public bool SaveOutputToSubfolder { get; set; }
         public bool EnableAudioCaching { get; set; }
         public string AudioConversionFormat { get; set; }
         public string AudioConversionFormatFallBack { get; set; }

@@ -134,9 +134,9 @@ namespace Sma5hMusic.GUI.Dialogs
             var originalOutputPath = _config.CurrentValue.OutputPath;
             var originalMusicOutputPath = _musicConfig.CurrentValue.OutputPath;
             var originalMusicOverrideOutputPath = _musicOverrideConfig.CurrentValue.OutputPath;
-            var musicPackOutputPath = Path.Combine(originalOutputPath, GetMusicPackFolderName());
-            Directory.CreateDirectory(musicPackOutputPath);
-            SetBuildOutputPath(musicPackOutputPath);
+            var buildOutputPath = GetBuildOutputPath(originalOutputPath);
+            Directory.CreateDirectory(buildOutputPath);
+            SetBuildOutputPath(buildOutputPath);
 
             _ = Init(async (o) =>
             {
@@ -278,6 +278,13 @@ namespace Sma5hMusic.GUI.Dialogs
             _config.CurrentValue.OutputPath = outputPath;
             _musicConfig.CurrentValue.OutputPath = musicOutputPath;
             _musicOverrideConfig.CurrentValue.OutputPath = musicOverrideOutputPath;
+        }
+
+        private string GetBuildOutputPath(string outputPath)
+        {
+            return _musicConfig.CurrentValue.Sma5hMusicGUI?.SaveOutputToSubfolder == false
+                ? outputPath
+                : Path.Combine(outputPath, GetMusicPackFolderName());
         }
 
         private StateWriteMode GetStateWriteMode()

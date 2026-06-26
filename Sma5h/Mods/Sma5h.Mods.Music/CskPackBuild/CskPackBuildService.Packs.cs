@@ -96,7 +96,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .ToDictionary(p => p.Key, p => p.First().Value, StringComparer.OrdinalIgnoreCase);
 
             var singlePackFolderName = GetSingleCskPackFolderName(contextList);
-            var packRoot = Path.Combine(outputRoot, singlePackFolderName);
+            var packFolderName = GetSingleCskPackOutputFolderName(contextList);
+            var packRoot = GetSingleCskPackRoot(outputRoot, contextList);
             var databaseFolder = Path.Combine(packRoot, "database");
             var uiFolder = Path.Combine(packRoot, "ui", "message");
             Directory.CreateDirectory(databaseFolder);
@@ -120,7 +121,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     songData,
                     msgBgmEntries,
                     msgTitleEntries,
-                    singlePackFolderName,
+                    packFolderName,
                     outputRoot,
                     generatedBgmFolder,
                     buildResources.PlaylistData,
@@ -138,7 +139,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     includeAudio);
 
                 if (includeAudio)
-                    CopyCoreVolumeOverrideBankFiles(seriesName, singlePackFolderName, outputRoot, generatedBgmFolder, buildResources);
+                    CopyCoreVolumeOverrideBankFiles(seriesName, packFolderName, outputRoot, generatedBgmFolder, buildResources);
             }
 
             var coreOnlyVanillaSeriesOrderEntries = CreateCoreOnlyVanillaSeriesOrderEntries(
@@ -163,8 +164,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private void GenerateSingleAudioOnlyCskPack(IEnumerable<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources)
         {
             var contextList = contexts.ToList();
-            var singlePackFolderName = GetSingleCskPackFolderName(contextList);
-            var packRoot = Path.Combine(outputRoot, singlePackFolderName);
+            var packRoot = GetSingleCskPackRoot(outputRoot, contextList);
             var bgmFolder = Path.Combine(packRoot, "stream;", "sound", "bgm");
             CopyGeneratedBgmFiles(generatedBgmFolder, bgmFolder);
 
@@ -216,6 +216,21 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 return contexts[0].SafePackName;
 
             return SinglePackFolderName;
+        }
+
+        private string GetSingleCskPackOutputFolderName(IReadOnlyList<CskModContext> contexts)
+        {
+            return _config.CurrentValue.Sma5hMusicGUI?.SaveOutputToSubfolder == false
+                ? string.Empty
+                : GetSingleCskPackFolderName(contexts);
+        }
+
+        private string GetSingleCskPackRoot(string outputRoot, IReadOnlyList<CskModContext> contexts)
+        {
+            var folderName = GetSingleCskPackOutputFolderName(contexts);
+            return string.IsNullOrEmpty(folderName)
+                ? outputRoot
+                : Path.Combine(outputRoot, folderName);
         }
 
         #endregion

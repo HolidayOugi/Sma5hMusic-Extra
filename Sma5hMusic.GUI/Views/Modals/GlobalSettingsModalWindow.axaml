@@ -179,6 +179,7 @@
           <Border Classes="contentTitle" DockPanel.Dock="Top">
             <TextBlock>Program Paths</TextBlock>
           </Border>
+          <fields:PropertyBooleanField Label="Save Output to subfolder" IsChecked="{Binding SelectedItem.SaveOutputToSubfolder}" ToolTip="If turned on, standard and single CSK builds create a pack folder inside the output directory. If turned off, files are written directly to the output directory." />
           <fields:PropertyFolderPickupField x:Name="OutputPath" Label="Output Directory" ToolTip="Path where your generated mod will go." Text="{Binding SelectedItem.OutputPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="OutputPath"/>
           <fields:PropertyFolderPickupField x:Name="ModPath" Label="Mod Directory" ToolTip="Path where your shareable music mods will go." Text="{Binding SelectedItem.ModPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="ModPath"/>
           <fields:PropertyFolderPickupField x:Name="ModOverridePath" Label="Override Mod Directory" ToolTip="Path where settings such as playlist or sound test order will go." Text="{Binding SelectedItem.ModOverridePath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="ModOverridePath"/>

@@ -24,6 +24,7 @@ namespace Sma5h.Mods.Music
             public bool AutoBackupAtStart { get; set; }
             public bool InGameVolume { get; set; }
             public bool BuildNus3bankForCoreSongs { get; set; }
+            public bool SaveOutputToSubfolder { get; set; }
             public double AudioNormalizationTargetLufs { get; set; }
             public uint LoopPreviewSeconds { get; set; }
             public int StartingOrderForSeries { get; set; }
