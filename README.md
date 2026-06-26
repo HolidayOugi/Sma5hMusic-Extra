@@ -101,16 +101,16 @@ The songs can be imported either from their URL or from a text file containing a
 
 ## Colored Text
 
-Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors or by inputting the hex value of the color of your choice. If a portion of text is selected when choosing the new color, that text will be in the new color.
+Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors or by inputting the hex value of a custom color. If you highlight part of the title before selecting a color, the highlighted text will be recolored.
 
 ![Colored](https://elixi.re/i/t07dd.png)
 
-The chosen colors will then display in-game in the Music Select screen.
+The chosen colors will display in-game in the Music Select screen.
 
 ![In-Game](https://elixi.re/i/zxppl.png)
 
 > [!TIP]
-> Choose colors that are visibile both on  light and dark backgrounds, otherwise they might be unreadable in certain contexts.
+> It's recommended to choose colors that are visibile on both light and dark backgrounds, otherwise they might be unreadable in certain contexts.
 
 ## Replace Core Songs
 
@@ -146,7 +146,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * [Experimental] A mod can now be imported from an old Music Pack build from an option in the Extra submenu.
 * Small text now shows correctly in GUI.
 * A display box has been added to the BGM Properties window to show how the text will appear in game, with both colors and small text.
-* A button has been added to the BGM Properties window to automatically add Small text brackets. If a portion of text is selected when pressing the button, it will apply the brackets to that selection.
+* A button has been added to the BGM Properties window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
 * Changes to core songs volume are now saved and the corresponding nus3bank can now be built.
 * Songs can now be sorted alphabetically per game or per series automatically.
 * If a song from custom Series was not manually added to a playlist, the software will automatically add it to the Battlefield playlist to ensure it shows up in-game.
