@@ -96,11 +96,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Series Icons
 
-        private void CopySeriesIcon(JObject series, string packRoot)
+        private bool CopySeriesIcon(JObject series, string packRoot)
         {
             var iconFile = GetSeriesIconPath(series);
             if (string.IsNullOrEmpty(iconFile))
-                return;
+                return false;
 
             var destinationFolder = Path.Combine(packRoot, "ui", "replace", "series", "series_0");
             Directory.CreateDirectory(destinationFolder);
@@ -108,6 +108,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var destination = Path.Combine(destinationFolder, Path.GetFileName(iconFile));
             File.Copy(iconFile, destination, true);
             _logger.LogInformation("[CSK] Copied series icon {IconFile} to {Destination}", iconFile, destination);
+            return true;
         }
 
         private string GetSeriesIconPath(JObject series)

@@ -27,6 +27,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 allSeries,
                 buildResources.OrderOverride);
             var seriesDatabaseFileCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var copiedSeriesIconKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var context in contextList)
             {
@@ -61,7 +62,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         context.Metadata,
                         buildResources.CoreBgmIds,
                         includeAudio,
-                        buildResources);
+                        buildResources,
+                        copiedSeriesIconKeys);
 
                     _logger.LogInformation("[CSK] Saved {SeriesName}: {SavedPath}", GetString(series, "name_id", "<unknown>"), savedPath);
                 }
@@ -259,6 +261,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return !string.Equals(coreGameSeriesById[uiGameTitleId], seriesName, StringComparison.OrdinalIgnoreCase);
         }
 
+        private static string GetSeriesIconCopyKey(JObject series)
+        {
+            return GetString(series, "ui_series_id", GetString(series, "name_id", string.Empty));
+        }
+
         #endregion
 
         #region Series Processing
@@ -281,7 +288,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
             JObject metadata,
             HashSet<string> coreBgmIds,
             bool includeAudio,
-            CskBuildResources buildResources)
+            CskBuildResources buildResources,
+            HashSet<string> copiedSeriesIconKeys)
         {
             var seriesName = GetString(series, "name_id");
             var realName = GetSeriesDisplayName(series);
@@ -293,7 +301,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var onlyCoreReplacements = HasOnlyCoreReplacementBgms(new[] { series }, coreBgmIds);
             Directory.CreateDirectory(seriesDbFolder);
             Directory.CreateDirectory(seriesUiFolder);
-            CopySeriesIcon(series, Path.Combine(outputRoot, seriesFolderName));
+
+            var seriesIconKey = GetSeriesIconCopyKey(series);
+            if (!copiedSeriesIconKeys.Contains(seriesIconKey) &&
+                CopySeriesIcon(series, Path.Combine(outputRoot, seriesFolderName)))
+            {
+                copiedSeriesIconKeys.Add(seriesIconKey);
+            }
 
             var songData = CreateSongData();
             var msgBgmEntries = new List<string>();
