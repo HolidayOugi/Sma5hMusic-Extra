@@ -18,7 +18,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             {
                 if (!core.BgmDbRootEntries.ContainsKey(outputDbRoot.Key))
                     continue;
-
+                //if there are changes to core songs, add them to override
                 AddCoreBgmOverrideIfChanged(core, output, outputDbRoot.Key, newValues);
             }
 
@@ -27,6 +27,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             var path = Path.Combine(overrideOutputPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_CORE_BGM_JSON_FILE);
             var merged = LoadCoreBgmOverrides(path);
+            //merge new values into existing override
             MergeCoreBgmOverrides(merged, newValues);
             WriteJson(path, merged);
             _logger.LogInformation("Reverse MusicMod: wrote {OverridePath}.", path);

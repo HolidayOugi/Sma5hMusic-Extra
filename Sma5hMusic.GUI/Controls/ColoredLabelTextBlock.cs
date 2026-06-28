@@ -41,9 +41,11 @@ namespace Sma5hMusic.GUI.Controls
             if (string.IsNullOrEmpty(text))
                 return;
 
+            //color characters
             var chars = ToColoredCharacters(MsbtRichTextColorHelper.Parse(text));
             for (var i = 0; i < chars.Count;)
             {
+                //find small text and resize
                 if (IsSmallTextStart(chars, i))
                 {
                     var end = FindSmallTextEnd(chars, i + 2);
@@ -55,6 +57,7 @@ namespace Sma5hMusic.GUI.Controls
                     }
                 }
 
+                //skip to end of small text
                 var nextMarker = FindNextSmallTextStart(chars, i + 1);
                 var takeCount = (nextMarker >= 0 ? nextMarker : chars.Count) - i;
                 AddText(chars.Skip(i).Take(takeCount), false);

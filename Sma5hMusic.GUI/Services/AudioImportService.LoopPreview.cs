@@ -22,6 +22,7 @@ namespace Sma5hMusic.GUI.Services
                 _logger.LogInformation("Automatic loop point calculation requested. File={Filename}, SampleRate={SampleRate}, TotalSamples={TotalSamples}.",
                     filename, sampleRate, totalSamples);
 
+                //call pymusiclooper
                 var output = RunPymusiclooper("export-points", "--path", filename, "--fmt", "SAMPLES", "--alt-export-top", "-1");
                 var loopPoints = ParsePymusiclooperOutput(output, sampleRate, totalSamples)
                     .ToList();
@@ -89,6 +90,7 @@ namespace Sma5hMusic.GUI.Services
                         filename, sourceWavFile);
                     RunTool(GetSoxExe(), soxInputFile, "-r", TargetSampleRate.ToString(CultureInfo.InvariantCulture), "-b", "16", "-e", "signed-integer", sourceWavFile);
 
+                    //create WAV from segments in playback order: [ending segment] + [restart segment]
                     ExtractWavSegment(sourceWavFile, endingWavFile, requestedPreviewStart48k, loopEnd48k - requestedPreviewStart48k, TargetSampleRate);
                     ExtractWavSegment(sourceWavFile, restartWavFile, loopStart48k, restartPreviewDuration48k, TargetSampleRate);
                     RunTool(GetSoxExe(), "--combine", "concatenate", endingWavFile, restartWavFile, tempWavFile);
@@ -264,6 +266,7 @@ namespace Sma5hMusic.GUI.Services
                     continue;
                 }
 
+                //skip 1 to avoid parsing terminal input
                 var values = candidateMatch.Groups
                     .Cast<Group>()
                     .Skip(1)

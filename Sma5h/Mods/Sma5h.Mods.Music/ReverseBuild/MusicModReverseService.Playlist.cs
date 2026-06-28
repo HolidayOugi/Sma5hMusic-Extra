@@ -20,6 +20,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                     p => p.Key,
                     p => CreatePlaylistConfig(p.Value, existingValues.GetValueOrDefault(p.Key)?.Title));
 
+            //merge new values into existing override
             var merged = MergePlaylistOverrides(existingValues, newValues);
             WriteJson(path, merged);
 
@@ -74,6 +75,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             return newValue;
         }
 
+        //if old order is used by the new values, move the old bgms to the end of the list
         private static void MoveConflictingPlaylistOrders(List<PlaylistValueConfig> mergedTracks, List<PlaylistValueConfig> existingOnlyTracks)
         {
             var orderAccessors = new (Func<PlaylistValueConfig, short> Get, Action<PlaylistValueConfig, short> Set)[]

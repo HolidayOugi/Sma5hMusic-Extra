@@ -33,9 +33,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public JObject PlaylistData { get; set; }
             public bool HasCoreOverrides { get; set; }
             public JObject OrderOverride { get; set; }
+            //raw override files, read from musicoverrides
             public JObject RawCoreBgmOverride { get; set; }
             public JObject RawCoreGameOverride { get; set; }
             public JObject RawCoreSeriesOverride { get; set; }
+            //raw + game state
             public JObject CoreBgmOverride { get; set; }
             public JObject CoreGameOverride { get; set; }
             public JObject CoreSeriesOverride { get; set; }
@@ -53,6 +55,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         {
             private readonly MusicModInformation _mod;
 
+            //virtual mod
             public CoreOverrideMusicMod(string modPath)
             {
                 ModPath = modPath;
@@ -99,6 +102,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     continue;
 
                 var metadata = JObject.Parse(File.ReadAllText(metadataPath));
+                //fix for old metadata_mod.json without series/game info
                 if (RepairMissingSeriesAndGameMetadata(mod, metadata))
                     metadata = JObject.Parse(File.ReadAllText(metadataPath));
 
@@ -123,6 +127,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return contexts;
         }
 
+        //turn core overrides into a mod internally
         private List<CskModContext> LoadCoreOverrideContexts(CskBuildResources buildResources)
         {
             if (buildResources?.HasCoreOverrides != true)
@@ -162,6 +167,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         {
             foreach (var uiSeriesId in GetCoreOverrideSeriesIds(buildResources).Distinct(StringComparer.OrdinalIgnoreCase))
             {
+                //prefer the real/effective series data, fallback only if the series was not found
                 var series = buildResources.CoreSeriesOverride?[uiSeriesId] as JObject ??
                              CreateFallbackCoreOverrideSeries(uiSeriesId);
                 if (series == null)
@@ -178,6 +184,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             foreach (var property in buildResources.RawCoreSeriesOverride?.Properties() ?? Enumerable.Empty<JProperty>())
                 yield return property.Name;
 
+            //game edits belong to the game's series
             foreach (var property in buildResources.RawCoreGameOverride?.Properties() ?? Enumerable.Empty<JProperty>())
             {
                 var game = buildResources.CoreGameOverride?[property.Name] as JObject;
@@ -195,6 +202,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     yield return uiSeriesId;
             }
 
+            //get data for volume-only bgms (needed for series lookup)
             var volumeOverrides = buildResources.RawCoreBgmOverride?["CoreBgmVolumeOverrides"] as JObject;
             foreach (var property in volumeOverrides?.Properties() ?? Enumerable.Empty<JProperty>())
             {
@@ -282,9 +290,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Metadata Repair
 
+        //forces a save for old metadata_mod.json without needed info
         private bool RepairMissingSeriesAndGameMetadata(IMusicMod mod, JObject metadata)
         {
             var saved = false;
+            //use the current audio state as source for complete metadata
             var seriesById = _audioStateService.GetSeriesEntries()
                 .Where(p => !string.IsNullOrEmpty(p.UiSeriesId))
                 .GroupBy(p => p.UiSeriesId, StringComparer.OrdinalIgnoreCase)
@@ -314,6 +324,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 foreach (JObject game in GetArray(series, "games").OfType<JObject>())
                 {
                     var uiGameTitleId = GetString(game, "ui_gametitle_id");
+                    //skip if this metadata already has the required fields
                     if (!NeedsMetadataRepair(game) ||
                         string.IsNullOrEmpty(uiGameTitleId) ||
                         !gameById.TryGetValue(uiGameTitleId, out var gameEntry) ||
@@ -324,6 +335,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                     var entries = new MusicModEntries();
                     entries.SeriesEntries.Add(
+                        //prefer audio state series, fallback to metadata so the game can still be saved
                         seriesById.TryGetValue(gameEntry.UiSeriesId, out var parentSeriesEntry)
                             ? parentSeriesEntry
                             : CreateSeriesEntryFromMetadata(series));
@@ -388,6 +400,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private static SeriesEntry CreateSeriesEntryFromMetadata(JObject series)
         {
+            //fallback object used only when the audio state has no parent series entry
             return new SeriesEntry(GetString(series, "ui_series_id"), EntrySource.Mod)
             {
                 NameId = GetString(series, "name_id"),

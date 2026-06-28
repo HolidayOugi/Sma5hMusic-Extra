@@ -16,6 +16,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 .ToDictionary(p => p.Key, p => _mapper.Map<StageConfig>(p.Value));
 
             var path = Path.Combine(overrideOutputPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_STAGE_JSON_FILE);
+            //merge new values into existing override
             MergeDictionaryFile(path, newValues);
 
             if (newValues.Count > 0)

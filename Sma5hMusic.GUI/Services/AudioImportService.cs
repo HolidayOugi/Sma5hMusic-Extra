@@ -44,6 +44,7 @@ namespace Sma5hMusic.GUI.Services
             return await Task.Run(() =>
             {
                 Directory.CreateDirectory(GetTempPath());
+                //copy to temp
                 var soxInputFile = CreateSoxCompatibleInputCopy(filename);
 
                 try
@@ -129,11 +130,13 @@ namespace Sma5hMusic.GUI.Services
                     if (loopStartSample > loopEndSample)
                         throw new InvalidOperationException("Loop start sample must be lower than or equal to loop end sample.");
 
+                    //convert loop points to 48kHz
                     var loopStart48k = ConvertSampleRate(loopStartSample, info.SampleRate);
                     var loopEnd48k = ConvertSampleRate(loopEndSample, info.SampleRate);
 
                     if (applyNormalization)
                     {
+                        //get LUFS from option
                         var targetLufs = GetFfmpegLoudnormTarget();
 
                         _logger.LogInformation(
@@ -143,6 +146,7 @@ namespace Sma5hMusic.GUI.Services
                             targetLufs
                         );
 
+                        //normalize audio
                         NormalizeAudioToWav(soxInputFile, tempNormalizedWavFile, targetLufs);
 
                         File.Copy(tempNormalizedWavFile, tempWavFile, true);
@@ -151,6 +155,7 @@ namespace Sma5hMusic.GUI.Services
                     {
                         _logger.LogInformation("Converting {InputFile} to WAV 48kHz for import.", filename);
 
+                        //convert to 48kHz WAV
                         RunTool(
                             GetSoxExe(),
                             soxInputFile,
@@ -161,10 +166,13 @@ namespace Sma5hMusic.GUI.Services
                         );
                     }
 
+                    //get new loop points after conversion to 48kHz WAV
+                    //needed because after conversion total sample count may have changed by a few samples
                     (loopStart48k, loopEnd48k) = FitLoopPointsToWav(tempWavFile, loopStart48k, loopEnd48k);
 
                     _logger.LogInformation("Encoding temporary LOPUS with loop {LoopStart}-{LoopEnd}.", loopStart48k, loopEnd48k);
 
+                    //WAV -> LOPUS
                     var encoderOutput = RunTool(
                         GetVGAudioCliExe(),
                         tempWavFile,
@@ -180,6 +188,7 @@ namespace Sma5hMusic.GUI.Services
 
                     _logger.LogInformation("Creating NUS3AUDIO {OutputFile}.", outputFile);
 
+                    //LOPUS -> NUS3AUDIO
                     RunTool(GetNus3AudioExe(), "-n", "-w", outputFile);
                     RunTool(GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
 
@@ -187,6 +196,7 @@ namespace Sma5hMusic.GUI.Services
                 }
                 finally
                 {
+                    //cleanup temp files
                     DeleteSoxCompatibleInputCopy(filename, soxInputFile);
                     DeleteTempFile(tempNormalizedWavFile);
                     DeleteTempFile(tempWavFile);

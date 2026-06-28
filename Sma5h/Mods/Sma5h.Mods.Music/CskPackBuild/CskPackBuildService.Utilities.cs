@@ -61,6 +61,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private static string MakeEntry(string label, string text)
         {
+            //convert to base64 if contains game text tag or color markup
             if (ContainsGameTextTagMarker(text) || MsbtRichTextColorHelper.ContainsColorMarkup(text))
                 return $"<entry label=\"{label}\" base64=\"true\">\r\n<text><![CDATA[{EncodeGameTextAsBase64(text)}]]></text>\r\n</entry>";
 
@@ -203,12 +204,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
             bytes.Add(color.Red);
             bytes.Add(color.Green);
             bytes.Add(color.Blue);
-            bytes.Add(0xFF);
+            bytes.Add(0xFF); //alpha not read
         }
 
         private static void AddDefaultColorMarkerBytes(List<byte> bytes)
         {
-            //transparent bytes
+            //black bytes for default text
             //a closing tag is not available
             bytes.AddRange(new byte[] { 0x0E, 0x00, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0xFF });
         }
@@ -243,6 +244,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private IEnumerable<string> GetCskTextLocales()
         {
+            //priority GUI -> default -> us_en -> eu_en
             var configuredLocales = new[]
             {
                 _currentBuildLocale.Value,

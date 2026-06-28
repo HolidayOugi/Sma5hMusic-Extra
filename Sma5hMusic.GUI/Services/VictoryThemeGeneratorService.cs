@@ -2,14 +2,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Sma5h.Interfaces;
-using Sma5h.Mods.Data.Sound.Config;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
-using Sma5h.ResourceProviders;
-using Sma5h.ResourceProviders.Constants;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
 using System;
@@ -19,8 +15,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using PrcBgmFighterJingleBgmEntry = Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmFighterJingleBgmEntry;
-using PrcUiBgmDatabase = Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabase;
 
 namespace Sma5hMusic.GUI.Services
 {
@@ -33,8 +27,6 @@ namespace Sma5hMusic.GUI.Services
         private readonly INus3AudioService _nus3AudioService;
         private readonly IAudioImportService _audioImportService;
         private readonly IAudioMetadataService _audioMetadataService;
-        private readonly PrcResourceProvider _prcProvider;
-        private readonly BgmPropertyProvider _bgmPropertyProvider;
         private readonly ILogger _logger;
 
         public VictoryThemeGeneratorService(
@@ -42,7 +34,6 @@ namespace Sma5hMusic.GUI.Services
             INus3AudioService nus3AudioService,
             IAudioImportService audioImportService,
             IAudioMetadataService audioMetadataService,
-            IEnumerable<IResourceProvider> resourceProviders,
             ILogger<VictoryThemeGeneratorService> logger)
         {
             _config = config;
@@ -50,8 +41,6 @@ namespace Sma5hMusic.GUI.Services
             _audioImportService = audioImportService;
             _audioMetadataService = audioMetadataService;
             _logger = logger;
-            _prcProvider = resourceProviders.OfType<PrcResourceProvider>().FirstOrDefault();
-            _bgmPropertyProvider = resourceProviders.OfType<BgmPropertyProvider>().FirstOrDefault();
         }
 
         public Task<string> Generate(IReadOnlyCollection<VictoryThemeGenerationEntry> entries)
@@ -64,15 +53,18 @@ namespace Sma5hMusic.GUI.Services
             if (entries == null || entries.Count == 0)
                 throw new InvalidOperationException("Add at least one victory theme entry.");
 
+            //normalize entries
             var normalizedEntries = entries.Select(NormalizeEntry).ToList();
             var shouldWriteFighterJinglePatch = normalizedEntries.Any(p => p.PatchFighterJingle);
 
+            //check duplicates
             var duplicateCharacters = normalizedEntries
                 .GroupBy(p => p.CharaId, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault(p => p.Count() > 1);
             if (duplicateCharacters != null)
                 throw new InvalidOperationException($"Character '{duplicateCharacters.Key}' was added more than once.");
 
+            //folders
             var outputRoot = Path.GetFullPath(Path.Combine(_config.CurrentValue.OutputPath, "Victory Themes"));
             var databaseOutputFolder = Path.Combine(outputRoot, "database");
             var bgmOutputFolder = Path.Combine(outputRoot, "stream;", "sound", "bgm");
@@ -92,8 +84,6 @@ namespace Sma5hMusic.GUI.Services
 
             try
             {
-                var coreBgmDb = _prcProvider != null ? ReadCoreBgmDatabase() : null;
-                var coreBgmProperties = ReadCoreBgmProperties();
                 var songData = CreateSongData();
 
                 _nus3AudioService.ResetGeneratedNus3BankIds();
@@ -102,23 +92,28 @@ namespace Sma5hMusic.GUI.Services
                 {
                     var nus3AudioOutputFile = Path.Combine(bgmOutputFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, entry.ToneId));
                     var nus3BankOutputFile = Path.Combine(bgmOutputFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, entry.ToneId));
+                    //generate nus3audio
                     var sourceNus3Audio = PrepareNus3Audio(entry, tempRoot);
 
+                    //copy nus3audio and generate nus3bank
                     File.Copy(sourceNus3Audio, nus3AudioOutputFile, true);
                     _nus3AudioService.GenerateNus3Bank(entry.ToneId, entry.Volume, nus3BankOutputFile);
                     EnsureFileExists(nus3AudioOutputFile, entry.ToneId, "NUS3AUDIO");
                     EnsureFileExists(nus3BankOutputFile, entry.ToneId, "NUS3BANK");
 
+                    //if we need to write JSON for custom victory themes
                     if (entry.PatchFighterJingle)
                     {
-                        var coreData = coreBgmDb != null ? FindCoreData(entry.ToneId, coreBgmDb, coreBgmProperties) : null;
-                        AddVictoryJsonEntries(songData, entry.ToneId, coreData, nus3AudioOutputFile);
+                        //add victory theme entry to JSON
+                        AddVictoryJsonEntries(songData, entry.ToneId, nus3AudioOutputFile);
+                        //assign victory theme to character in fighter_jingle section
                         AddFighterJingleJsonEntry(songData, entry.CharaId, entry.ToneId);
                     }
                 }
 
                 if (shouldWriteFighterJinglePatch)
                 {
+                    //save JSON to output
                     var jsonOutputFile = Path.Combine(databaseOutputFolder, "victory.json");
                     File.WriteAllText(jsonOutputFile, songData.ToString(Formatting.Indented));
                 }
@@ -171,6 +166,7 @@ namespace Sma5hMusic.GUI.Services
                 return entry.SourceFile;
             }
 
+            //convert if necessary
             if (_audioImportService.RequiresConversion(entry.SourceFile))
             {
                 var info = _audioImportService.GetAudioInfo(entry.SourceFile).GetAwaiter().GetResult();
@@ -196,80 +192,20 @@ namespace Sma5hMusic.GUI.Services
             return tempOutputFile;
         }
 
-        private PrcUiBgmDatabase ReadCoreBgmDatabase()
+        private void AddVictoryJsonEntries(JObject songData, string toneId, string nus3AudioOutputFile)
         {
-            var sourceBgmDb = GetCoreResourcePath(PrcExtConstants.PRC_UI_BGM_DB_PATH);
-            var db = _prcProvider.ReadFile<PrcUiBgmDatabase>(sourceBgmDb, true);
-            db.FighterJingleEntries ??= new Dictionary<string, PrcBgmFighterJingleBgmEntry>(StringComparer.OrdinalIgnoreCase);
-            return db;
-        }
-
-        private Dictionary<string, Sma5h.Mods.Data.Sound.Config.BgmPropertyStructs.BgmPropertyEntry> ReadCoreBgmProperties()
-        {
-            if (_bgmPropertyProvider == null)
-                return new Dictionary<string, Sma5h.Mods.Data.Sound.Config.BgmPropertyStructs.BgmPropertyEntry>(StringComparer.OrdinalIgnoreCase);
-
-            var path = GetCoreResourcePath(BgmPropertyFileConstants.BGM_PROPERTY_PATH);
-            if (!File.Exists(path))
-                return new Dictionary<string, Sma5h.Mods.Data.Sound.Config.BgmPropertyStructs.BgmPropertyEntry>(StringComparer.OrdinalIgnoreCase);
-
-            return _bgmPropertyProvider.ReadFile<BinBgmProperty>(path)?.Entries
-                   ?? new Dictionary<string, Sma5h.Mods.Data.Sound.Config.BgmPropertyStructs.BgmPropertyEntry>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        private CoreVictoryBgmData FindCoreData(
-            string toneId,
-            PrcUiBgmDatabase bgmDb,
-            IReadOnlyDictionary<string, Sma5h.Mods.Data.Sound.Config.BgmPropertyStructs.BgmPropertyEntry> bgmProperties)
-        {
-            var streamProperty = bgmDb.StreamPropertyEntries?.Values
-                .FirstOrDefault(p => string.Equals(p.DataName0, toneId, StringComparison.OrdinalIgnoreCase));
-            if (streamProperty == null)
-                return null;
-
-            var assignedInfo = bgmDb.AssignedInfoEntries?.Values
-                .FirstOrDefault(p => string.Equals(p.StreamId, streamProperty.StreamId, StringComparison.OrdinalIgnoreCase));
-            if (assignedInfo == null)
-                return null;
-
-            var streamSet = bgmDb.StreamSetEntries?.Values
-                .FirstOrDefault(p => new[]
-                {
-                    p.Info0, p.Info1, p.Info2, p.Info3, p.Info4, p.Info5, p.Info6, p.Info7,
-                    p.Info8, p.Info9, p.Info10, p.Info11, p.Info12, p.Info13, p.Info14, p.Info15
-                }.Any(info => string.Equals(info, assignedInfo.InfoId, StringComparison.OrdinalIgnoreCase)));
-            if (streamSet == null)
-                return null;
-
-            var dbRoot = bgmDb.DbRootEntries?.Values
-                .FirstOrDefault(p => string.Equals(p.StreamSetId, streamSet.StreamSetId, StringComparison.OrdinalIgnoreCase));
-
-            bgmProperties.TryGetValue(toneId, out var bgmProperty);
-            return new CoreVictoryBgmData
-            {
-                DbRoot = dbRoot,
-                StreamSet = streamSet,
-                AssignedInfo = assignedInfo,
-                StreamProperty = streamProperty,
-                BgmProperty = bgmProperty
-            };
-        }
-
-        private void AddVictoryJsonEntries(JObject songData, string toneId, CoreVictoryBgmData coreData, string nus3AudioOutputFile)
-        {
-            var dbRoot = coreData?.DbRoot;
-            var uiBgmId = dbRoot?.UiBgmId ?? $"ui_bgm_{toneId}";
-            var streamSetId = coreData?.StreamSet?.StreamSetId ?? $"set_{toneId}";
-            var infoId = coreData?.AssignedInfo?.InfoId ?? $"info_{toneId}";
-            var streamId = coreData?.StreamProperty?.StreamId ?? $"stream_{toneId}";
+            var uiBgmId = $"ui_bgm_{toneId}";
+            var streamSetId = $"set_{toneId}";
+            var infoId = $"info_{toneId}";
+            var streamId = $"stream_{toneId}";
 
             AddUnique(GetArray(songData, "bgm_database_entries"), "ui_bgm_id", new JObject
             {
                 ["ui_bgm_id"] = uiBgmId,
                 ["clone_from_ui_bgm_id"] = CloneBgmId,
                 ["stream_set_id"] = streamSetId,
-                ["name_id"] = dbRoot?.NameId ?? toneId,
-                ["ui_gametitle_id"] = dbRoot?.UiGameTitleId ?? MusicConstants.InternalIds.GAME_TITLE_ID_DEFAULT,
+                ["name_id"] = toneId,
+                ["ui_gametitle_id"] = MusicConstants.InternalIds.GAME_TITLE_ID_DEFAULT,
                 ["test_disp_order"] = -1,
                 ["record_type"] = MusicConstants.InternalIds.RECORD_TYPE_DEFAULT
             });
@@ -279,16 +215,13 @@ namespace Sma5hMusic.GUI.Services
                 ["stream_set_id"] = streamSetId,
                 ["info0"] = infoId
             };
-            var specialCategory = coreData?.StreamSet?.SpecialCategory;
-            if (!string.IsNullOrWhiteSpace(specialCategory))
-                streamSetEntry["special_category"] = specialCategory;
             AddUnique(GetArray(songData, "stream_set_entries"), "stream_set_id", streamSetEntry);
 
             AddUnique(GetArray(songData, "assigned_info_entries"), "info_id", new JObject
             {
                 ["info_id"] = infoId,
                 ["stream_id"] = streamId,
-                ["condition"] = coreData?.AssignedInfo?.Condition ?? "sound_condition_none",
+                ["condition"] = "sound_condition_none",
                 ["condition_process"] = "sound_condition_process_add",
                 ["change_fadeout_frame"] = 60,
                 ["menu_change_fadeout_frame"] = 60
@@ -336,11 +269,6 @@ namespace Sma5hMusic.GUI.Services
             }
 
             fighterJingle[charaId] = toneId;
-        }
-
-        private string GetCoreResourcePath(string relativePath)
-        {
-            return Path.Combine(_config.CurrentValue.GameResourcesPath, relativePath);
         }
 
         private static JObject CreateSongData()
@@ -447,19 +375,6 @@ namespace Sma5hMusic.GUI.Services
             return fullPath + Path.DirectorySeparatorChar;
         }
 
-        private static void DeleteIfExists(string path)
-        {
-            try
-            {
-                if (File.Exists(path))
-                    File.Delete(path);
-            }
-            catch
-            {
-                // Best-effort cleanup for temporary extracted audio.
-            }
-        }
-
         private class PreparedVictoryThemeEntry
         {
             public string CharaId { get; set; }
@@ -468,15 +383,6 @@ namespace Sma5hMusic.GUI.Services
             public bool PatchFighterJingle { get; set; }
             public bool ApplyNormalization { get; set; }
             public float Volume { get; set; }
-        }
-
-        private class CoreVictoryBgmData
-        {
-            public Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmDbRootEntry DbRoot { get; set; }
-            public Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmStreamSetEntry StreamSet { get; set; }
-            public Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmAssignedInfoEntry AssignedInfo { get; set; }
-            public Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmStreamPropertyEntry StreamProperty { get; set; }
-            public Sma5h.Mods.Data.Sound.Config.BgmPropertyStructs.BgmPropertyEntry BgmProperty { get; set; }
         }
     }
 }

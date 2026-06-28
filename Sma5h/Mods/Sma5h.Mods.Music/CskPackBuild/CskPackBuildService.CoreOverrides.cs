@@ -333,6 +333,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var uiGameTitleId = GetString(db, "ui_gametitle_id");
                 var coreSeries = GetCoreBgmSeriesName(uiGameTitleId, dbSeriesId, seriesIdToName, coreGameOverride);
 
+                //skip if not in this series
                 if (coreSeries != seriesName)
                     continue;
 
@@ -344,6 +345,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 if (_unavailableBgmNameIds.Value?.Contains(nameId) == true)
                     continue;
 
+                //skip if already added
                 if (HasBgmDatabaseEntry(songData, uiBgmId))
                     continue;
 
@@ -358,10 +360,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ["record_type"] = GetString(db, "record_type", "record_original")
                 });
 
+                //add to playlists
                 orderCounter = AddToPlaylists(uiBgmId, songData, playlistOverride, seriesName, orderCounter);
 
                 AddUniqueJObjectByKey(songData, "stream_set_entries", "stream_set_id", CreateStreamSetEntry(streamSetData, streamSetId));
 
+                //add metadata
                 for (var i = 0; i < 16; i++)
                 {
                     var infoKey = GetString(streamSetData, $"info{i}");
@@ -392,6 +396,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         AddUniqueJObjectByKey(songData, "bgm_property_entries", "stream_name", CreateCskBgmPropertyEntry(bgmProperty, streamName));
                 }
 
+                //add messages
                 AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_title_{nameId}", db["msbt_title"]);
                 AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_author_{nameId}", db["msbt_author"]);
                 AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_copyright_{nameId}", db["msbt_copyright"]);
@@ -405,6 +410,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var entryId = $"tit_{GetString(game, "name_id")}";
                     if (alreadyAdded.Add(entryId))
+                        //if not present add game entry
                         msgTitleEntries.Add(MakeEntry(entryId, gameTitle));
                 }
             }

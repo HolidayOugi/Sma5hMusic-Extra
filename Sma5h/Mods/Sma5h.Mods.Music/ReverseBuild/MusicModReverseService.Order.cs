@@ -14,6 +14,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 .ToDictionary(p => p.Key, p => p.Value.TestDispOrder);
 
             var path = Path.Combine(overrideOutputPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_ORDER_JSON_FILE);
+            //merge new values into existing override
             var merged = MergeOrderOverride(path, newValues);
             WriteJson(path, merged);
 
@@ -21,6 +22,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 _logger.LogInformation("Reverse MusicMod: wrote {OverridePath}.", path);
         }
 
+        //if old order is used by the new values, move the old bgms to the end of the list
         private Dictionary<string, short> MergeOrderOverride(string path, Dictionary<string, short> newValues)
         {
             var existingValues = LoadDictionary<short>(path);

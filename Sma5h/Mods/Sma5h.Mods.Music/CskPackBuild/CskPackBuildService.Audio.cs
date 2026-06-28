@@ -32,10 +32,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var outputBgmFolder = Path.Combine(tempRoot, "stream;", "sound", "bgm");
             Directory.CreateDirectory(outputBgmFolder);
 
+            //reset nus3bank ids to fix bug with high id numbers
             _nus3AudioService.ResetGeneratedNus3BankIds();
 
             var contextList = contexts.ToList();
             var selectedSeriesNames = GetSelectedSeriesNames(contextList, selectedSeriesKeys);
+            //get all bgm entries for the selected series plus volume overrides for core songs
             var bgmEntries = contextList
                 .SelectMany(context => GetSelectedBgmBuildEntries(context, selectedSeriesKeys, buildResources.CoreGameOverride))
                 .Concat(GetSelectedCoreVolumeOverrideBuildEntries(selectedSeriesNames, buildResources))
@@ -51,6 +53,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var nusBankOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
                 var nusAudioOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, bgmPropertyEntry.NameId));
 
+                //skip is song not found 
                 if (!bgmPropertyEntry.BankOnly && !File.Exists(bgmPropertyEntry.Filename))
                 {
                     _unavailableBgmNameIds.Value?.Add(bgmPropertyEntry.NameId);

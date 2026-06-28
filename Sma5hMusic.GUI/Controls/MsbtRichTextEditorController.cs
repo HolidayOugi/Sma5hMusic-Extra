@@ -75,6 +75,7 @@ namespace Sma5hMusic.GUI.Controls
             if (_viewModelNotifier != null)
                 _viewModelNotifier.PropertyChanged -= ViewModelPropertyChanged;
 
+            //update bound view model
             _dataContext = dataContext;
             _viewModelNotifier = _dataContext as INotifyPropertyChanged;
             if (_viewModelNotifier != null)
@@ -108,19 +109,24 @@ namespace Sma5hMusic.GUI.Controls
 
         private void EditorPointerPressed(object sender, PointerPressedEventArgs e)
         {
+            //clear saved selection when editor gets focus
             ClearPendingColorSelection();
         }
 
         private void TextColorComboBoxPointerPressed(object sender, PointerPressedEventArgs e)
         {
+            //save text selection before color picker gets focus
             StorePendingColorSelection();
         }
 
         private void SmallTextMarkerButtonPointerPressed(object sender, PointerPressedEventArgs e)
         {
+            //save text selection before button gets focus
             StorePendingColorSelection();
         }
 
+
+        //adds small text marker to end of line or selection
         private void SmallTextMarkerButtonClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             if (_editor == null || !(_dataContext is MSBTFieldViewModel viewModel) || !viewModel.EnableColorFormatting)
@@ -164,6 +170,7 @@ namespace Sma5hMusic.GUI.Controls
         {
             if (isOpen)
             {
+                //save selection before opening color menu
                 _colorAppliedDuringDropDown = false;
                 StorePendingColorSelection();
                 return;
@@ -175,6 +182,7 @@ namespace Sma5hMusic.GUI.Controls
             if (_colorAppliedDuringDropDown)
                 ClearPendingColorSelection();
             else
+                //apply color
                 ApplySelectedColorToSelection(_textColorComboBox);
         }
 
@@ -192,6 +200,7 @@ namespace Sma5hMusic.GUI.Controls
             _isSyncing = true;
             if (viewModel.EnableColorFormatting)
             {
+                //hide color tags from editor
                 _spans = MsbtRichTextColorHelper.Parse(viewModel.CurrentLocalizedValue);
                 _plainText = MsbtRichTextColorHelper.ToPlainText(_spans);
                 _editor.Text = _plainText;
@@ -225,6 +234,7 @@ namespace Sma5hMusic.GUI.Controls
                 return;
             }
 
+            //apply text edit while preserving existing colors
             ApplyTextChange(_plainText, newPlainText, viewModel.SelectedTextColor?.Id ?? MsbtRichTextColorHelper.DefaultColor.Id);
             ClearPendingColorSelection();
             _plainText = newPlainText;
@@ -238,6 +248,7 @@ namespace Sma5hMusic.GUI.Controls
             var selectedColor = comboBox?.SelectedItem as MsbtTextColor;
             if (selectedColor?.IsCustomSelector == true)
             {
+                //open custom color dialog
                 await SelectCustomColor(comboBox);
                 return;
             }

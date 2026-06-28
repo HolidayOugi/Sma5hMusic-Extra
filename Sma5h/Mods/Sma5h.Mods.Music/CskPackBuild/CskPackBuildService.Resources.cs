@@ -20,6 +20,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var stageOverride = LoadJsonObject(Path.Combine(overridePath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_STAGE_JSON_FILE));
             var effectiveCoreGameOverride = BuildEffectiveCoreGameData(coreGameOverride);
 
+            //build core game resources
             return new CskBuildResources
             {
                 CoreGameSeriesById = BuildCoreGameSeriesById(effectiveCoreGameOverride),

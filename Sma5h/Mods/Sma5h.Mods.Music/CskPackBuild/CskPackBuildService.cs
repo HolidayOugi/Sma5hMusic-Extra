@@ -79,18 +79,22 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return Task.Run(() => BuildInternal(selected, CskPackBuildMode.Single, locale));
         }
 
+        //get all series from all mods
         public Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null, bool includeCoreOverrideOnly = false)
         {
             return Task.Run<IReadOnlyList<CskPackSeriesOption>>(() =>
             {
+                //get the build locale from GUI
                 _currentBuildLocale.Value = locale;
                 try
                 {
                     var mods = GetMusicMods();
                     var contexts = LoadModContexts(mods);
+                    //core override only 
                     if (includeCoreOverrideOnly && mods.Count == 0 && contexts.Count == 0)
                         contexts = LoadCoreOverrideContexts(LoadBuildResources());
 
+                    //returns all series from all mods
                     return contexts
                         .SelectMany(context => context.SeriesList.Select(series => CreateSeriesOption(context, series)))
                         .OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -118,6 +122,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var buildResources = LoadBuildResources();
 
                 var contexts = LoadModContexts(mods);
+                //core override only
                 var coreOverrideOnly = buildMode == CskPackBuildMode.Single && mods.Count == 0 && contexts.Count == 0 && buildResources.HasCoreOverrides;
                 if (coreOverrideOnly)
                     contexts = LoadCoreOverrideContexts(buildResources);
@@ -142,8 +147,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 try
                 {
                     var contextList = contexts.ToList();
+                    //audio only single build for replacement songs
                     var audioOnlySingleBuild = buildMode == CskPackBuildMode.Single &&
                                                IsSelectedAudioOnlyBuild(contextList, selectedSeriesKeys, buildResources);
+                    //for metadata only builds
                     var includeAudio = buildMode != CskPackBuildMode.MetadataOnly;
                     _unavailableBgmNameIds.Value = includeAudio
                         ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)

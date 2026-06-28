@@ -37,6 +37,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 throw new InvalidOperationException($"Could not read required music resources from {rootPath}.");
 
             var snapshot = new ResourceSnapshot();
+            //get bgm and title names from MSBTs
             var bgmMsbts = LoadMsbtDatabases(rootPath, MsbtExtConstants.MSBT_BGM, fallbackRootPath);
             var titleMsbts = LoadMsbtDatabases(rootPath, MsbtExtConstants.MSBT_TITLE, fallbackRootPath);
 
@@ -44,6 +45,8 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var toneIds = GetToneIds(rootPath, bgmProperty);
             var seriesIds = new Dictionary<string, string>();
             var gameTitleIds = new Dictionary<string, string>();
+
+            //nameIDs are in plain text inside PRCs
 
             //generate series IDs from nameID
             foreach (var value in seriesDb.DbRootEntries.Values)
@@ -58,6 +61,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
             LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
             LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
+            //generate playlist IDs
             var playlistIdHints = BuildStagePlaylistIdHints(stageDb);
             var playlistIds = LoadPlaylistEntries(snapshot, bgmDb, toneIds, playlistIdHints);
             LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
@@ -75,6 +79,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             foreach (var value in bgmDb.DbRootEntries.Values)
             {
                 //generate all IDs from tone IDs and different prefixes
+                //input is hash40, returns plain text nameID with prefix if available
                 value.UiBgmId = ResolveGeneratedId(value.UiBgmId, toneIds, MusicConstants.InternalIds.UI_BGM_ID_PREFIX);
                 value.StreamSetId = ResolveGeneratedId(value.StreamSetId, toneIds, MusicConstants.InternalIds.STREAM_SET_PREFIX);
                 value.UiGameTitleId = ResolveKnownId(value.UiGameTitleId, gameTitleIds);
@@ -90,6 +95,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             foreach (var value in bgmDb.StreamSetEntries.Values)
             {
+                //generate stream set and info IDs from tone IDs
                 value.StreamSetId = ResolveGeneratedId(value.StreamSetId, toneIds, MusicConstants.InternalIds.STREAM_SET_PREFIX);
                 value.Info0 = ResolveGeneratedId(value.Info0, toneIds, MusicConstants.InternalIds.INFO_ID_PREFIX);
                 value.Info1 = ResolveGeneratedId(value.Info1, toneIds, MusicConstants.InternalIds.INFO_ID_PREFIX);
@@ -113,6 +119,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             foreach (var value in bgmDb.AssignedInfoEntries.Values)
             {
+                //generate info and stream IDs from tone IDs
                 value.InfoId = ResolveGeneratedId(value.InfoId, toneIds, MusicConstants.InternalIds.INFO_ID_PREFIX);
                 value.StreamId = ResolveGeneratedId(value.StreamId, toneIds, MusicConstants.InternalIds.STREAM_PREFIX);
                 snapshot.AssignedInfoEntries.Add(value.InfoId, _mapper.Map(value, new BgmAssignedInfoEntry(value.InfoId)));
@@ -120,6 +127,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             foreach (var value in bgmDb.StreamPropertyEntries.Values)
             {
+                //generate stream ID from tone ID
                 value.StreamId = ResolveGeneratedId(value.StreamId, toneIds, MusicConstants.InternalIds.STREAM_PREFIX);
                 snapshot.StreamPropertyEntries.Add(value.StreamId, _mapper.Map(value, new BgmStreamPropertyEntry(value.StreamId)));
             }
@@ -129,6 +137,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
         {
             foreach (var value in bgmProperty.Entries.Values)
             {
+                //generate bgm property nameID from tone ID
                 value.NameId = ResolveGeneratedId(value.NameId, toneIds, string.Empty);
                 var filename = Path.Combine(rootPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, value.NameId));
                 snapshot.BgmPropertyEntries.Add(value.NameId, _mapper.Map(value, new BgmPropertyEntry(value.NameId, filename)));
@@ -185,6 +194,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             foreach (var value in bgmDb.PlaylistEntries)
             {
+                //resolve hashed playlist IDs using stage names
                 var playlistId = ResolvePlaylistId(value.Id, playlistIds, playlistIdHints, usedPlaylistIds, ref unknownPlaylistIndex);
                 var playlist = new PlaylistEntry(playlistId);
                 foreach (var track in value.Values)
@@ -235,6 +245,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
         {
             foreach (var value in stageDb.DbRootEntries.Values)
             {
+                //resolve generated series and playlist IDs
                 value.UiSeriesId = ResolveKnownId(value.UiSeriesId, seriesIds);
                 value.BgmSetId = ResolveKnownId(value.BgmSetId, playlistIds);
                 var entry = _mapper.Map<StageEntry>(value);
@@ -285,6 +296,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var bgmPath = Path.Combine(rootPath, "stream;", "sound", "bgm");
             if (Directory.Exists(bgmPath))
             {
+                //recover tone IDs from nus3audio files
                 foreach (var file in Directory.EnumerateFiles(bgmPath, "*.nus3audio"))
                 {
                     var name = Path.GetFileNameWithoutExtension(file);
@@ -301,6 +313,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             if (string.IsNullOrEmpty(entry.NameId))
                 return;
 
+            //get bgm title, author and copyright
             foreach (var msbt in msbts)
             {
                 AddMsbtValue(entry.Title, msbt.Key, msbt.Value, entry.TitleKey, ConvertFromGameTextTag);
@@ -314,6 +327,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             if (string.IsNullOrEmpty(key))
                 return;
 
+            //get series or game title
             foreach (var msbt in msbts)
                 AddMsbtValue(target, msbt.Key, msbt.Value, key);
         }
@@ -349,6 +363,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             if (string.IsNullOrEmpty(value) || string.IsNullOrEmpty(nameId))
                 return;
 
+            //store generated IDs
             var candidate = prefix + nameId;
             if (value.Equals(candidate, StringComparison.OrdinalIgnoreCase) || Hash40Matches(value, candidate))
                 output[value] = candidate;
@@ -374,6 +389,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             if (!IsHexId(value))
             {
+                //already readable playlist ID from PRC
                 playlistIds[value] = value;
                 usedPlaylistIds.Add(value);
                 return value;
@@ -384,11 +400,13 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             if (playlistIdHints != null && playlistIdHints.TryGetValue(value, out var hintedPlaylistId) && !usedPlaylistIds.Contains(hintedPlaylistId))
             {
+                //use stage name for Playlist ID
                 playlistIds[value] = hintedPlaylistId;
                 usedPlaylistIds.Add(hintedPlaylistId);
                 return hintedPlaylistId;
             }
 
+            //fallback when no playlist ID can be recovered
             string playlistId;
             do
             {

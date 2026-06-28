@@ -66,6 +66,7 @@ namespace Sma5hMusic.GUI.Services
 
                 try
                 {
+                    //get id so that it's always there if song has only non unicode charachters in title
                     var outputTemplate = Path.Combine(tempDirectory, "%(title)s [%(id)s].%(ext)s");
 
                     var runResult = RunYtDlp(
@@ -79,7 +80,7 @@ namespace Sma5hMusic.GUI.Services
                         "--format", "bestaudio/best",
                         "--extract-audio",
                         "--ffmpeg-location", ffmpegExecutable,
-                        "--audio-format", "wav",
+                        "--audio-format", "wav", //wav for faster segment creation
                         "--audio-quality", "0",
                         "--restrict-filenames",
                         "--print", "after_move:filepath",
@@ -340,6 +341,7 @@ namespace Sma5hMusic.GUI.Services
             });
         }
 
+        //get number of songs in playlist for UI
         public Task<int> GetPlaylistItemCount(string url, CancellationToken cancellationToken = default)
         {
             return Task.Run(() =>

@@ -173,6 +173,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var found = false;
             foreach (var playlistProperty in playlistOverride.Properties())
             {
+                //get vanilla playlists list
                 var playlistId = playlistProperty.Name;
                 var isVanillaPlaylist = SeriesToPlaylist.Values
                     .SelectMany(p => p)
@@ -183,6 +184,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     if (GetString(track, "ui_bgm_id") != uiBgmId)
                         continue;
+
+                    //bgm found in playlist, adds it to playlist entries
 
                     found = true;
                     var entries = EnsurePlaylist(songData, playlistId);
@@ -206,6 +209,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var currentEntry = GetArray(songData, "bgm_database_entries")
                 .FirstOrDefault(p => GetString(p, "ui_bgm_id") == uiBgmId) as JObject;
 
+            //if bgm not found we try to add it to a fallback playlist (bgmseries for vanilla, battlefield for custom)
             if (!found && currentEntry != null && GetInt(currentEntry, "test_disp_order", -1) != -1)
             {
                 foreach (var fallbackPlaylistId in GetFallbackPlaylistIds(seriesName))
@@ -214,7 +218,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
                     for (var i = 0; i < 16; i++)
                     {
-                        entry[$"order{i}"] = orderCounter;
+                        entry[$"order{i}"] = orderCounter; //order counter used to order bgms in fallback playlists
                         entry[$"incidence{i}"] = 10000;
                     }
 

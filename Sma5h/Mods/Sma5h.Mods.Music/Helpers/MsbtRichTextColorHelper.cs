@@ -181,6 +181,7 @@ namespace Sma5h.Mods.Music.Helpers
         private static bool TryParseHexColor(string value, out MsbtTextColor color)
         {
             color = null;
+            //accept double hex for easy copy-paste
             var hex = value.TrimStart('#');
             if (hex.Length != 6 && hex.Length != 8)
                 return false;

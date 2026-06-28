@@ -92,6 +92,7 @@ namespace Sma5hMusic.GUI.Services
             cancellationToken.ThrowIfCancellationRequested();
 
             var toneId = Path.GetFileNameWithoutExtension(filename);
+            //create temp directory
             var tempDirectory = Path.Combine(
                 _config.CurrentValue.TempPath,
                 "Nus3AudioBatchNormalization",
@@ -102,6 +103,7 @@ namespace Sma5hMusic.GUI.Services
 
             try
             {
+                //call normalize from audioImportService
                 var normalizedFile = await _audioImportService.NormalizeNus3Audio(
                     toneId,
                     filename,

@@ -116,12 +116,14 @@ namespace Sma5hMusic.GUI.Services
 
             try
             {
+                //NUS3AUDIO -> WAV
                 ExtractNus3AudioToWavFile(filename, extractedWavFile);
 
                 var extractedInfo = GetAudioInfo(extractedWavFile).GetAwaiter().GetResult();
                 var loopStart48k = ConvertSampleRate(loopStartSample, extractedInfo.SampleRate);
                 var loopEnd48k = ConvertSampleRate(loopEndSample, extractedInfo.SampleRate);
 
+                //get new loop points
                 (loopStart48k, loopEnd48k) = FitLoopPointsToWav(extractedWavFile, loopStart48k, loopEnd48k);
 
                 _logger.LogInformation(
@@ -131,6 +133,7 @@ namespace Sma5hMusic.GUI.Services
                     filename
                 );
 
+                //WAV -> LOPUS
                 var encoderOutput = RunTool(
                     GetVGAudioCliExe(),
                     extractedWavFile,
@@ -148,6 +151,7 @@ namespace Sma5hMusic.GUI.Services
 
                 _logger.LogInformation("Creating loop-updated NUS3AUDIO {OutputFile}.", outputFile);
 
+                //LOPUS -> NUS3AUDIO
                 RunTool(GetNus3AudioExe(), "-n", "-w", outputFile);
                 RunTool(GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
 
@@ -184,6 +188,7 @@ namespace Sma5hMusic.GUI.Services
                     loopPoints.Value.LoopEndSample
                 );
 
+                //NUS3AUDIO -> WAV
                 ExtractNus3AudioToWavFile(filename, extractedWavFile);
 
                 var extractedInfo = GetAudioInfo(extractedWavFile).GetAwaiter().GetResult();
@@ -200,7 +205,10 @@ namespace Sma5hMusic.GUI.Services
                     targetLufs
                 );
 
+                //normalize WAV
                 NormalizeAudioToWav(extractedWavFile, normalizedWavFile, targetLufs);
+                //get new loop points after normalization
+                //needed because after normalization total sample count may have changed by a few samples
                 (loopStart48k, loopEnd48k) = FitLoopPointsToWav(normalizedWavFile, loopStart48k, loopEnd48k);
 
                 _logger.LogInformation(
@@ -209,6 +217,7 @@ namespace Sma5hMusic.GUI.Services
                     loopEnd48k
                 );
 
+                //WAV -> LOPUS
                 var encoderOutput = RunTool(
                     GetVGAudioCliExe(),
                     normalizedWavFile,
@@ -226,6 +235,7 @@ namespace Sma5hMusic.GUI.Services
 
                 _logger.LogInformation("Creating normalized NUS3AUDIO {OutputFile}.", outputFile);
 
+                //LOPUS -> NUS3AUDIO
                 RunTool(GetNus3AudioExe(), "-n", "-w", outputFile);
                 RunTool(GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
 
@@ -239,6 +249,8 @@ namespace Sma5hMusic.GUI.Services
             }
         }
 
+        //parse loop points from vgmstream output
+        //TODO: use built in method directly from NUS3audio import
         private (uint LoopStartSample, uint LoopEndSample)? ExtractNus3AudioLoopPoints(string filename)
         {
             var output = RunTool(GetVgmStreamExe(), "-m", filename);
@@ -278,6 +290,7 @@ namespace Sma5hMusic.GUI.Services
             return -Math.Abs(GetAudioNormalizationTargetLufs());
         }
 
+        //normalize to LUFS using FFMpeg loudnorm filter
         private void NormalizeAudioToWav(string inputFile, string outputFile, double targetLufs)
         {
             var outputDirectory = Path.GetDirectoryName(outputFile);

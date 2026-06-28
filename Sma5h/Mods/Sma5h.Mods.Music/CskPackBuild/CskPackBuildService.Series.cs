@@ -24,6 +24,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             JObject coreSeriesOverride,
             bool onlyCoreReplacements)
         {
+            //# of series with no added entries
             var seriesEntries = CreateCoreOnlyVanillaSeriesOrderEntries(
                 contexts,
                 selectedSeriesKeys,
@@ -118,6 +119,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Series Entries
 
+        //TODO: this is a mess and needs to be cleaned
         private List<JObject> CreateCoreOnlyVanillaSeriesOrderEntries(
             IEnumerable<CskModContext> contexts,
             HashSet<string> selectedSeriesKeys,
@@ -198,7 +200,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private Dictionary<string, int> BuildSeriesSoundOrder(IEnumerable<JObject> seriesList, JObject orderOverride)
         {
             var allSeries = seriesList.ToList();
+            //get order from the audio state
             var seriesOrder = BuildSeriesSoundOrderFromAudioState(orderOverride);
+            //fallback, audio state might fail (TODO: investigate why)
             var metadataOrder = BuildSeriesSoundOrderFromMetadata(allSeries, orderOverride);
 
             foreach (var series in allSeries)
@@ -218,6 +222,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return seriesOrder;
         }
 
+        //get series order based on the min(test_disp_order) of the bgms for each series
         private Dictionary<string, int> BuildSeriesSoundOrderFromAudioState(JObject orderOverride)
         {
             var output = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -261,6 +266,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return output;
         }
 
+        //legacy method from python script
         private Dictionary<string, int> BuildSeriesSoundOrderFromMetadata(List<JObject> allSeries, JObject orderOverride)
         {
             if (orderOverride != null && orderOverride.HasValues)

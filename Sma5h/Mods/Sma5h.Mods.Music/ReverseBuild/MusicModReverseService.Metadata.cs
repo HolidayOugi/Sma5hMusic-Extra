@@ -24,6 +24,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var newBgmIds = output.BgmDbRootEntries.Keys.Except(core.BgmDbRootEntries.Keys).OrderBy(p => p).ToList();
             _logger.LogInformation("Reverse MusicMod: found {BgmCount} new BGM entry/entries.", newBgmIds.Count);
 
+            //create new mod from folder name
             var metadata = new MusicModConfig(Guid.NewGuid().ToString())
             {
                 Name = !string.IsNullOrWhiteSpace(modInformation?.Name)
@@ -53,6 +54,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                     continue;
                 }
 
+                //get bgm info
                 var streamSet = output.StreamSetEntries.GetValueOrDefault(dbRoot.StreamSetId);
                 var infoId = GetFirstInfoId(streamSet);
                 var assignedInfo = infoId != null ? output.AssignedInfoEntries.GetValueOrDefault(infoId) : null;
@@ -81,6 +83,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 var filename = $"{toneId}.nus3audio";
                 CopyNus3Audio(outputPath, toneId, Path.Combine(modOutputPath, filename));
 
+                //add bgm to metadata
                 gameConfig.Bgms.Add(new BgmConfig
                 {
                     ToneId = toneId,

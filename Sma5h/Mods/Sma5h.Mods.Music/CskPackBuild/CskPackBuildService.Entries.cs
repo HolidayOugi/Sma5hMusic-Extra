@@ -11,6 +11,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
     {
         #region Game Entries
 
+        //needed because metadata_mod.json doesn't always store the correct series for core games,
+        //need override to check if it's the actual series
         private void AddCoreGameOverridesForNewSeries(JObject songData, JObject series, string seriesName, JObject coreGameOverride)
         {
             if (coreGameOverride == null || VanillaSeries.Contains(seriesName))
@@ -307,11 +309,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 return orderCounter;
             }
 
+            //get test disp order for bgm
             var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
             var alreadyAdded = HasBgmDatabaseEntry(songData, uiBgmId);
             var alreadyAddedFromMetadata = metadataBgmIds?.Contains(uiBgmId) == true;
             var shouldWriteMetadata = !alreadyAdded || !alreadyAddedFromMetadata;
 
+            //add to json
             if (shouldWriteMetadata)
             {
                 AddOrReplaceJObjectByKey(songData, "bgm_database_entries", "ui_bgm_id", new JObject
@@ -365,8 +369,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 metadataBgmIds?.Add(uiBgmId);
             }
 
+            //add playlist entries
             orderCounter = AddToPlaylists(uiBgmId, songData, playlistOverride, seriesName, orderCounter);
 
+            //copy audio files
             if (includeAudio)
                 CopyBgmFiles(bgm, seriesFolderName, outputRoot, generatedBgmFolder);
 

@@ -191,7 +191,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     CharaName = charaName,
                     SourceFile = entry.SourceFile,
                     ToneId = toneId,
-                    PatchFighterJingle = isCustomFighter || !entry.UseDefaultName,
+                    PatchFighterJingle = isCustomFighter || !entry.UseDefaultName, //if custom character or unshared victory theme
                     ApplyNormalization = entry.ApplyNormalization,
                     Volume = RoundVolume(entry.Volume)
                 });
@@ -397,6 +397,7 @@ namespace Sma5hMusic.GUI.ViewModels
             return fullPath + Path.DirectorySeparatorChar;
         }
 
+        //TODO: maybe hardcoding this isn't the cleanest implementation
         private static IReadOnlyList<VictoryThemeFighterOption> CreateFighterTemplate()
         {
             return new[]
