@@ -23,6 +23,8 @@ namespace Sma5h.Mods.Music
         private readonly IOptionsMonitor<Sma5hMusicOverrideOptions> _config;
         private readonly IAudioStateService _audioStateService;
         private const Formatting _defaultFormatting = Formatting.Indented;
+        private const string GameTextTagOpenJson = "\\u000e\\u0000\\u0002\\u0002P";
+        private const string GameTextTagCloseJson = "\\u000e\\u0000\\u0002\\u0002d";
         private MusicOverrideConfig _musicOverrideConfig;
 
         public override string ModName => "Sma5hMusicOverride";
@@ -283,6 +285,13 @@ namespace Sma5h.Mods.Music
             if (File.Exists(overrideCoreJsonFile))
             {
                 var file = File.ReadAllText(overrideCoreJsonFile);
+                //check if old bytes for small text are present and replace them with markers
+                var normalizedFile = NormalizeCoreBgmOverrideTextTags(file);
+                if (file != normalizedFile)
+                {
+                    file = normalizedFile;
+                    File.WriteAllText(overrideCoreJsonFile, file);
+                }
                 _logger.LogDebug("Parsing {MusicOverrideFile} Json File", overrideCoreJsonFile);
                 var outputCoreBgm = JsonConvert.DeserializeObject<CoreBgmOverrides>(file);
                 _logger.LogDebug("Parsed {MusicOverrideFile} Json File", overrideCoreJsonFile);
@@ -371,6 +380,13 @@ namespace Sma5h.Mods.Music
             _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamPropertyOverrides ??= new Dictionary<string, BgmStreamPropertyConfig>();
             _musicOverrideConfig.CoreBgmOverrides.CoreBgmPropertyOverrides ??= new Dictionary<string, BgmPropertyEntryConfig>();
             _musicOverrideConfig.CoreBgmOverrides.CoreBgmVolumeOverrides ??= new Dictionary<string, CoreBgmVolumeConfig>();
+        }
+
+        private static string NormalizeCoreBgmOverrideTextTags(string file)
+        {
+            return file?
+                .Replace(GameTextTagOpenJson, "{{")
+                .Replace(GameTextTagCloseJson, "}}");
         }
 
         private void UpdateCoreBgmVolumeOverride(BgmPropertyEntry bgmPropertyEntry)

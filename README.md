@@ -152,6 +152,8 @@ Victory themes can be generated for both base-game and custom characters. When g
 * If a song from custom Series was not manually added to a playlist, the software will automatically add it to the Battlefield playlist to ensure it shows up in-game.
 * Settings can now be saved when output folder is missing.
 * Fixed importing of files with Japanese characters.
+* Fixed possible silent conversion fail between lopus and Nus3audio during build.
+* Fixed importing of old overrides having invalid characters.
 
 ## FAQ
 
