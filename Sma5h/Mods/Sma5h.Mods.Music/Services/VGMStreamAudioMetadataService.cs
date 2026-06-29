@@ -78,6 +78,9 @@ namespace Sma5h.Mods.Music.Services
                 return true;
             }
 
+            //running VGAudioCli externally to fix a crash in .net 8.0
+            //in netcoreapp 3.1 it would not crash but fail to create the nus3audio correctly
+            //ensures every nus3audio is created correctly and can be played in game
             RunVGAudioCli(inputMediaFile, outputMediaFile);
 
             if (!File.Exists(outputMediaFile) || new FileInfo(outputMediaFile).Length == 0)
@@ -99,14 +102,16 @@ namespace Sma5h.Mods.Music.Services
                 CreateNoWindow = true
             };
 
+            startInfo.ArgumentList.Add("-i");
             startInfo.ArgumentList.Add(inputMediaFile);
+            startInfo.ArgumentList.Add("-o");
             startInfo.ArgumentList.Add(outputMediaFile);
 
             if (outputMediaFile.EndsWith("lopus"))
             {
                 //Special tags for opus
                 startInfo.ArgumentList.Add("--opusheader");
-                startInfo.ArgumentList.Add("namco");
+                startInfo.ArgumentList.Add("Namco");
                 startInfo.ArgumentList.Add("--cbr");
             }
 
