@@ -1,11 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using System;
+using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
-using VGAudio.Cli;
 using VGMMusic;
 
 namespace Sma5h.Mods.Music.Services
@@ -14,11 +14,13 @@ namespace Sma5h.Mods.Music.Services
     {
         private readonly ILogger _logger;
         private readonly IVGMMusicPlayer _vgmMusicPlayer;
+        private readonly IOptionsMonitor<Sma5hMusicOptions> _config;
 
-        public VGMStreamAudioMetadataService(ILogger<IAudioMetadataService> logger, IVGMMusicPlayer vgmMusicPlayer)
+        public VGMStreamAudioMetadataService(ILogger<IAudioMetadataService> logger, IVGMMusicPlayer vgmMusicPlayer, IOptionsMonitor<Sma5hMusicOptions> config)
         {
             _logger = logger;
             _vgmMusicPlayer = vgmMusicPlayer;
+            _config = config;
         }
 
         public async Task<AudioCuePoints> GetCuePoints(string inputFile)
@@ -76,34 +78,42 @@ namespace Sma5h.Mods.Music.Services
                 return true;
             }
 
-            var builder = new StringBuilder();
-
-            var oldValue = Console.Out;
-            using (var writer = new StringWriter(builder))
-            {
-                Console.SetOut(writer);
-                if (outputMediaFile.EndsWith("lopus"))
-                {
-                    //Special tags for opus
-                    Converter.RunConverterCli(new string[] { "-i", inputMediaFile, "-o", outputMediaFile, "--opusheader", "Namco", "--cbr" });
-                }
-                else
-                {
-                    Converter.RunConverterCli(new string[] { "-i", inputMediaFile, "-o", outputMediaFile });
-                }
-            }
-            Console.SetOut(oldValue);
-
-            var output = builder.ToString();
-
-            _logger.LogDebug("VGAudio Convert for {OutputMediaFile}: {Data}", outputMediaFile, output.Trim('\r', '\n'));
+            RunVGAudioCli(inputMediaFile, outputMediaFile);
 
             if (!File.Exists(outputMediaFile) || new FileInfo(outputMediaFile).Length == 0)
             {
-                _logger.LogError("VGAudio Error - The conversion from {InputMediaFile} to {OutputMediaFile} failed. Reason {Reason}", inputMediaFile, outputMediaFile, output.Trim('\r', '\n'));
+                _logger.LogError("VGAudio Error - The conversion from {InputMediaFile} to {OutputMediaFile} failed.", inputMediaFile, outputMediaFile);
                 return false;
             }
+
+            _logger.LogDebug("VGAudio Convert for {OutputMediaFile}: Success!", outputMediaFile);
             return true;
+        }
+
+        private void RunVGAudioCli(string inputMediaFile, string outputMediaFile)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = Path.Combine(_config.CurrentValue.ToolsPath, "VGAudioCli.exe"),
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            startInfo.ArgumentList.Add(inputMediaFile);
+            startInfo.ArgumentList.Add(outputMediaFile);
+
+            if (outputMediaFile.EndsWith("lopus"))
+            {
+                //Special tags for opus
+                startInfo.ArgumentList.Add("--opusheader");
+                startInfo.ArgumentList.Add("namco");
+                startInfo.ArgumentList.Add("--cbr");
+            }
+
+            using (var process = Process.Start(startInfo))
+            {
+                process.WaitForExit();
+            }
         }
 
         private ulong ReadValueUInt64Safe(string searchString, string parsingStartIndex, string parsingEndIndex = " ")
