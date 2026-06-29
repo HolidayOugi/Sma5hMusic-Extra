@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.ViewModels;
@@ -36,6 +37,7 @@ namespace Sma5hMusic.GUI.Controls
         private int _pendingColorSelectionStart;
         private int _pendingColorSelectionEnd;
         private bool _colorAppliedDuringDropDown;
+        private bool _isUsingColorPicker;
         private bool _isChoosingCustomColor;
         private bool _isSyncing;
         private MsbtTextColor _lastTextColor = MsbtRichTextColorHelper.DefaultColor;
@@ -116,6 +118,7 @@ namespace Sma5hMusic.GUI.Controls
         private void TextColorComboBoxPointerPressed(object sender, PointerPressedEventArgs e)
         {
             //save text selection before color picker gets focus
+            _isUsingColorPicker = true;
             StorePendingColorSelection();
         }
 
@@ -171,6 +174,7 @@ namespace Sma5hMusic.GUI.Controls
             if (isOpen)
             {
                 //save selection before opening color menu
+                _isUsingColorPicker = true;
                 _colorAppliedDuringDropDown = false;
                 StorePendingColorSelection();
                 return;
@@ -184,6 +188,8 @@ namespace Sma5hMusic.GUI.Controls
             else
                 //apply color
                 ApplySelectedColorToSelection(_textColorComboBox);
+
+            _isUsingColorPicker = false;
         }
 
         private void ViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -333,6 +339,7 @@ namespace Sma5hMusic.GUI.Controls
 
             ClearPendingColorSelection();
             _isChoosingCustomColor = false;
+            _isUsingColorPicker = false;
         }
 
         private void UpdateSelection(int start, int end)
@@ -346,6 +353,15 @@ namespace Sma5hMusic.GUI.Controls
             {
                 _pendingColorSelectionStart = selectedStart;
                 _pendingColorSelectionEnd = selectedEnd;
+            }
+            else
+            {
+                //after UI update clean the selection
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!_isUsingColorPicker && _selectionStart == _selectionEnd)
+                        ClearPendingColorSelection();
+                }, DispatcherPriority.Background);
             }
         }
 
