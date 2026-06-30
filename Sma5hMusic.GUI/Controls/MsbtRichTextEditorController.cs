@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -38,6 +39,7 @@ namespace Sma5hMusic.GUI.Controls
         private int _pendingColorSelectionEnd;
         private bool _colorAppliedDuringDropDown;
         private bool _isUsingColorPicker;
+        private bool _isUsingSmallTextMarkerButton;
         private bool _isChoosingCustomColor;
         private bool _isSyncing;
         private MsbtTextColor _lastTextColor = MsbtRichTextColorHelper.DefaultColor;
@@ -54,12 +56,12 @@ namespace Sma5hMusic.GUI.Controls
                 _editorTextSubscription = _editor.GetObservable(TextBox.TextProperty).Subscribe(_ => EditorTextChanged());
                 _selectionStartSubscription = _editor.GetObservable(TextBox.SelectionStartProperty).Subscribe(value => UpdateSelection(value, _selectionEnd));
                 _selectionEndSubscription = _editor.GetObservable(TextBox.SelectionEndProperty).Subscribe(value => UpdateSelection(_selectionStart, value));
-                _editor.PointerPressed += EditorPointerPressed;
+                _editor.AddHandler(InputElement.PointerPressedEvent, EditorPointerPressed, RoutingStrategies.Tunnel, true);
             }
 
             if (_textColorComboBox != null)
             {
-                _textColorComboBox.PointerPressed += TextColorComboBoxPointerPressed;
+                _textColorComboBox.AddHandler(InputElement.PointerPressedEvent, TextColorComboBoxPointerPressed, RoutingStrategies.Tunnel, true);
                 _textColorComboBox.SelectionChanged += TextColorComboBoxSelectionChanged;
                 _dropDownOpenSubscription = _textColorComboBox.GetObservable(ComboBox.IsDropDownOpenProperty)
                     .Subscribe(TextColorDropDownOpenChanged);
@@ -67,7 +69,7 @@ namespace Sma5hMusic.GUI.Controls
 
             if (_smallTextMarkerButton != null)
             {
-                _smallTextMarkerButton.PointerPressed += SmallTextMarkerButtonPointerPressed;
+                _smallTextMarkerButton.AddHandler(InputElement.PointerPressedEvent, SmallTextMarkerButtonPointerPressed, RoutingStrategies.Tunnel, true);
                 _smallTextMarkerButton.Click += SmallTextMarkerButtonClick;
             }
         }
@@ -91,15 +93,15 @@ namespace Sma5hMusic.GUI.Controls
             if (_viewModelNotifier != null)
                 _viewModelNotifier.PropertyChanged -= ViewModelPropertyChanged;
             if (_editor != null)
-                _editor.PointerPressed -= EditorPointerPressed;
+                _editor.RemoveHandler(InputElement.PointerPressedEvent, EditorPointerPressed);
             if (_textColorComboBox != null)
             {
-                _textColorComboBox.PointerPressed -= TextColorComboBoxPointerPressed;
+                _textColorComboBox.RemoveHandler(InputElement.PointerPressedEvent, TextColorComboBoxPointerPressed);
                 _textColorComboBox.SelectionChanged -= TextColorComboBoxSelectionChanged;
             }
             if (_smallTextMarkerButton != null)
             {
-                _smallTextMarkerButton.PointerPressed -= SmallTextMarkerButtonPointerPressed;
+                _smallTextMarkerButton.RemoveHandler(InputElement.PointerPressedEvent, SmallTextMarkerButtonPointerPressed);
                 _smallTextMarkerButton.Click -= SmallTextMarkerButtonClick;
             }
 
@@ -112,6 +114,7 @@ namespace Sma5hMusic.GUI.Controls
         private void EditorPointerPressed(object sender, PointerPressedEventArgs e)
         {
             //clear saved selection when editor gets focus
+            _isUsingSmallTextMarkerButton = false;
             ClearPendingColorSelection();
         }
 
@@ -125,6 +128,7 @@ namespace Sma5hMusic.GUI.Controls
         private void SmallTextMarkerButtonPointerPressed(object sender, PointerPressedEventArgs e)
         {
             //save text selection before button gets focus
+            _isUsingSmallTextMarkerButton = true;
             StorePendingColorSelection();
         }
 
@@ -133,7 +137,10 @@ namespace Sma5hMusic.GUI.Controls
         private void SmallTextMarkerButtonClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             if (_editor == null || !(_dataContext is MSBTFieldViewModel viewModel) || !viewModel.EnableColorFormatting)
+            {
+                _isUsingSmallTextMarkerButton = false;
                 return;
+            }
 
             var start = Math.Min(_selectionStart, _selectionEnd);
             var end = Math.Max(_selectionStart, _selectionEnd);
@@ -167,6 +174,7 @@ namespace Sma5hMusic.GUI.Controls
             UpdatePreview();
             CollapseEditorSelection(end > start ? end + 4 : _plainText.Length);
             ClearPendingColorSelection();
+            _isUsingSmallTextMarkerButton = false;
         }
 
         private void TextColorDropDownOpenChanged(bool isOpen)
@@ -359,7 +367,7 @@ namespace Sma5hMusic.GUI.Controls
                 //after UI update clean the selection
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (!_isUsingColorPicker && _selectionStart == _selectionEnd)
+                    if (!_isUsingColorPicker && !_isUsingSmallTextMarkerButton && _selectionStart == _selectionEnd)
                         ClearPendingColorSelection();
                 }, DispatcherPriority.Background);
             }
