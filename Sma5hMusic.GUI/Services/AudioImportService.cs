@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sma5h.Mods.Music;
+using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.Helpers;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
@@ -12,6 +13,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Sma5hMusic.GUI.Services
@@ -19,10 +21,6 @@ namespace Sma5hMusic.GUI.Services
     public partial class AudioImportService : IAudioImportService
     {
         private const uint TargetSampleRate = 48_000;
-        private static readonly string[] SourceAudioExtensions =
-        {
-            ".mp3", ".flac", ".wav", ".ogg", ".m4a"
-        };
 
         private readonly IOptionsMonitor<ApplicationSettings> _config;
         private readonly ILogger _logger;
@@ -36,7 +34,14 @@ namespace Sma5hMusic.GUI.Services
         public bool RequiresConversion(string filename)
         {
             var extension = Path.GetExtension(filename);
-            return SourceAudioExtensions.Any(p => string.Equals(p, extension, StringComparison.OrdinalIgnoreCase));
+            return MusicConstants.VALID_AUDIO_EXTENSIONS.Any(p => string.Equals(p, extension, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public bool IsGameAudio(string filename)
+        {
+            var extension = Path.GetExtension(filename);
+            return !IsNus3Audio(filename)
+                && MusicConstants.VALID_MUSIC_EXTENSIONS.Any(p => string.Equals(p, extension, StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task<AudioImportInfo> GetAudioInfo(string filename)
@@ -44,6 +49,10 @@ namespace Sma5hMusic.GUI.Services
             return await Task.Run(() =>
             {
                 Directory.CreateDirectory(GetTempPath());
+                //if game audio, use vgmstream to get info
+                if (IsGameAudio(filename))
+                    return GetGameAudioInfo(filename);
+
                 //copy to temp
                 var soxInputFile = CreateSoxCompatibleInputCopy(filename);
 
@@ -68,6 +77,17 @@ namespace Sma5hMusic.GUI.Services
             });
         }
 
+        private AudioImportInfo GetGameAudioInfo(string filename)
+        {
+            var info = ExtractAudioInfo(filename);
+
+            return new AudioImportInfo
+            {
+                SampleRate = info.SampleRate,
+                TotalSamples = info.TotalSamples
+            };
+        }
+
         public bool IsNus3Audio(string filename)
         {
             return string.Equals(
@@ -76,20 +96,20 @@ namespace Sma5hMusic.GUI.Services
                 StringComparison.OrdinalIgnoreCase);
         }
 
-        public async Task<string> ExtractNus3AudioToWav(string filename)
+        public async Task<string> ExtractAudioToTempWav(string filename)
         {
             return await Task.Run(() =>
             {
-                if (!IsNus3Audio(filename))
+                if (!IsNus3Audio(filename) && !IsGameAudio(filename))
                     return filename;
 
                 if (!File.Exists(filename))
-                    throw new FileNotFoundException($"The NUS3AUDIO file '{filename}' could not be found.", filename);
+                    throw new FileNotFoundException($"The audio file '{filename}' could not be found.", filename);
 
                 Directory.CreateDirectory(GetTempPath());
 
-                var tempWavFile = Path.Combine(GetTempPath(), $"{Guid.NewGuid():N}_nus3audio.wav");
-                return ExtractNus3AudioToWavFile(filename, tempWavFile);
+                var tempWavFile = Path.Combine(GetTempPath(), $"{Guid.NewGuid():N}_audio.wav");
+                return ExtractAudioToWavFile(filename, tempWavFile);
             });
         }
 
@@ -320,6 +340,11 @@ namespace Sma5hMusic.GUI.Services
 
         private string RunTool(string executable, params string[] arguments)
         {
+            return RunTool(CancellationToken.None, executable, arguments);
+        }
+
+        private string RunTool(CancellationToken cancellationToken, string executable, params string[] arguments)
+        {
             if (!File.Exists(executable))
                 throw new FileNotFoundException($"Required tool not found: {executable}", executable);
 
@@ -338,9 +363,22 @@ namespace Sma5hMusic.GUI.Services
                 startInfo.ArgumentList.Add(argument);
 
             using var process = Process.Start(startInfo);
+            using var cancellationRegistration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch
+                {
+                }
+            });
+
             var output = process.StandardOutput.ReadToEnd();
             var error = process.StandardError.ReadToEnd();
             process.WaitForExit();
+            cancellationToken.ThrowIfCancellationRequested();
 
             _logger.LogInformation("Tool exited: {Executable}. ExitCode={ExitCode}. StdOut={StdOut}. StdErr={StdErr}",
                 Path.GetFileName(executable), process.ExitCode, output, error);
@@ -384,25 +422,18 @@ namespace Sma5hMusic.GUI.Services
             return Path.Combine(_config.CurrentValue.TempPath, "AudioImport");
         }
 
-        private string ExtractNus3AudioToWavFile(string filename, string outputFile)
+        private string ExtractAudioToWavFile(string filename, string outputFile, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation(
-                "Extracting NUS3AUDIO to WAV. Input={InputFile}, Output={OutputFile}.",
+                "Extracting audio to WAV. Input={InputFile}, Output={OutputFile}.",
                 filename,
                 outputFile
             );
 
-            RunTool(
-                GetVgmStreamExe(),
-                "-L",
-                "-F",
-                "-o",
-                outputFile,
-                filename
-            );
+            RunTool(cancellationToken, GetVgmStreamExe(), "-i", "-o", outputFile, filename);
 
             if (!File.Exists(outputFile))
-                throw new InvalidOperationException("NUS3AUDIO extraction completed, but the extracted WAV file could not be found.");
+                throw new InvalidOperationException("Audio extraction completed, but the extracted WAV file could not be found.");
 
             return outputFile;
         }

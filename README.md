@@ -128,7 +128,7 @@ After importing, replaced songs will be denoted in the GUI with gold text, to di
 ## Generate Victory Themes
 
 > [!NOTE]
-> Requires the latest [CSK Collection](https://gamebanana.com/mods/499008) update released in June 2026.
+> Requires the latest [CSK Collection](https://gamebanana.com/mods/499008) update released in July 2026.
 
 Custom Victory Themes can now be generated from an option in the Extra submenu.
 

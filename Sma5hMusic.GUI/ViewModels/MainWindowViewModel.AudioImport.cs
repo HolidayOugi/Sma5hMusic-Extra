@@ -42,19 +42,19 @@ namespace Sma5hMusic.GUI.ViewModels
                 return;
             }
 
-            var files = _nus3AudioBatchNormalizationService.GetNus3AudioFiles(musicModsPath);
+            var files = _nus3AudioBatchNormalizationService.GetNormalizableAudioFiles(musicModsPath);
             if (files.Count == 0)
             {
                 await _messageDialog.ShowInformation(
                     "NUS3AUDIO normalization",
-                    $"No .nus3audio files were found in:\r\n{musicModsPath}"
+                    $"No valid audio files were found in:\r\n{musicModsPath}"
                 );
                 return;
             }
 
             var confirm = await _messageDialog.ShowWarningConfirm(
-                "Normalize NUS3AUDIO files?",
-                $"This will normalize {files.Count} .nus3audio file(s) found in MusicMods and overwrite them after successful normalization.\r\n\r\nPlease make sure you have a backup before continuing."
+                "Normalize audio files?",
+                $"This will normalize {files.Count} audio file(s) found in MusicMods and overwrite or convert them after successful normalization.\r\n\r\nPlease make sure you have a backup before continuing."
             );
 
             if (!confirm)
@@ -67,6 +67,8 @@ namespace Sma5hMusic.GUI.ViewModels
             using var cancellationTokenSource = new CancellationTokenSource();
 
             var userCancelled = false;
+            var cancelMessageShown = false;
+            var cancelMessageCompletion = new TaskCompletionSource<bool>();
             var closingProgressWindowProgrammatically = false;
             Nus3AudioBatchNormalizationResult result = null;
 
@@ -98,6 +100,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     {
                         userCancelled = true;
                         cancellationTokenSource.Cancel();
+                        ShowCancelMessage();
                     }
                 };
 
@@ -111,7 +114,7 @@ namespace Sma5hMusic.GUI.ViewModels
                         Dispatcher.UIThread.Post(() =>
                         {
                             progressVm.SetProgress(
-                                "Normalizing NUS3AUDIO files",
+                                "Normalizing audio files",
                                 currentFile,
                                 current,
                                 total
@@ -149,12 +152,14 @@ namespace Sma5hMusic.GUI.ViewModels
 
             if (userCancelled)
             {
-                await _messageDialog.ShowInformation(
-                    "NUS3AUDIO normalization cancelled",
-                    result == null
-                        ? "The operation was cancelled."
-                        : $"The operation was cancelled.\r\nNormalized files before cancellation: {result.NormalizedFiles}/{files.Count}."
-                );
+                if (!cancelMessageShown)
+                {
+                    await _messageDialog.ShowInformation("Audio normalization cancelled", "The operation was cancelled.");
+                    await OnInitData();
+                }
+                else
+                    await cancelMessageCompletion.Task;
+
                 return;
             }
 
@@ -164,16 +169,41 @@ namespace Sma5hMusic.GUI.ViewModels
             if (result.FailedFiles.Count > 0)
             {
                 await _messageDialog.ShowError(
-                    "NUS3AUDIO normalization completed with errors",
+                    "Audio normalization completed with errors",
                     $"Normalized files: {result.NormalizedFiles}/{result.TotalFiles}\r\nFailed files: {result.FailedFiles.Count}\r\n\r\nCheck the logs for details."
                 );
+                await OnInitData();
                 return;
             }
 
             await _messageDialog.ShowInformation(
-                "NUS3AUDIO normalization complete",
+                "Audio normalization complete",
                 $"Normalized files: {result.NormalizedFiles}/{result.TotalFiles}."
             );
+
+            //reload mod for possible changes in bgm properties
+            await OnInitData();
+
+            void ShowCancelMessage()
+            {
+                if (cancelMessageShown)
+                    return;
+
+                cancelMessageShown = true;
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    try
+                    {
+                        //reload after cancellation
+                        await _messageDialog.ShowInformation("Audio normalization cancelled", "The operation was cancelled.");
+                        await OnInitData();
+                    }
+                    finally
+                    {
+                        cancelMessageCompletion.TrySetResult(true);
+                    }
+                });
+            }
         }
 
         private async Task ImportAudioFiles(ModEntryViewModel managerMod, IReadOnlyCollection<string> inputFiles)
@@ -191,8 +221,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
                 var requiresConversion = _audioImportService.RequiresConversion(inputFile);
                 var isNus3Audio = _audioImportService.IsNus3Audio(inputFile);
+                var isGameAudio = _audioImportService.IsGameAudio(inputFile);
 
-                if (requiresConversion)
+                if (requiresConversion) //standard audio files
                 {
                     try
                     {
@@ -205,7 +236,7 @@ namespace Sma5hMusic.GUI.ViewModels
                         continue;
                     }
                 }
-                else if (isNus3Audio)
+                else if (isNus3Audio || isGameAudio) //game files
                 {
                     _vmToneIdCreation.LoadNus3AudioImportInfo();
                 }
@@ -258,7 +289,7 @@ namespace Sma5hMusic.GUI.ViewModels
                             continue;
                         }
                     }
-                    else if (isNus3Audio && applyNormalization)
+                    else if ((isNus3Audio || isGameAudio) && applyNormalization)
                     {
                         try
                         {

@@ -107,6 +107,15 @@ namespace Sma5h.Mods.Music.Helpers
             ".brstm"
         };
 
+        public static string[] VALID_AUDIO_EXTENSIONS = new string[]
+        {
+            ".mp3",
+            ".flac",
+            ".wav",
+            ".ogg",
+            ".m4a"
+        };
+
         public static string[] EXTENSIONS_NEED_CONVERSION = new string[]
         {
             ".brstm"

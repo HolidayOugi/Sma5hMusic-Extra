@@ -154,7 +154,7 @@ namespace Sma5hMusic.GUI.Services
                 var pinchSong = GetValue(songsByInfoId, streamSet.Info1); //get pinch song from info1
                 var pinchSongName = pinchSong == null
                     ? string.Empty
-                    : StripSongSuffix(GetTitle(pinchSong.Title, locale), baseRow.Game);
+                    : StripSongSuffix(UnwrapDoubleBraces(GetTitle(pinchSong.Title, locale)), baseRow.Game);
 
                 rows.Add(new PinchSongRow
                 {

@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Sma5hMusic.GUI.Services
@@ -22,12 +23,15 @@ namespace Sma5hMusic.GUI.Services
         public async Task<string> NormalizeNus3Audio(
             string toneId,
             string filename,
-            string modPath)
+            string modPath,
+            CancellationToken cancellationToken = default)
         {
             return await Task.Run(() =>
             {
-                if (!IsNus3Audio(filename))
-                    throw new InvalidOperationException($"'{Path.GetFileName(filename)}' is not a NUS3AUDIO file.");
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!IsNus3Audio(filename) && !IsGameAudio(filename))
+                    throw new InvalidOperationException($"'{Path.GetFileName(filename)}' is not a supported normalization file.");
 
                 Directory.CreateDirectory(modPath);
                 Directory.CreateDirectory(GetTempPath());
@@ -37,8 +41,8 @@ namespace Sma5hMusic.GUI.Services
                 if (File.Exists(outputFile))
                     throw new InvalidOperationException($"The destination file '{Path.GetFileName(outputFile)}' already exists in the selected mod.");
 
-                return NormalizeNus3AudioToFile(toneId, filename, outputFile);
-            });
+                return NormalizeNus3AudioToFile(toneId, filename, outputFile, cancellationToken);
+            }, cancellationToken);
         }
 
         public async Task<string> NormalizeExistingNus3Audio(
@@ -47,22 +51,28 @@ namespace Sma5hMusic.GUI.Services
         {
             return await Task.Run(() =>
             {
-                if (!IsNus3Audio(filename))
-                    throw new InvalidOperationException($"'{Path.GetFileName(filename)}' is not a NUS3AUDIO file.");
+                if (!IsNus3Audio(filename) && !IsGameAudio(filename))
+                    throw new InvalidOperationException($"'{Path.GetFileName(filename)}' is not a supported normalization file.");
 
                 if (!File.Exists(filename))
-                    throw new FileNotFoundException($"The NUS3AUDIO file '{filename}' could not be found.", filename);
+                    throw new FileNotFoundException($"The audio file '{filename}' could not be found.", filename);
 
                 Directory.CreateDirectory(GetTempPath());
 
                 var tempId = Guid.NewGuid().ToString("N");
                 var normalizedNus3AudioFile = Path.Combine(GetTempPath(), $"{tempId}.nus3audio");
+                var outputFile = IsNus3Audio(filename)
+                    ? filename
+                    : Path.Combine(Path.GetDirectoryName(filename) ?? string.Empty, $"{toneId}.nus3audio");
 
                 try
                 {
                     NormalizeNus3AudioToFile(toneId, filename, normalizedNus3AudioFile);
-                    File.Copy(normalizedNus3AudioFile, filename, true);
-                    return filename;
+                    File.Copy(normalizedNus3AudioFile, outputFile, true);
+                    if (!string.Equals(outputFile, filename, StringComparison.OrdinalIgnoreCase))
+                        File.Delete(filename);
+
+                    return outputFile;
                 }
                 finally
                 {
@@ -79,22 +89,30 @@ namespace Sma5hMusic.GUI.Services
         {
             return await Task.Run(() =>
             {
-                if (!IsNus3Audio(filename))
-                    throw new InvalidOperationException($"'{Path.GetFileName(filename)}' is not a NUS3AUDIO file.");
+                if (!IsNus3Audio(filename) && !IsGameAudio(filename))
+                    throw new InvalidOperationException($"'{Path.GetFileName(filename)}' is not a supported audio file.");
 
                 if (!File.Exists(filename))
-                    throw new FileNotFoundException($"The NUS3AUDIO file '{filename}' could not be found.", filename);
+                    throw new FileNotFoundException($"The audio file '{filename}' could not be found.", filename);
 
                 Directory.CreateDirectory(GetTempPath());
 
                 var tempId = Guid.NewGuid().ToString("N");
                 var updatedNus3AudioFile = Path.Combine(GetTempPath(), $"{tempId}.nus3audio");
+                var outputFile = IsNus3Audio(filename)
+                    ? filename
+                    : Path.Combine(Path.GetDirectoryName(filename) ?? string.Empty, $"{toneId}.nus3audio");
 
                 try
                 {
+                    //create a new nus3audio file with updated loop points
+                    //if original was not nus3audio, create a new nus3audio file and delete the original file
                     UpdateNus3AudioLoopPointsToFile(toneId, filename, updatedNus3AudioFile, loopStartSample, loopEndSample);
-                    File.Copy(updatedNus3AudioFile, filename, true);
-                    return filename;
+                    File.Copy(updatedNus3AudioFile, outputFile, true);
+                    if (!string.Equals(outputFile, filename, StringComparison.OrdinalIgnoreCase))
+                        File.Delete(filename);
+
+                    return outputFile;
                 }
                 finally
                 {
@@ -111,20 +129,37 @@ namespace Sma5hMusic.GUI.Services
             uint loopEndSample)
         {
             var tempId = Guid.NewGuid().ToString("N");
+            //double wav because sample rates may not match
             var extractedWavFile = Path.Combine(GetTempPath(), $"{tempId}_source.wav");
+            var tempWavFile = Path.Combine(GetTempPath(), $"{tempId}.wav");
             var tempLopusFile = Path.Combine(GetTempPath(), $"{tempId}.lopus");
 
             try
             {
                 //NUS3AUDIO -> WAV
-                ExtractNus3AudioToWavFile(filename, extractedWavFile);
+                ExtractAudioToWavFile(filename, extractedWavFile);
 
                 var extractedInfo = GetAudioInfo(extractedWavFile).GetAwaiter().GetResult();
                 var loopStart48k = ConvertSampleRate(loopStartSample, extractedInfo.SampleRate);
                 var loopEnd48k = ConvertSampleRate(loopEndSample, extractedInfo.SampleRate);
+                var encoderWavFile = extractedWavFile;
+
+                if (extractedInfo.SampleRate != TargetSampleRate)
+                {
+                    RunTool(
+                        GetSoxExe(),
+                        extractedWavFile,
+                        "-r", TargetSampleRate.ToString(CultureInfo.InvariantCulture),
+                        "-b", "16",
+                        "-e", "signed-integer",
+                        tempWavFile
+                    );
+
+                    encoderWavFile = tempWavFile;
+                }
 
                 //get new loop points
-                (loopStart48k, loopEnd48k) = FitLoopPointsToWav(extractedWavFile, loopStart48k, loopEnd48k);
+                (loopStart48k, loopEnd48k) = FitLoopPointsToWav(encoderWavFile, loopStart48k, loopEnd48k);
 
                 _logger.LogInformation(
                     "Re-encoding existing NUS3AUDIO with new loop points {LoopStart}-{LoopEnd}. File={File}.",
@@ -136,7 +171,7 @@ namespace Sma5hMusic.GUI.Services
                 //WAV -> LOPUS
                 var encoderOutput = RunTool(
                     GetVGAudioCliExe(),
-                    extractedWavFile,
+                    encoderWavFile,
                     tempLopusFile,
                     "-l",
                     $"{loopStart48k}-{loopEnd48k}",
@@ -160,6 +195,7 @@ namespace Sma5hMusic.GUI.Services
             finally
             {
                 DeleteTempFile(extractedWavFile);
+                DeleteTempFile(tempWavFile);
                 DeleteTempFile(tempLopusFile);
             }
         }
@@ -167,7 +203,8 @@ namespace Sma5hMusic.GUI.Services
         private string NormalizeNus3AudioToFile(
             string toneId,
             string filename,
-            string outputFile)
+            string outputFile,
+            CancellationToken cancellationToken = default)
         {
             var tempId = Guid.NewGuid().ToString("N");
             var extractedWavFile = Path.Combine(GetTempPath(), $"{tempId}_source.wav");
@@ -176,25 +213,17 @@ namespace Sma5hMusic.GUI.Services
 
             try
             {
-                var loopPoints = ExtractNus3AudioLoopPoints(filename);
-
-                if (loopPoints == null)
-                    throw new InvalidOperationException($"Could not read loop points from '{Path.GetFileName(filename)}'.");
+                //audio file -> WAV
+                var sourceInfo = ExtractAudioInfo(filename, cancellationToken);
+                ExtractAudioToWavFile(filename, extractedWavFile, cancellationToken);
 
                 _logger.LogInformation(
-                    "Extracted NUS3AUDIO loop points. File={File}, LoopStart={LoopStart}, LoopEnd={LoopEnd}.",
+                    "Extracted audio loop points. File={File}, SampleRate={SampleRate}, LoopStart={LoopStart}, LoopEnd={LoopEnd}.",
                     filename,
-                    loopPoints.Value.LoopStartSample,
-                    loopPoints.Value.LoopEndSample
+                    sourceInfo.SampleRate,
+                    sourceInfo.LoopStartSample,
+                    sourceInfo.LoopEndSample
                 );
-
-                //NUS3AUDIO -> WAV
-                ExtractNus3AudioToWavFile(filename, extractedWavFile);
-
-                var extractedInfo = GetAudioInfo(extractedWavFile).GetAwaiter().GetResult();
-
-                var loopStart48k = ConvertSampleRate(loopPoints.Value.LoopStartSample, extractedInfo.SampleRate);
-                var loopEnd48k = ConvertSampleRate(loopPoints.Value.LoopEndSample, extractedInfo.SampleRate);
 
                 var targetLufs = GetFfmpegLoudnormTarget();
 
@@ -206,38 +235,48 @@ namespace Sma5hMusic.GUI.Services
                 );
 
                 //normalize WAV
-                NormalizeAudioToWav(extractedWavFile, normalizedWavFile, targetLufs);
-                //get new loop points after normalization
-                //needed because after normalization total sample count may have changed by a few samples
-                (loopStart48k, loopEnd48k) = FitLoopPointsToWav(normalizedWavFile, loopStart48k, loopEnd48k);
-
-                _logger.LogInformation(
-                    "Encoding normalized NUS3AUDIO WAV to LOPUS with old loop points {LoopStart}-{LoopEnd}.",
-                    loopStart48k,
-                    loopEnd48k
-                );
+                NormalizeAudioToWav(extractedWavFile, normalizedWavFile, targetLufs, cancellationToken);
 
                 //WAV -> LOPUS
-                var encoderOutput = RunTool(
-                    GetVGAudioCliExe(),
+                var encoderArguments = new List<string>
+                {
                     normalizedWavFile,
-                    tempLopusFile,
-                    "-l",
-                    $"{loopStart48k}-{loopEnd48k}",
+                    tempLopusFile
+                };
+
+                if (sourceInfo.HasLoopPoints)
+                {
+                    var loopStart48k = ConvertSampleRate(sourceInfo.LoopStartSample, sourceInfo.SampleRate);
+                    var loopEnd48k = ConvertSampleRate(sourceInfo.LoopEndSample, sourceInfo.SampleRate);
+
+                    _logger.LogInformation(
+                        "Encoding normalized NUS3AUDIO WAV to LOPUS with old loop points {LoopStart}-{LoopEnd}.",
+                        loopStart48k,
+                        loopEnd48k
+                    );
+
+                    encoderArguments.Add("-l");
+                    encoderArguments.Add($"{loopStart48k}-{loopEnd48k}");
+                }
+
+                encoderArguments.AddRange(new[]
+                {
                     "--bitrate",
                     "64000",
                     "--cbr",
                     "--opusheader",
                     "namco"
-                );
+                });
+
+                var encoderOutput = RunTool(cancellationToken, GetVGAudioCliExe(), encoderArguments.ToArray());
 
                 EnsureLopusCreated(tempLopusFile, encoderOutput);
 
                 _logger.LogInformation("Creating normalized NUS3AUDIO {OutputFile}.", outputFile);
 
                 //LOPUS -> NUS3AUDIO
-                RunTool(GetNus3AudioExe(), "-n", "-w", outputFile);
-                RunTool(GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
+                RunTool(cancellationToken, GetNus3AudioExe(), "-n", "-w", outputFile);
+                RunTool(cancellationToken, GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
 
                 return outputFile;
             }
@@ -250,18 +289,28 @@ namespace Sma5hMusic.GUI.Services
         }
 
         //parse loop points from vgmstream output
-        //TODO: use built in method directly from NUS3audio import
-        private (uint LoopStartSample, uint LoopEndSample)? ExtractNus3AudioLoopPoints(string filename)
+        //TODO: use built in method directly from NUS3audio import for consistency
+        private AudioInfo ExtractAudioInfo(string filename, CancellationToken cancellationToken = default)
         {
-            var output = RunTool(GetVgmStreamExe(), "-m", filename);
+            var output = RunTool(cancellationToken, GetVgmStreamExe(), "-m", filename);
 
+            uint? sampleRate = null;
+            uint? totalSamples = null;
             uint? loopStart = null;
             uint? loopEnd = null;
 
             foreach (var line in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             {
+                var sampleRateMatch = Regex.Match(line, @"sample rate:\s*(\d+)", RegexOptions.IgnoreCase);
+                var totalSamplesMatch = Regex.Match(line, @"stream total samples:\s*(\d+)", RegexOptions.IgnoreCase);
                 var startMatch = Regex.Match(line, @"loop start:\s*(\d+)", RegexOptions.IgnoreCase);
                 var endMatch = Regex.Match(line, @"loop end:\s*(\d+)", RegexOptions.IgnoreCase);
+
+                if (sampleRateMatch.Success && uint.TryParse(sampleRateMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedSampleRate))
+                    sampleRate = parsedSampleRate;
+
+                if (totalSamplesMatch.Success && uint.TryParse(totalSamplesMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedTotalSamples))
+                    totalSamples = parsedTotalSamples;
 
                 if (startMatch.Success && uint.TryParse(startMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedLoopStart))
                     loopStart = parsedLoopStart;
@@ -270,10 +319,34 @@ namespace Sma5hMusic.GUI.Services
                     loopEnd = parsedLoopEnd;
             }
 
-            if (loopStart.HasValue && loopEnd.HasValue)
-                return (loopStart.Value, loopEnd.Value);
+            if (sampleRate.HasValue)
+            {
+                var info = new AudioInfo
+                {
+                    SampleRate = sampleRate.Value,
+                    TotalSamples = totalSamples.GetValueOrDefault(),
+                    HasLoopPoints = loopStart.HasValue && loopEnd.HasValue
+                };
 
-            return null;
+                if (info.HasLoopPoints)
+                {
+                    info.LoopStartSample = loopStart.Value;
+                    info.LoopEndSample = loopEnd.Value;
+                }
+
+                return info;
+            }
+
+            throw new InvalidOperationException($"Could not read audio metadata from '{Path.GetFileName(filename)}'.");
+        }
+
+        private class AudioInfo
+        {
+            public uint SampleRate { get; set; }
+            public uint TotalSamples { get; set; }
+            public uint LoopStartSample { get; set; }
+            public uint LoopEndSample { get; set; }
+            public bool HasLoopPoints { get; set; }
         }
 
         private double GetAudioNormalizationTargetLufs()
@@ -291,7 +364,7 @@ namespace Sma5hMusic.GUI.Services
         }
 
         //normalize to LUFS using FFMpeg loudnorm filter
-        private void NormalizeAudioToWav(string inputFile, string outputFile, double targetLufs)
+        private void NormalizeAudioToWav(string inputFile, string outputFile, double targetLufs, CancellationToken cancellationToken = default)
         {
             var outputDirectory = Path.GetDirectoryName(outputFile);
             if (!string.IsNullOrWhiteSpace(outputDirectory))
@@ -304,6 +377,7 @@ namespace Sma5hMusic.GUI.Services
             );
 
             var firstPassOutput = RunFfmpeg(
+                cancellationToken,
                 "-y",
                 "-i", inputFile,
                 "-af", firstPassFilter,
@@ -325,6 +399,7 @@ namespace Sma5hMusic.GUI.Services
             );
 
             RunFfmpeg(
+                cancellationToken,
                 "-y",
                 "-i", inputFile,
                 "-af", secondPassFilter,
@@ -368,6 +443,11 @@ namespace Sma5hMusic.GUI.Services
         }
 
         private string RunFfmpeg(params string[] arguments)
+        {
+            return RunFfmpeg(CancellationToken.None, arguments);
+        }
+
+        private string RunFfmpeg(CancellationToken cancellationToken, params string[] arguments)
         {
             var executable = _config.CurrentValue.FfmpegPath;
 
@@ -427,7 +507,20 @@ namespace Sma5hMusic.GUI.Services
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
+            using var cancellationRegistration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch
+                {
+                }
+            });
+
             process.WaitForExit();
+            cancellationToken.ThrowIfCancellationRequested();
 
             var output = stdout.ToString();
             var error = stderr.ToString();
