@@ -2,10 +2,12 @@ using paracobNET;
 using Sma5h.Data;
 using Sma5h.Data.Ui.Param.Database;
 using Sma5h.Helpers;
+using Sma5h.Interfaces;
 using Sma5h.Mods.Data.Sound.Config;
 using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Models;
 using Sma5h.ResourceProviders.Constants;
+using Sma5h.ResourceProviders.Prc.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,7 +31,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             //read build files
             var bgmDb = _prcProvider.ReadFile<PrcUiBgmDatabase>(bgmDbPath, true);
             var gameTitleDb = _prcProvider.ReadFile<PrcUiGameTitleDatabase>(gameTitleDbPath);
-            var seriesDb = _prcProvider.ReadFile<PrcUiSeriesDatabase>(seriesDbPath);
+            var seriesDb = _prcProvider.ReadFile<ReversePrcUiSeriesDatabase>(seriesDbPath);
             var stageDb = _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath);
             var bgmProperty = _bgmPropertyProvider.ReadFile<BinBgmProperty>(bgmPropertyPath);
 
@@ -164,7 +166,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
         private void LoadSeriesEntries(
             ResourceSnapshot snapshot,
-            PrcUiSeriesDatabase seriesDb,
+            ReversePrcUiSeriesDatabase seriesDb,
             Dictionary<string, MsbtDatabase> titleMsbts,
             Dictionary<string, string> seriesIds)
         {
@@ -172,7 +174,21 @@ namespace Sma5h.Mods.Music.ReverseBuild
             {
                 value.UiSeriesId = ResolveKnownId(value.UiSeriesId, seriesIds);
 
-                var entry = _mapper.Map(value, new SeriesEntry(value.UiSeriesId));
+                //can't map directly because of old Sma5hMusic bug
+                //saveno was saved as short instead of sbyte
+                //workaround: convert to sbyte when mapping
+                var entry = new SeriesEntry(value.UiSeriesId)
+                {
+                    NameId = value.NameId,
+                    DispOrder = value.DispOrder,
+                    DispOrderSound = value.DispOrderSound,
+                    SaveNo = ToSignedByte(value.SaveNo),
+                    Unk1 = value.Unk1,
+                    IsDlc = value.IsDlc,
+                    IsPatch = value.IsPatch,
+                    DlcCharaId = value.DlcCharaId,
+                    IsUseAmiiboBg = value.IsUseAmiiboBg
+                };
                 FillTitleMsbt(entry.MSBTTitle, entry.MSBTTitleKey, titleMsbts);
                 snapshot.SeriesEntries.Add(entry.UiSeriesId, entry);
             }
@@ -433,6 +449,48 @@ namespace Sma5h.Mods.Music.ReverseBuild
         private static bool Hash40Matches(string value, string candidate)
         {
             return value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) && Hash40Equals(value, candidate);
+        }
+
+        private static sbyte ToSignedByte(short value)
+        {
+            if (value >= byte.MinValue && value <= byte.MaxValue)
+                return unchecked((sbyte)(byte)value);
+
+            if (value < sbyte.MinValue)
+                return sbyte.MinValue;
+
+            return sbyte.MaxValue;
+        }
+
+        private class ReversePrcUiSeriesDatabase : IStateManagerDb
+        {
+            [PrcDictionary("ui_series_id")]
+            [PrcHexMapping("db_root")]
+            public Dictionary<string, ReversePrcSeriesDbRootEntry> DbRootEntries { get; set; }
+        }
+
+        private class ReversePrcSeriesDbRootEntry
+        {
+            [PrcHexMapping("ui_series_id", true)]
+            public string UiSeriesId { get; set; }
+            [PrcHexMapping("name_id")]
+            public string NameId { get; set; }
+            [PrcHexMapping("disp_order")]
+            public sbyte DispOrder { get; set; }
+            [PrcHexMapping("disp_order_sound")]
+            public sbyte DispOrderSound { get; set; }
+            [PrcHexMapping("save_no")]
+            public short SaveNo { get; set; }
+            [PrcHexMapping(0x1c38302364)]
+            public bool Unk1 { get; set; }
+            [PrcHexMapping("is_dlc")]
+            public bool IsDlc { get; set; }
+            [PrcHexMapping("is_patch")]
+            public bool IsPatch { get; set; }
+            [PrcHexMapping("dlc_chara_id", true)]
+            public string DlcCharaId { get; set; }
+            [PrcHexMapping("is_use_amiibo_bg")]
+            public bool IsUseAmiiboBg { get; set; }
         }
 
         private class ResourceSnapshot

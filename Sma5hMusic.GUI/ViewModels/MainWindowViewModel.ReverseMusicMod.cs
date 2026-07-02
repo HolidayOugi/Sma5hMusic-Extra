@@ -11,7 +11,7 @@ namespace Sma5hMusic.GUI.ViewModels
     {
         private async Task GenerateModFromBuildFiles()
         {
-            var wasShowingDebug = IsShowingDebug;
+            var reloadStarted = false;
             try
             {
                 _logger.LogInformation("Generate Mod from build files requested.");
@@ -43,6 +43,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     return;
                 }
 
+                IsLoading = true;
                 IsShowingDebug = true;
 
                 var modInfoVm = new GenerateModFromBuildFilesModalWindowViewModel(_appSettings);
@@ -70,13 +71,15 @@ namespace Sma5hMusic.GUI.ViewModels
                     modInformation.Name,
                     modInformation));
 
-                _musicModManagerService.RefreshMusicMods();
-                await OnInitData();
                 var songCount = CountSongs(metadata);
                 _logger.LogInformation("Generate Mod from build files completed: {ModName} with {SongCount} song(s).", modInformation.Name, songCount);
                 await _messageDialog.ShowInformation(
                     "Generate Mod from build files",
                     $"Created mod '{modInformation.Name}' with {songCount} song(s).\r\n\r\n{modOutputPath}");
+                IsShowingDebug = false;
+                _musicModManagerService.RefreshMusicMods();
+                reloadStarted = true;
+                await OnInitData();
             }
             catch (Exception e)
             {
@@ -88,8 +91,11 @@ namespace Sma5hMusic.GUI.ViewModels
             }
             finally
             {
-                IsLoading = false;
-                IsShowingDebug = wasShowingDebug;
+                if (!reloadStarted)
+                {
+                    IsLoading = false;
+                    IsShowingDebug = false;
+                }
             }
         }
 

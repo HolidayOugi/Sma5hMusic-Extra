@@ -132,8 +132,7 @@ namespace Sma5h.Mods.Music
 
             GenerateBgmFiles(useCache, buildPlan);
 
-            if (!buildPlan.IsAudioOnly)
-                CopySeriesIcons();
+            CopySeriesIcons();
 
             return true;
         }

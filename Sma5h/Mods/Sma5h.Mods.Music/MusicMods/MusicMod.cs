@@ -719,10 +719,10 @@ namespace Sma5h.Mods.Music.MusicMods
             public string NameId { get; set; }
 
             [JsonProperty("disp_order")]
-            public short DispOrder { get; set; }
+            public sbyte DispOrder { get; set; }
 
             [JsonProperty("disp_order_sound")]
-            public short DispOrderSound { get; set; }
+            public sbyte DispOrderSound { get; set; }
 
             [JsonProperty("save_no")]
             public short SaveNo { get; set; }
