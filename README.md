@@ -154,6 +154,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Fixed importing of files with Japanese characters.
 * Fixed possible silent conversion fail between lopus and Nus3audio during build.
 * Fixed importing of old overrides having invalid characters.
+* Fixed UI elements not showing properly on low screen resolutions.
 
 ## FAQ
 
