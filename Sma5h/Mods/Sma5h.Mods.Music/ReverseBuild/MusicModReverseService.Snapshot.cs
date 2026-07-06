@@ -31,7 +31,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             //read build files
             var bgmDb = _prcProvider.ReadFile<PrcUiBgmDatabase>(bgmDbPath, true);
             var gameTitleDb = _prcProvider.ReadFile<PrcUiGameTitleDatabase>(gameTitleDbPath);
-            var seriesDb = _prcProvider.ReadFile<ReversePrcUiSeriesDatabase>(seriesDbPath);
+            var seriesDb = ReadSeriesDatabase(seriesDbPath);
             var stageDb = _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath);
             var bgmProperty = _bgmPropertyProvider.ReadFile<BinBgmProperty>(bgmPropertyPath);
 
@@ -453,6 +453,9 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
         private static sbyte ToSignedByte(short value)
         {
+            if (value >= sbyte.MinValue && value <= sbyte.MaxValue)
+                return (sbyte)value;
+
             if (value >= byte.MinValue && value <= byte.MaxValue)
                 return unchecked((sbyte)(byte)value);
 
@@ -460,6 +463,46 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 return sbyte.MinValue;
 
             return sbyte.MaxValue;
+        }
+
+        //determine if music pack was made using old Sma5hMusic or Extra
+        private ReversePrcUiSeriesDatabase ReadSeriesDatabase(string seriesDbPath)
+        {
+            if (HasShortSeriesSaveNo(seriesDbPath))
+                return _prcProvider.ReadFile<ReversePrcUiSeriesDatabase>(seriesDbPath);
+
+            var seriesDb = _prcProvider.ReadFile<PrcUiSeriesDatabase>(seriesDbPath);
+            if (seriesDb == null)
+                return null;
+
+            return new ReversePrcUiSeriesDatabase
+            {
+                DbRootEntries = seriesDb.DbRootEntries.ToDictionary(p => p.Key, p => new ReversePrcSeriesDbRootEntry
+                {
+                    UiSeriesId = p.Value.UiSeriesId,
+                    NameId = p.Value.NameId,
+                    DispOrder = p.Value.DispOrder,
+                    DispOrderSound = p.Value.DispOrderSound,
+                    SaveNo = p.Value.SaveNo,
+                    Unk1 = p.Value.Unk1,
+                    IsDlc = p.Value.IsDlc,
+                    IsPatch = p.Value.IsPatch,
+                    DlcCharaId = p.Value.DlcCharaId,
+                    IsUseAmiiboBg = p.Value.IsUseAmiiboBg
+                })
+            };
+        }
+
+        private static bool HasShortSeriesSaveNo(string seriesDbPath)
+        {
+            var paramFile = new ParamFile();
+            paramFile.Open(seriesDbPath);
+
+            var dbRoot = (ParamList)paramFile.Root.Nodes[Hash40Util.StringToHash40("db_root")];
+            var saveNoHash = Hash40Util.StringToHash40("save_no");
+            return dbRoot.Nodes
+                .OfType<ParamStruct>()
+                .Any(p => ((ParamValue)p.Nodes[saveNoHash]).TypeKey == ParamType.@short);
         }
 
         private class ReversePrcUiSeriesDatabase : IStateManagerDb
