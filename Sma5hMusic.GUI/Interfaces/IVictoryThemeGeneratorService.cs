@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System;
 
 namespace Sma5hMusic.GUI.Interfaces
 {
     public interface IVictoryThemeGeneratorService
     {
-        Task<string> Generate(IReadOnlyCollection<VictoryThemeGenerationEntry> entries);
+        Task<string> Generate(IReadOnlyCollection<VictoryThemeGenerationEntry> entries, Action<int, int, string> normalizationProgress = null);
     }
 
     public class VictoryThemeGenerationEntry

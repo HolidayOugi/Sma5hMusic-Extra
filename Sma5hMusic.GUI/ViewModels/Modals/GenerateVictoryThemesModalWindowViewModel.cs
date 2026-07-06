@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
@@ -8,6 +9,7 @@ using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
+using Sma5hMusic.GUI.Views;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -23,6 +25,7 @@ namespace Sma5hMusic.GUI.ViewModels
     public class GenerateVictoryThemesModalWindowViewModel : ViewModelBase
     {
         private const string CustomToneIdPrefix = "zzc_f_";
+        private static readonly Regex ToneIdRegex = new Regex(@"^[a-z0-9_]+$", RegexOptions.Compiled);
 
         private readonly IFileDialog _fileDialog;
         private readonly IMessageDialog _messageDialog;
@@ -140,11 +143,42 @@ namespace Sma5hMusic.GUI.ViewModels
             if (IsGenerating)
                 return;
 
+            ScriptProgressModalWindow progressWindow = null;
+            Task progressDialogTask = null;
+
             try
             {
                 var entries = ValidateEntries();
                 IsGenerating = true;
-                var outputFolder = await _victoryThemeGenerator.Generate(entries);
+                Action<int, int, string> normalizationProgress = null;
+                if (entries.Any(p => p.ApplyNormalization))
+                {
+                    var progressVm = new ScriptProgressModalWindowViewModel
+                    {
+                        Footer = "Please wait. Do not close this window."
+                    };
+                    progressVm.SetPreparing("Preparing victory theme normalization...");
+
+                    progressWindow = new ScriptProgressModalWindow
+                    {
+                        DataContext = progressVm,
+                        Title = "Victory Theme Normalization",
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner
+                    };
+                    progressDialogTask = progressWindow.ShowDialog(window);
+
+                    normalizationProgress = (current, total, toneId) =>
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            progressVm.SetProgress("Normalizing audio", toneId, current, total);
+                            progressVm.IsIndeterminate = true;
+                        });
+                    };
+                }
+
+                var outputFolder = await _victoryThemeGenerator.Generate(entries, normalizationProgress);
+                await CloseProgressWindow();
                 DeleteDirectoryIfExists(_loadTempRoot, outputFolder);
                 await _messageDialog.ShowInformation("Victory Themes Generated", $"Generated files in:\r\n{outputFolder}");
                 window.Close(window);
@@ -156,7 +190,27 @@ namespace Sma5hMusic.GUI.ViewModels
             }
             finally
             {
+                await CloseProgressWindow();
                 IsGenerating = false;
+            }
+
+            async Task CloseProgressWindow()
+            {
+                if (progressWindow != null)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (progressWindow.IsVisible)
+                            progressWindow.Close();
+                    });
+                    progressWindow = null;
+                }
+
+                if (progressDialogTask != null)
+                {
+                    await progressDialogTask;
+                    progressDialogTask = null;
+                }
             }
         }
 
@@ -179,12 +233,11 @@ namespace Sma5hMusic.GUI.ViewModels
 
                 var toneId = !isCustomFighter && entry.UseDefaultName
                     ? entry.SelectedFighter.ToneId
-                    : GetCustomToneId(charaName);
-                if (string.IsNullOrWhiteSpace(toneId))
-                    throw new InvalidOperationException($"Enter a custom name for '{charaName}'.");
+                    : entry.ToneId?.Trim();
+                ValidateToneId(toneId);
 
-                if (toneId.Length > MusicConstants.GameResources.ToneIdMaximumSize)
-                    throw new InvalidOperationException($"Tone ID '{toneId}' is too long. Maximum is {MusicConstants.GameResources.ToneIdMaximumSize} characters.");
+                if (output.Any(p => string.Equals(p.ToneId, toneId, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"Tone ID '{toneId}' was added more than once.");
 
                 output.Add(new VictoryThemeGenerationEntry
                 {
@@ -253,12 +306,14 @@ namespace Sma5hMusic.GUI.ViewModels
                 {
                     entry.SelectedFighter = fighterByCharaName;
                     entry.UseDefaultName = string.Equals(fighterByCharaName.ToneId, toneId, StringComparison.OrdinalIgnoreCase);
+                    entry.ToneId = toneId;
                     return;
                 }
 
                 entry.SelectedFighter = GetCustomFighterOption();
                 entry.UseDefaultName = false;
                 entry.CustomName = charaName;
+                entry.ToneId = toneId;
                 return;
             }
 
@@ -274,6 +329,7 @@ namespace Sma5hMusic.GUI.ViewModels
             entry.SelectedFighter = fighterByCustomName ?? GetCustomFighterOption();
             entry.UseDefaultName = false;
             entry.CustomName = customName;
+            entry.ToneId = toneId;
         }
 
         private static IReadOnlyDictionary<string, string> ReadFighterJingleByToneId(string folder)
@@ -346,12 +402,19 @@ namespace Sma5hMusic.GUI.ViewModels
             return FighterOptions.First(p => p.IsCustom);
         }
 
-        private static string GetCustomToneId(string customName)
+        private static void ValidateToneId(string toneId)
         {
-            var sanitizedName = SanitizeIdPart(customName);
-            return string.IsNullOrWhiteSpace(sanitizedName)
-                ? string.Empty
-                : $"{CustomToneIdPrefix}{sanitizedName}";
+            if (string.IsNullOrWhiteSpace(toneId))
+                throw new InvalidOperationException("Enter a Tone ID.");
+
+            if (toneId.Length > MusicConstants.GameResources.ToneIdMaximumSize)
+                throw new InvalidOperationException($"Tone ID '{toneId}' is too long. Maximum is {MusicConstants.GameResources.ToneIdMaximumSize}.");
+
+            if (toneId.Length < MusicConstants.GameResources.ToneIdMinimumSize)
+                throw new InvalidOperationException($"Tone ID '{toneId}' is too short. Minimum is {MusicConstants.GameResources.ToneIdMinimumSize}.");
+
+            if (!ToneIdRegex.IsMatch(toneId))
+                throw new InvalidOperationException($"Tone ID '{toneId}' can only contain lowercase letters, digits and underscore.");
         }
 
         private static void ClearDirectory(string path)
@@ -522,11 +585,12 @@ namespace Sma5hMusic.GUI.ViewModels
     public class VictoryThemeEntryViewModel : ViewModelBase
     {
         private const int CustomNameMaximumSize = MusicConstants.GameResources.ToneIdMaximumSize - 6;
+        private const int ToneIdMaximumSize = MusicConstants.GameResources.ToneIdMaximumSize;
 
         private readonly Func<string, string> _toneIdResolver;
         private VictoryThemeFighterOption _selectedFighter;
         private string _customName;
-        private string _toneIdPreview;
+        private string _toneId;
         private bool _useDefaultName = true;
         private float _volume = 2.7f;
 
@@ -546,9 +610,10 @@ namespace Sma5hMusic.GUI.ViewModels
                 else if (value != null)
                     CustomName = value.CharaName;
 
-                UpdateToneIdPreview();
+                UpdateToneId();
                 this.RaisePropertyChanged(nameof(IsCustomNameEnabled));
                 this.RaisePropertyChanged(nameof(IsDefaultNameEnabled));
+                this.RaisePropertyChanged(nameof(IsToneIdEnabled));
             }
         }
 
@@ -561,7 +626,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     ? value.Substring(0, CustomNameMaximumSize)
                     : value;
                 this.RaiseAndSetIfChanged(ref _customName, limitedValue);
-                UpdateToneIdPreview();
+                UpdateToneId();
             }
         }
 
@@ -574,18 +639,26 @@ namespace Sma5hMusic.GUI.ViewModels
                 this.RaiseAndSetIfChanged(ref _useDefaultName, resolvedValue);
                 if (resolvedValue && SelectedFighter != null)
                     CustomName = SelectedFighter.CharaName;
-                UpdateToneIdPreview();
+                UpdateToneId();
                 this.RaisePropertyChanged(nameof(IsCustomNameEnabled));
+                this.RaisePropertyChanged(nameof(IsToneIdEnabled));
             }
         }
 
         public bool IsCustomNameEnabled => SelectedFighter == null || SelectedFighter.IsCustom;
         public bool IsDefaultNameEnabled => SelectedFighter != null && !SelectedFighter.IsCustom;
+        public bool IsToneIdEnabled => SelectedFighter == null || SelectedFighter.IsCustom || !UseDefaultName;
 
-        public string ToneIdPreview
+        public string ToneId
         {
-            get => _toneIdPreview;
-            private set => this.RaiseAndSetIfChanged(ref _toneIdPreview, value);
+            get => _toneId;
+            set
+            {
+                var limitedValue = value?.Length > ToneIdMaximumSize
+                    ? value.Substring(0, ToneIdMaximumSize)
+                    : value;
+                this.RaiseAndSetIfChanged(ref _toneId, limitedValue);
+            }
         }
 
         [Reactive]
@@ -607,20 +680,20 @@ namespace Sma5hMusic.GUI.ViewModels
             }
         }
 
-        private void UpdateToneIdPreview()
+        private void UpdateToneId()
         {
             var name = SanitizeIdPart(CustomName);
             if (SelectedFighter?.IsCustom != true && UseDefaultName)
             {
                 var defaultName = SelectedFighter?.CharaName ?? name;
-                ToneIdPreview = string.IsNullOrWhiteSpace(defaultName) ? string.Empty : _toneIdResolver(defaultName);
+                ToneId = string.IsNullOrWhiteSpace(defaultName) ? string.Empty : _toneIdResolver(defaultName);
                 return;
             }
 
             var customName = SelectedFighter?.IsCustom == false
                 ? SelectedFighter.CharaName
                 : name;
-            ToneIdPreview = string.IsNullOrWhiteSpace(customName) ? string.Empty : $"zzc_f_{customName}";
+            ToneId = string.IsNullOrWhiteSpace(customName) ? string.Empty : $"zzc_f_{customName}";
         }
 
         private static string SanitizeIdPart(string value)

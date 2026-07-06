@@ -43,12 +43,12 @@ namespace Sma5hMusic.GUI.Services
             _logger = logger;
         }
 
-        public Task<string> Generate(IReadOnlyCollection<VictoryThemeGenerationEntry> entries)
+        public Task<string> Generate(IReadOnlyCollection<VictoryThemeGenerationEntry> entries, Action<int, int, string> normalizationProgress = null)
         {
-            return Task.Run(() => GenerateInternal(entries));
+            return Task.Run(() => GenerateInternal(entries, normalizationProgress));
         }
 
-        private string GenerateInternal(IReadOnlyCollection<VictoryThemeGenerationEntry> entries)
+        private string GenerateInternal(IReadOnlyCollection<VictoryThemeGenerationEntry> entries, Action<int, int, string> normalizationProgress)
         {
             if (entries == null || entries.Count == 0)
                 throw new InvalidOperationException("Add at least one victory theme entry.");
@@ -85,6 +85,8 @@ namespace Sma5hMusic.GUI.Services
             try
             {
                 var songData = CreateSongData();
+                var normalizedCount = 0;
+                var normalizationTotal = normalizedEntries.Count(p => p.ApplyNormalization);
 
                 _nus3AudioService.ResetGeneratedNus3BankIds();
 
@@ -92,6 +94,9 @@ namespace Sma5hMusic.GUI.Services
                 {
                     var nus3AudioOutputFile = Path.Combine(bgmOutputFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, entry.ToneId));
                     var nus3BankOutputFile = Path.Combine(bgmOutputFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, entry.ToneId));
+                    if (entry.ApplyNormalization)
+                        normalizationProgress?.Invoke(++normalizedCount, normalizationTotal, entry.ToneId);
+
                     //generate nus3audio
                     var sourceNus3Audio = PrepareNus3Audio(entry, tempRoot);
 

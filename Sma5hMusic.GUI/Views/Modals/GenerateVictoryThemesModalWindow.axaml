@@ -113,8 +113,8 @@
                              ClipToBounds="True"
                              TextWrapping="NoWrap"
                              MaxLength="47"
-                             Text="{Binding ToneIdPreview, Mode=OneWay}"
-                             IsReadOnly="True" />
+                             Text="{Binding ToneId, Mode=TwoWay}"
+                             IsEnabled="{Binding IsToneIdEnabled}" />
                   </StackPanel>
                 </Grid>
               </Border>
