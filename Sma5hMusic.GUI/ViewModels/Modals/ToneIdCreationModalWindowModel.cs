@@ -92,7 +92,7 @@ namespace Sma5hMusic.GUI.ViewModels
                .ObserveOn(RxApp.MainThreadScheduler)
                .Bind(out _bgmPropertyEntries)
                .DisposeMany()
-               .Subscribe());
+               .Subscribe(_ => RefreshToneIdValidation()));
 
             this.ValidationRule(p => p.ToneId,
                 p => !string.IsNullOrEmpty(p) && Regex.IsMatch(p, REGEX_VALIDATION),
@@ -222,6 +222,7 @@ namespace Sma5hMusic.GUI.ViewModels
             SelectedCoreSongReplacement = null;
             var sanitizedToneId = Regex.Replace(toneId.Replace(" ", "_"), REGEX_REPLACE, string.Empty).ToLower();
             ToneId = string.IsNullOrEmpty(sanitizedToneId) ? Guid.NewGuid().ToString("N") : sanitizedToneId;
+            RefreshToneIdValidation();
         }
 
         public void LoadQueueStatus(int songsRemaining)
@@ -338,6 +339,11 @@ namespace Sma5hMusic.GUI.ViewModels
 
             var coreMatch = matches.FirstOrDefault(p => p.Source == EntrySource.Core);
             return coreMatch != null && coreMatch.MusicMod == null;
+        }
+
+        private void RefreshToneIdValidation()
+        {
+            this.RaisePropertyChanged(nameof(ToneId));
         }
     }
 }
