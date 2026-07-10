@@ -31,7 +31,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ["clone_from_gametitle_id"] = CloneGameTitleId,
                     ["name_id"] = GetString(overrideEntry, "name_id"),
                     ["ui_series_id"] = GetString(overrideEntry, "ui_series_id"),
-                    ["shown_as_series_in_directory"] = false
+                    ["shown_as_series_in_directory"] = GetBool(overrideEntry, "0x1c38302364", false),
                 };
 
                 var entries = GetArray(songData, "gametitle_database_entries");
@@ -48,7 +48,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 ["clone_from_gametitle_id"] = CloneGameTitleId,
                 ["name_id"] = GetString(game, "name_id"),
                 ["ui_series_id"] = GetString(game, "ui_series_id"),
-                ["shown_as_series_in_directory"] = false
+                ["shown_as_series_in_directory"] = GetBool(game, "0x1c38302364", false)
             });
         }
 

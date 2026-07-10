@@ -397,7 +397,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 ["disp_order"] = GetInt(effectiveSeries, "disp_order", 0),
                 ["disp_order_sound"] = dispOrderSound,
                 ["save_no"] = GetInt(effectiveSeries, "save_no", 0),
-                ["shown_as_series_in_directory"] = false,
+                ["shown_as_series_in_directory"] = GetBool(effectiveSeries, "0x1c38302364", false),
                 ["is_dlc"] = GetBool(effectiveSeries, "is_dlc", isDlcSeries),
                 ["is_patch"] = GetBool(effectiveSeries, "is_patch", isDlcSeries),
                 ["is_use_amiibo_bg"] = GetBool(effectiveSeries, "is_use_amiibo_bg", false)
