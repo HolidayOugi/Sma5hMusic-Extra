@@ -158,8 +158,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     entry[key] = value;
             }
 
+            //avoid crashing in-game if info1 is not set
+            var info1 = GetString(streamSet, "info1");
             var specialCategory = GetString(streamSet, "special_category");
-            if (!string.IsNullOrEmpty(specialCategory))
+            if (!string.IsNullOrWhiteSpace(info1) && !string.IsNullOrWhiteSpace(specialCategory))
                 entry["special_category"] = specialCategory;
 
             return entry;
