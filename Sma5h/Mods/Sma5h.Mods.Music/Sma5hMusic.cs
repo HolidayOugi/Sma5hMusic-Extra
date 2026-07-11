@@ -25,10 +25,6 @@ namespace Sma5h.Mods.Music
         {
             public IReadOnlyList<BgmPropertyEntry> ModBgmEntries { get; set; } = new List<BgmPropertyEntry>();
             public IReadOnlyList<BgmPropertyEntry> CoreVolumeOverrideEntries { get; set; } = new List<BgmPropertyEntry>();
-            public bool HasModStateEntries { get; set; }
-            public bool HasAudio => ModBgmEntries.Count > 0 || CoreVolumeOverrideEntries.Count > 0;
-            public bool HasOnlyCoreVolumeOverrides => ModBgmEntries.Count == 0 && CoreVolumeOverrideEntries.Count > 0;
-            public bool IsAudioOnly => !HasModStateEntries && HasAudio;
         }
 
         public override string ModName => "Sma5hMusic";
@@ -112,20 +108,14 @@ namespace Sma5h.Mods.Music
 
             var buildPlan = CreateStandardBuildPlan();
 
-            if (!buildPlan.HasOnlyCoreVolumeOverrides)
-            {
-                if (!buildPlan.IsAudioOnly)
-                {
-                    //AutoAddToBgmSelector - TODO Optimize :-)
-                    ProcessPlaylistAutoMapping();
+            //AutoAddToBgmSelector - TODO Optimize :-)
+            ProcessPlaylistAutoMapping();
 
-                    //Sort Series by Sound Test - TODO Allow for manual ordering
-                    ProcessSeriesOrderAutoMapping();
-                }
+            //Sort Series by Sound Test - TODO Allow for manual ordering
+            ProcessSeriesOrderAutoMapping();
 
-                //Persist DB changes
-                _audioStateService.SaveBgmEntriesToStateManager();
-            }
+            //Persist DB changes
+            _audioStateService.SaveBgmEntriesToStateManager();
 
             if (useCache)
                 Directory.CreateDirectory(_config.CurrentValue.Sma5hMusic.CachePath);
@@ -140,13 +130,11 @@ namespace Sma5h.Mods.Music
         private StandardBuildPlan CreateStandardBuildPlan()
         {
             var modBgmEntries = _audioStateService.GetModBgmPropertyEntries().ToList();
-            var modDbRootEntries = _audioStateService.GetModBgmDbRootEntries().ToList();
 
             return new StandardBuildPlan
             {
                 ModBgmEntries = modBgmEntries,
-                CoreVolumeOverrideEntries = GetCoreVolumeOverrideEntries().ToList(),
-                HasModStateEntries = modDbRootEntries.Any()
+                CoreVolumeOverrideEntries = GetCoreVolumeOverrideEntries().ToList()
             };
         }
 

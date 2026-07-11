@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Sma5h.Mods.Music;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using System;
@@ -46,6 +47,152 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var outputJsonPath = Path.Combine(databaseFolder, "series_order.json");
             File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
             _logger.LogInformation("[CSK] Saved series order pack: {SavedPath}", outputJsonPath);
+        }
+
+        private void GenerateVanillaSongsChangesPack(
+            List<CskModContext> contexts,
+            string outputRoot,
+            string generatedBgmFolder,
+            CskBuildResources buildResources,
+            bool includeAudio)
+        {
+            var folderName = contexts.Count == 1
+                ? SanitizePathSegment(
+                    $"{contexts.Select(p => p.SafePackName).FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)) ?? SinglePackFolderName} - Vanilla Songs Changes",
+                    "Vanilla Songs Changes",
+                    "vanilla songs changes folder name")
+                : "CSK Packs - Vanilla Songs Changes";
+            var packRoot = Path.Combine(outputRoot, folderName);
+            var songData = new JObject { ["bgm_database_entries"] = new JArray() };
+            var msgBgmEntries = new List<string>();
+            var msgTitleEntries = new List<string>();
+
+            if (!AddVanillaSongsChanges(contexts, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio))
+                return;
+
+            if (GetArray(songData, "bgm_database_entries").Count > 0)
+            {
+                var databaseFolder = Path.Combine(packRoot, "database");
+                Directory.CreateDirectory(databaseFolder);
+                File.WriteAllText(
+                    Path.Combine(databaseFolder, "database.json"),
+                    JsonConvert.SerializeObject(songData, Formatting.Indented),
+                    new UTF8Encoding(false));
+            }
+
+            if (msgBgmEntries.Count > 0 || msgTitleEntries.Count > 0)
+            {
+                var uiFolder = Path.Combine(packRoot, "ui", "message");
+                Directory.CreateDirectory(uiFolder);
+                if (msgBgmEntries.Count > 0)
+                    WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
+                if (msgTitleEntries.Count > 0)
+                    WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_title.xmsbt"), msgTitleEntries);
+            }
+
+            _logger.LogInformation("[CSK] Saved vanilla songs changes pack: {SavedPath}", packRoot);
+        }
+
+        private bool AddVanillaSongsChanges(
+            List<CskModContext> contexts,
+            JObject songData,
+            List<string> msgBgmEntries,
+            List<string> msgTitleEntries,
+            string packRoot,
+            string generatedBgmFolder,
+            CskBuildResources buildResources,
+            bool includeAudio)
+        {
+            if (buildResources.CoreBgmOverride == null)
+                return false;
+
+            var bgmCount = GetArray(songData, "bgm_database_entries").Count;
+            var msgBgmCount = msgBgmEntries.Count;
+            var msgTitleCount = msgTitleEntries.Count;
+            var copiedAudio = false;
+            //get series already covered
+            var coveredSeriesNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var context in contexts)
+            {
+                foreach (var series in context.SeriesList)
+                    coveredSeriesNames.Add(GetString(series, "name_id"));
+            }
+
+            var dbRoots = buildResources.CoreBgmOverride["CoreBgmDbRootOverrides"] as JObject ?? new JObject();
+
+            foreach (var dbProperty in dbRoots.Properties())
+            {
+                var db = dbProperty.Value as JObject;
+                var uiBgmId = GetString(db, "ui_bgm_id", dbProperty.Name);
+                if (string.IsNullOrEmpty(uiBgmId))
+                    continue;
+
+                //ignore if already covered
+                var uiGameTitleId = GetString(db, "ui_gametitle_id");
+                if (buildResources.CoreGameSeriesById.TryGetValue(uiGameTitleId, out var seriesName) &&
+                    coveredSeriesNames.Contains(seriesName))
+                    continue;
+
+                var bgmDbRootEntry = _audioStateService.GetBgmDbRootEntries()
+                    .Concat(_audioStateService.GetOriginalCoreBgmDbRootEntries())
+                    .Where(p => string.Equals(p.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(p.NameId))
+                    .FirstOrDefault();
+                var nameId = bgmDbRootEntry?.NameId;
+                if (string.IsNullOrEmpty(nameId) || _unavailableBgmNameIds.Value?.Contains(nameId) == true)
+                    continue;
+
+                GetArray(songData, "bgm_database_entries").Add(new JObject
+                {
+                    ["ui_bgm_id"] = uiBgmId,
+                    ["clone_from_ui_bgm_id"] = CloneBgmId,
+                    ["stream_set_id"] = GetString(db, "stream_set_id"),
+                    ["name_id"] = nameId,
+                    ["ui_gametitle_id"] = GetString(db, "ui_gametitle_id"),
+                    ["test_disp_order"] = bgmDbRootEntry.TestDispOrder <= 4 ? bgmDbRootEntry.TestDispOrder : bgmDbRootEntry.MenuValue, //for the first 5 songs get their test disp order
+                    ["record_type"] = GetString(db, "record_type", "record_original")
+                });
+
+                //create xmsbt
+                AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_title_{nameId}", db["msbt_title"]);
+                AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_author_{nameId}", db["msbt_author"]);
+                AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_copyright_{nameId}", db["msbt_copyright"]);
+
+                var game = buildResources.CoreGameOverride?[uiGameTitleId] as JObject;
+                var gameTitle = GetLocalizedString(game?["msbt_title"]);
+                if (!string.IsNullOrEmpty(gameTitle))
+                    AddUniqueMessage(msgTitleEntries, $"tit_{GetString(game, "name_id")}", gameTitle);
+            }
+
+            //write nus3bank for volume overrides
+            var volumeEntries = GetCoreVolumeOverrideEntries(buildResources)
+                .Where(p =>
+                {
+                    var db = GetOriginalCoreDbRootByNameId(p.NameId);
+                    return db != null &&
+                           (!buildResources.CoreGameSeriesById.TryGetValue(db.UiGameTitleId, out var seriesName) ||
+                            !coveredSeriesNames.Contains(seriesName));
+                })
+                .ToList();
+
+            if (includeAudio && volumeEntries.Count > 0 && !string.IsNullOrEmpty(generatedBgmFolder))
+            {
+                var destFolder = Path.Combine(packRoot, "stream;", "sound", "bgm");
+                Directory.CreateDirectory(generatedBgmFolder);
+                foreach (var entry in volumeEntries)
+                {
+                    var source = Path.Combine(generatedBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, entry.NameId));
+                    if (!File.Exists(source))
+                        _nus3AudioService.GenerateNus3Bank(entry.NameId, entry.Volume, source);
+
+                    CopyIfExists(source, Path.Combine(destFolder, Path.GetFileName(source)));
+                    copiedAudio = true;
+                }
+            }
+
+            return GetArray(songData, "bgm_database_entries").Count > bgmCount ||
+                   msgBgmEntries.Count > msgBgmCount ||
+                   msgTitleEntries.Count > msgTitleCount ||
+                   copiedAudio;
         }
 
         #endregion

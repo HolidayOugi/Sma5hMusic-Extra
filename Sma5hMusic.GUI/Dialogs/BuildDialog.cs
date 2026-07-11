@@ -29,12 +29,6 @@ namespace Sma5hMusic.GUI.Dialogs
         private readonly IStateManager _stateManager;
         private readonly IOptionsMonitor<Sma5hOptions> _config;
 
-        private enum StateWriteMode
-        {
-            Full,
-            None
-        }
-
         public BuildDialog(IOptionsMonitor<Sma5hOptions> config, IServiceProvider serviceProvider,
             IStateManager stateManager, IMessageDialog messageDialog, IMusicModManagerService musicModManagerService,
             IOptionsMonitor<Sma5hMusicOptions> musicConfig, IOptionsMonitor<Sma5hMusicOverrideOptions> musicOverrideConfig,
@@ -178,12 +172,7 @@ namespace Sma5hMusic.GUI.Dialogs
                             }
                         }
 
-                        var stateWriteMode = GetStateWriteMode();
-                        var writeChangesSucceeded = stateWriteMode switch
-                        {
-                            StateWriteMode.None => true,
-                            _ => _stateManager.WriteChanges()
-                        };
+                        var writeChangesSucceeded = _stateManager.WriteChanges();
 
                         if (!writeChangesSucceeded)
                         {
@@ -283,38 +272,6 @@ namespace Sma5hMusic.GUI.Dialogs
             return _musicConfig.CurrentValue.Sma5hMusicGUI?.SaveOutputToSubfolder == false
                 ? outputPath
                 : Path.Combine(outputPath, GetMusicPackFolderName());
-        }
-
-        private StateWriteMode GetStateWriteMode()
-        {
-            var modEntries = _audioStateService.GetModBgmDbRootEntries().Any();
-            var hasCoreVolumeOverrides = _musicConfig.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs == true &&
-                                         GetCoreVolumeOverrideEntries().Any();
-
-            if (modEntries)
-                return StateWriteMode.Full;
-
-            if (hasCoreVolumeOverrides)
-                return StateWriteMode.None;
-
-            return StateWriteMode.Full;
-        }
-
-        private IEnumerable<BgmPropertyEntry> GetCoreVolumeOverrideEntries()
-        {
-            var originalCoreByNameId = _audioStateService.GetOriginalCoreBgmPropertyEntries()
-                .ToDictionary(p => p.NameId, StringComparer.OrdinalIgnoreCase);
-
-            return _audioStateService.GetBgmPropertyEntries()
-                .Where(p => p.Source == EntrySource.Core && p.MusicMod == null)
-                .Where(p => originalCoreByNameId.TryGetValue(p.NameId, out var original) &&
-                    Math.Abs(RoundVolume(original.AudioVolume) - RoundVolume(p.AudioVolume)) >= 0.0001f)
-                .ToList();
-        }
-
-        private static float RoundVolume(float value)
-        {
-            return (float)Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
         private string GetMusicPackFolderName()

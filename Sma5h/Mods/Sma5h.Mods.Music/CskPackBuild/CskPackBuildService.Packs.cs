@@ -75,6 +75,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 selectedSeriesKeys,
                 seriesSoundOrder,
                 buildResources.CoreSeriesOverride);
+
+            //generates pack with changes to vanilla songs not already covered
+            GenerateVanillaSongsChangesPack(
+                contextList,
+                outputRoot,
+                generatedBgmFolder,
+                buildResources,
+                includeAudio);
         }
 
         //generation of a single pack for all series
@@ -151,6 +159,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 buildResources.CoreSeriesOverride);
             AddSeriesOrderEntries(songData, coreOnlyVanillaSeriesOrderEntries);
 
+            //adds vanilla song changes not covered by mod metadata
+            AddVanillaSongsChanges(contextList, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio);
+
             //remove duplicates
             NormalizeCombinedSongData(songData);
             
@@ -160,59 +171,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var outputJsonPath = Path.Combine(databaseFolder, "song_data.json");
             File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
             _logger.LogInformation("[CSK] Saved single CSK pack: {SavedPath}", outputJsonPath);
-        }
-
-        //generation of a single pack with only audio files, for replacement packs
-        private void GenerateSingleAudioOnlyCskPack(IEnumerable<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources)
-        {
-            var contextList = contexts.ToList();
-            var packRoot = GetSingleCskPackRoot(outputRoot, contextList);
-            var bgmFolder = Path.Combine(packRoot, "stream;", "sound", "bgm");
-            //copy bgms to output
-            CopyGeneratedBgmFiles(generatedBgmFolder, bgmFolder);
-
-            var msgBgmEntries = CollectSelectedBgmMessages(contextList, selectedSeriesKeys);
-            if (msgBgmEntries.Count > 0)
-            {
-                var uiFolder = Path.Combine(packRoot, "ui", "message");
-                Directory.CreateDirectory(uiFolder);
-                //write single xmsbt
-                WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
-            }
-
-            _logger.LogInformation("[CSK] Saved single audio-only CSK pack: {SavedPath}", packRoot);
-        }
-
-        //get messages from selected series
-        private List<string> CollectSelectedBgmMessages(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
-        {
-            var output = new List<string>();
-            foreach (var context in contexts)
-            {
-                foreach (var series in context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
-                {
-                    foreach (JObject game in GetArray(series, "games"))
-                    {
-                        foreach (JObject bgm in GetArray(game, "bgms"))
-                            AddBgmMessagesFromMetadata(output, bgm);
-                    }
-                }
-            }
-
-            return output;
-        }
-
-        private void AddBgmMessagesFromMetadata(List<string> msgBgmEntries, JObject bgm)
-        {
-            var db = bgm["db_root"] as JObject;
-            var bgmProp = bgm["bgm_properties"] as JObject;
-            var nameId = GetString(bgmProp, "name_id");
-            if (string.IsNullOrEmpty(nameId))
-                return;
-
-            AddOrReplaceMessage(msgBgmEntries, $"bgm_title_{nameId}", GetLocalizedString(db?["msbt_title"], nameId));
-            AddOrReplaceMessage(msgBgmEntries, $"bgm_author_{nameId}", GetLocalizedString(db?["msbt_author"]));
-            AddOrReplaceMessage(msgBgmEntries, $"bgm_copyright_{nameId}", GetLocalizedString(db?["msbt_copyright"]));
         }
 
         private static string GetSingleCskPackFolderName(IReadOnlyList<CskModContext> contexts)

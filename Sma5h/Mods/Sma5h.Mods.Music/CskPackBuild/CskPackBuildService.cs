@@ -59,9 +59,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
         public Task Build(IEnumerable<string> selectedSeriesKeys, string locale = null)
         {
             var selected = new HashSet<string>(selectedSeriesKeys ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-            if (selected.Count == 0)
-                throw new InvalidOperationException("No CSK pack series were selected.");
-
             return Task.Run(() => BuildInternal(selected, CskPackBuildMode.Modular, locale));
         }
 
@@ -73,9 +70,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
         public Task BuildSingle(IEnumerable<string> selectedSeriesKeys, string locale = null)
         {
             var selected = new HashSet<string>(selectedSeriesKeys ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-            if (selected.Count == 0)
-                throw new InvalidOperationException("No CSK pack series were selected.");
-
             return Task.Run(() => BuildInternal(selected, CskPackBuildMode.Single, locale));
         }
 
@@ -119,10 +113,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var buildResources = LoadBuildResources();
 
                 var contexts = LoadModContexts(mods);
-                if (mods.Count == 0)
-                    throw new InvalidOperationException("No music mods were found.");
-                else if (contexts.Count == 0)
+                var hasCoreBgmOverride = HasJsonValues(buildResources.RawCoreBgmOverride);
+                if (contexts.Count == 0 && !hasCoreBgmOverride)
+                {
+                    if (mods.Count == 0)
+                        throw new InvalidOperationException("No music mods were found.");
+
                     throw new InvalidOperationException("No metadata_mod.json files were found in the currently loaded music mods.");
+                }
 
                 if (selectedSeriesKeys == null)
                 {
@@ -131,7 +129,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 }
 
-                if (selectedSeriesKeys.Count == 0)
+                if (contexts.Count > 0 && selectedSeriesKeys.Count == 0)
                     throw new InvalidOperationException("No CSK pack series were selected.");
 
                 var outputRoot = PrepareOutputRoot();
@@ -140,9 +138,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 try
                 {
                     var contextList = contexts.ToList();
-                    //audio only single build for replacement songs
-                    var audioOnlySingleBuild = buildMode == CskPackBuildMode.Single &&
-                                               IsSelectedAudioOnlyBuild(contextList, selectedSeriesKeys, buildResources);
                     //for metadata only builds
                     var includeAudio = buildMode != CskPackBuildMode.MetadataOnly;
                     _unavailableBgmNameIds.Value = includeAudio
@@ -152,8 +147,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         ? GenerateBgmFiles(contextList, tempRoot, selectedSeriesKeys, buildResources)
                         : null;
 
-                    if (audioOnlySingleBuild)
-                        GenerateSingleAudioOnlyCskPack(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources);
+                    if (contextList.Count == 0)
+                        GenerateVanillaSongsChangesPack(contextList, outputRoot, generatedBgmFolder, buildResources, includeAudio);
                     else if (buildMode == CskPackBuildMode.Single)
                         GenerateSingleCskPack(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
                     else

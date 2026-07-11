@@ -305,10 +305,18 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var streamSet = bgm["stream_set"] as JObject;
 
             var uiBgmId = GetString(db, "ui_bgm_id");
-            var nameId = GetString(bgmProp, "name_id");
-            if (includeAudio && _unavailableBgmNameIds.Value?.Contains(nameId) == true)
+            var audioNameId = GetString(bgmProp, "name_id");
+            //get name id from audioservice if available, otherwise use the one from the metadata
+            var nameId = _audioStateService.GetBgmDbRootEntries()
+                .Concat(_audioStateService.GetOriginalCoreBgmDbRootEntries())
+                .Where(p => string.Equals(p.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(p.NameId))
+                .Select(p => p.NameId)
+                .FirstOrDefault();
+            if (string.IsNullOrEmpty(nameId))
+                nameId = GetString(db, "name_id", audioNameId);
+            if (includeAudio && _unavailableBgmNameIds.Value?.Contains(audioNameId) == true)
             {
-                _logger.LogWarning("[CSK] Excluding unavailable song {NameId} from pack metadata.", nameId);
+                _logger.LogWarning("[CSK] Excluding unavailable song {NameId} from pack metadata.", audioNameId);
                 return orderCounter;
             }
 

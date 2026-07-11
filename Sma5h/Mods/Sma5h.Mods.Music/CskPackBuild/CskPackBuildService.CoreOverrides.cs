@@ -337,11 +337,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var streamSetId = GetString(db, "stream_set_id");
                 var streamSetData = streamSets[streamSetId] as JObject ?? new JObject();
                 var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
-                var nameId = GetString(db, "name_id");
-                if (string.IsNullOrEmpty(nameId) && uiBgmId.StartsWith(MusicConstants.InternalIds.UI_BGM_ID_PREFIX, StringComparison.OrdinalIgnoreCase))
-                    nameId = uiBgmId.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length);
+                //get name id from audioservice if available, otherwise use the one from the core override
+                var nameId = _audioStateService.GetBgmDbRootEntries()
+                    .Concat(_audioStateService.GetOriginalCoreBgmDbRootEntries())
+                    .Where(p => string.Equals(p.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(p.NameId))
+                    .Select(p => p.NameId)
+                    .FirstOrDefault();
 
-                if (_unavailableBgmNameIds.Value?.Contains(nameId) == true)
+                if (string.IsNullOrEmpty(nameId) || _unavailableBgmNameIds.Value?.Contains(nameId) == true)
                     continue;
 
                 //skip if already added

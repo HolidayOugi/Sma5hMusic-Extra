@@ -123,30 +123,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
 
-        private bool IsSelectedAudioOnlyBuild(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources)
-        {
-            var selectedBgms = GetSelectedBgms(contexts, selectedSeriesKeys).ToList();
-            var selectedSeriesNames = GetSelectedSeriesNames(contexts, selectedSeriesKeys);
-            var hasCoreVolumeOverrides = GetSelectedCoreVolumeOverrideBuildEntries(selectedSeriesNames, buildResources).Any();
-
-            return selectedBgms.Count == 0 && hasCoreVolumeOverrides;
-        }
-
-        private IEnumerable<JObject> GetSelectedBgms(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
-        {
-            foreach (var context in contexts)
-            {
-                foreach (var series in context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
-                {
-                    foreach (JObject game in GetArray(series, "games"))
-                    {
-                        foreach (JObject bgm in GetArray(game, "bgms"))
-                            yield return bgm;
-                    }
-                }
-            }
-        }
-
         private IEnumerable<BgmBuildEntry> GetSelectedCoreVolumeOverrideBuildEntries(HashSet<string> selectedSeriesNames, CskBuildResources buildResources)
         {
             if (!ShouldBuildCoreNus3Banks())

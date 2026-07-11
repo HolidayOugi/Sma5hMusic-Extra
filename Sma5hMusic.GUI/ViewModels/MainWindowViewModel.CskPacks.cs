@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using ReactiveUI;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5hMusic.GUI.Views;
 using System;
+using System.IO;
 using System.Linq;
 using System.Reactive;
 using System.Threading.Tasks;
@@ -29,9 +32,9 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 var currentLocale = _viewModelManager.CurrentLocale;
                 var availableSeries = await _cskPackBuildService.GetAvailableSeries(currentLocale);
-                if (availableSeries.Count == 0)
+                if (availableSeries.Count == 0 && !HasCoreBgmOverride())
                 {
-                    await _messageDialog.ShowError("CSK pack build failed", "No series were found in the currently loaded music mods.");
+                    await _messageDialog.ShowError("CSK pack build failed", "No changes were found.");
                     return;
                 }
 
@@ -109,7 +112,27 @@ namespace Sma5hMusic.GUI.ViewModels
                 var availableSeries = await _cskPackBuildService.GetAvailableSeries(currentLocale);
                 if (availableSeries.Count == 0)
                 {
-                    await _messageDialog.ShowError("CSK pack build failed", "No series were found in the currently loaded music mods.");
+                    if (!HasCoreBgmOverride())
+                    {
+                        await _messageDialog.ShowError("CSK pack build failed", "No changes were found.");
+                        return;
+                    }
+
+                    if (!await _buildDialog.EnsureArcOutputIsClean())
+                        return;
+
+                    IsLoading = true;
+                    IsShowingDebug = true;
+                    buildStarted = true;
+                    await _musicPlayer.Stop();
+                    _logger.LogInformation("Building CSK vanilla song changes pack.");
+
+                    if (singlePack)
+                        await _cskPackBuildService.BuildSingle(Enumerable.Empty<string>(), currentLocale);
+                    else
+                        await _cskPackBuildService.Build(Enumerable.Empty<string>(), currentLocale);
+
+                    await _messageDialog.ShowInformation("Complete", singlePack ? "Single CSK pack build complete." : "Modular CSK packs build complete.");
                     return;
                 }
 
@@ -151,6 +174,12 @@ namespace Sma5hMusic.GUI.ViewModels
                     IsShowingDebug = false;
                 }
             }
+        }
+
+        private bool HasCoreBgmOverride()
+        {
+            var path = Path.Combine(_appSettings.CurrentValue.Sma5hMusicOverride.ModPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_CORE_BGM_JSON_FILE);
+            return File.Exists(path) && JObject.Parse(File.ReadAllText(path)).HasValues;
         }
     }
 }
