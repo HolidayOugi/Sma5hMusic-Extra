@@ -1,4 +1,5 @@
 using Newtonsoft.Json.Linq;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Models;
 using System;
 using System.Collections.Generic;
@@ -97,21 +98,17 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 coreGameOverride);
         }
 
-        private string GetCoreBgmUiSeriesIdByNameId(string nameId, JObject coreGameOverride)
-        {
-            var db = GetOriginalCoreDbRootByNameId(nameId);
-            return db == null
-                ? null
-                : GetCoreBgmUiSeriesId(db.UiGameTitleId, null, coreGameOverride);
-        }
-
         private BgmDbRootEntry GetOriginalCoreDbRootByNameId(string nameId)
         {
             if (string.IsNullOrEmpty(nameId))
                 return null;
 
             return _audioStateService.GetOriginalCoreBgmDbRootEntries()
-                .FirstOrDefault(p => string.Equals(p.NameId, nameId, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(p =>
+                    string.Equals(p.NameId, nameId, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(p.UiBgmId) &&
+                     p.UiBgmId.StartsWith(MusicConstants.InternalIds.UI_BGM_ID_PREFIX, StringComparison.OrdinalIgnoreCase) &&
+                     string.Equals(p.UiBgmId.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length), nameId, StringComparison.OrdinalIgnoreCase)));
         }
 
         private static string GetCoreBgmUiSeriesId(string uiGameTitleId, string dbSeriesId, JObject coreGameOverride)
@@ -340,7 +337,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var streamSetId = GetString(db, "stream_set_id");
                 var streamSetData = streamSets[streamSetId] as JObject ?? new JObject();
                 var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
-                var nameId = GetString(db, "name_id", uiBgmId);
+                var nameId = GetString(db, "name_id");
+                if (string.IsNullOrEmpty(nameId) && uiBgmId.StartsWith(MusicConstants.InternalIds.UI_BGM_ID_PREFIX, StringComparison.OrdinalIgnoreCase))
+                    nameId = uiBgmId.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length);
 
                 if (_unavailableBgmNameIds.Value?.Contains(nameId) == true)
                     continue;
