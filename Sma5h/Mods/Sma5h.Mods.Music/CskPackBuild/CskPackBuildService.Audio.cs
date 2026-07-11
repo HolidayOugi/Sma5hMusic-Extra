@@ -126,11 +126,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private bool IsSelectedAudioOnlyBuild(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources)
         {
             var selectedBgms = GetSelectedBgms(contexts, selectedSeriesKeys).ToList();
-            var hasNonCoreBgms = selectedBgms.Any(p => !IsCoreBgm(p, buildResources.CoreBgmIds));
             var selectedSeriesNames = GetSelectedSeriesNames(contexts, selectedSeriesKeys);
             var hasCoreVolumeOverrides = GetSelectedCoreVolumeOverrideBuildEntries(selectedSeriesNames, buildResources).Any();
 
-            return !hasNonCoreBgms && (selectedBgms.Count > 0 || hasCoreVolumeOverrides);
+            return selectedBgms.Count == 0 && hasCoreVolumeOverrides;
         }
 
         private IEnumerable<JObject> GetSelectedBgms(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
@@ -146,12 +145,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     }
                 }
             }
-        }
-
-        private static bool IsCoreBgm(JObject bgm, HashSet<string> coreBgmIds)
-        {
-            var uiBgmId = GetString(bgm["db_root"], "ui_bgm_id");
-            return !string.IsNullOrEmpty(uiBgmId) && coreBgmIds?.Contains(uiBgmId) == true;
         }
 
         private IEnumerable<BgmBuildEntry> GetSelectedCoreVolumeOverrideBuildEntries(HashSet<string> selectedSeriesNames, CskBuildResources buildResources)
