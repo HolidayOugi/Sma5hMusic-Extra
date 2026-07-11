@@ -147,6 +147,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Small text now shows correctly in GUI.
 * A display box has been added to the BGM Properties window to show how the text will appear in game, with both colors and small text.
 * A button has been added to the BGM Properties window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
+* A checkbox has been added to the Series Properties window to enable or disable the "Series" text suffix in Music Select / Sound Test.
 * Changes to core songs volume are now saved and the corresponding nus3bank can now be built.
 * Songs can now be sorted alphabetically per game or per series automatically.
 * If a song from custom Series was not manually added to a playlist, the software will automatically add it to the Battlefield playlist to ensure it shows up in-game.
