@@ -32,7 +32,6 @@ namespace Sma5hMusic.GUI.Dialogs
         private enum StateWriteMode
         {
             Full,
-            MusicMessagesOnly,
             None
         }
 
@@ -183,7 +182,6 @@ namespace Sma5hMusic.GUI.Dialogs
                         var writeChangesSucceeded = stateWriteMode switch
                         {
                             StateWriteMode.None => true,
-                            StateWriteMode.MusicMessagesOnly => _stateManager.WriteChanges(IsMusicMessageResource),
                             _ => _stateManager.WriteChanges()
                         };
 
@@ -289,27 +287,17 @@ namespace Sma5hMusic.GUI.Dialogs
 
         private StateWriteMode GetStateWriteMode()
         {
-            var modEntries = _audioStateService.GetModBgmDbRootEntries().ToList();
-            var hasCoreReplacementSongs = modEntries.Any(IsCoreReplacement);
-            var hasNonReplacementSongs = modEntries.Any(p => !IsCoreReplacement(p));
+            var modEntries = _audioStateService.GetModBgmDbRootEntries().Any();
             var hasCoreVolumeOverrides = _musicConfig.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs == true &&
                                          GetCoreVolumeOverrideEntries().Any();
 
-            if (hasNonReplacementSongs)
+            if (modEntries)
                 return StateWriteMode.Full;
-
-            if (hasCoreReplacementSongs)
-                return StateWriteMode.MusicMessagesOnly;
 
             if (hasCoreVolumeOverrides)
                 return StateWriteMode.None;
 
             return StateWriteMode.Full;
-        }
-
-        private static bool IsCoreReplacement(BgmDbRootEntry entry)
-        {
-            return entry.Source == EntrySource.Core && entry.MusicMod != null;
         }
 
         private IEnumerable<BgmPropertyEntry> GetCoreVolumeOverrideEntries()
@@ -322,12 +310,6 @@ namespace Sma5hMusic.GUI.Dialogs
                 .Where(p => originalCoreByNameId.TryGetValue(p.NameId, out var original) &&
                     Math.Abs(RoundVolume(original.AudioVolume) - RoundVolume(p.AudioVolume)) >= 0.0001f)
                 .ToList();
-        }
-
-        private static bool IsMusicMessageResource(string resourcePath)
-        {
-            var normalizedPath = resourcePath.Replace('\\', '/');
-            return normalizedPath.StartsWith("ui/message/", StringComparison.OrdinalIgnoreCase);
         }
 
         private static float RoundVolume(float value)

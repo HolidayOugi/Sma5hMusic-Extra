@@ -25,10 +25,10 @@ namespace Sma5h.Mods.Music
         {
             public IReadOnlyList<BgmPropertyEntry> ModBgmEntries { get; set; } = new List<BgmPropertyEntry>();
             public IReadOnlyList<BgmPropertyEntry> CoreVolumeOverrideEntries { get; set; } = new List<BgmPropertyEntry>();
-            public bool HasNonReplacementSongs { get; set; }
+            public bool HasModStateEntries { get; set; }
             public bool HasAudio => ModBgmEntries.Count > 0 || CoreVolumeOverrideEntries.Count > 0;
             public bool HasOnlyCoreVolumeOverrides => ModBgmEntries.Count == 0 && CoreVolumeOverrideEntries.Count > 0;
-            public bool IsAudioOnly => !HasNonReplacementSongs && HasAudio;
+            public bool IsAudioOnly => !HasModStateEntries && HasAudio;
         }
 
         public override string ModName => "Sma5hMusic";
@@ -146,7 +146,7 @@ namespace Sma5h.Mods.Music
             {
                 ModBgmEntries = modBgmEntries,
                 CoreVolumeOverrideEntries = GetCoreVolumeOverrideEntries().ToList(),
-                HasNonReplacementSongs = modDbRootEntries.Any(p => p.Source != EntrySource.Core || p.MusicMod == null)
+                HasModStateEntries = modDbRootEntries.Any()
             };
         }
 

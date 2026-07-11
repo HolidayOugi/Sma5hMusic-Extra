@@ -19,12 +19,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
         {
             var contextList = contexts.ToList();
             var allSeries = contextList.SelectMany(context => context.SeriesList).ToList();
-            var selectedSeries = contextList
-                .SelectMany(context => context.SeriesList
-                    .Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
-                .ToList();
-            //check if it's replacement pack
-            var onlyCoreReplacements = HasOnlyCoreReplacementBgms(selectedSeries, buildResources.CoreBgmIds);
             //build sound order for music select menu
             var seriesSoundOrder = BuildSeriesSoundOrder(
                 allSeries,
@@ -80,8 +74,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 outputRoot,
                 selectedSeriesKeys,
                 seriesSoundOrder,
-                buildResources.CoreSeriesOverride,
-                onlyCoreReplacements);
+                buildResources.CoreSeriesOverride);
         }
 
         //generation of a single pack for all series
@@ -116,9 +109,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var msgBgmEntries = new List<string>();
             var msgTitleEntries = new List<string>();
             var metadataBgmIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var onlyCoreReplacements = HasOnlyCoreReplacementBgms(
-                selectedSeries.Select(p => p.Series),
-                buildResources.CoreBgmIds);
 
             //build the data for each series
             foreach (var item in selectedSeries)
@@ -163,9 +153,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             //remove duplicates
             NormalizeCombinedSongData(songData);
-            if (onlyCoreReplacements)
-                //redudant
-                KeepOnlyReplacementBgmDatabaseEntries(songData, metadataBgmIds);
             
             WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
             WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_title.xmsbt"), msgTitleEntries);
@@ -315,7 +302,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             var seriesDbFolder = Path.Combine(outputRoot, seriesFolderName, "database");
             var seriesUiFolder = Path.Combine(outputRoot, seriesFolderName, "ui", "message");
-            var onlyCoreReplacements = HasOnlyCoreReplacementBgms(new[] { series }, coreBgmIds);
             Directory.CreateDirectory(seriesDbFolder);
             Directory.CreateDirectory(seriesUiFolder);
 
@@ -358,9 +344,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             //copy nus3bank for core songs
             if (includeAudio)
                 CopyCoreVolumeOverrideBankFiles(seriesName, seriesFolderName, outputRoot, generatedBgmFolder, buildResources);
-            
-            if (onlyCoreReplacements)
-                KeepOnlyReplacementBgmDatabaseEntries(songData, metadataBgmIds);
+
             //write json
             var outputJsonPath = Path.Combine(seriesDbFolder, databaseFileName);
             File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
@@ -368,54 +352,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
             WriteXmsbt(Path.Combine(seriesUiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
             WriteXmsbt(Path.Combine(seriesUiFolder, "msg_title.xmsbt"), msgTitleEntries);
             return outputJsonPath;
-        }
-
-        private void KeepOnlyReplacementBgmDatabaseEntries(JObject songData, HashSet<string> replacementBgmIds)
-        {
-            var menuValueByBgmId = _audioStateService.GetOriginalCoreBgmDbRootEntries()
-                .Where(p => !string.IsNullOrEmpty(p.UiBgmId))
-                .ToDictionary(p => p.UiBgmId, p => p.MenuValue, StringComparer.OrdinalIgnoreCase);
-
-            var bgmDatabaseEntries = new JArray(GetArray(songData, "bgm_database_entries")
-                .OfType<JObject>()
-                .Where(p => replacementBgmIds.Contains(GetString(p, "ui_bgm_id")))
-                .Select(p =>
-                {
-                    var entry = (JObject)p.DeepClone();
-                    var uiBgmId = GetString(entry, "ui_bgm_id");
-                    if (!string.IsNullOrEmpty(uiBgmId) && menuValueByBgmId.TryGetValue(uiBgmId, out var menuValue))
-                        entry["test_disp_order"] = menuValue;
-
-                    return entry;
-                }));
-
-            songData.RemoveAll();
-            songData["bgm_database_entries"] = bgmDatabaseEntries;
-        }
-
-        private static bool HasOnlyCoreReplacementBgms(IEnumerable<JObject> seriesEntries, HashSet<string> coreBgmIds)
-        {
-            if (coreBgmIds == null || coreBgmIds.Count == 0)
-                return false;
-
-            var bgmIds = seriesEntries
-                .Where(p => p != null)
-                .SelectMany(series => GetArray(series, "games").OfType<JObject>())
-                .SelectMany(game => GetArray(game, "bgms").OfType<JObject>())
-                .Select(bgm => GetString(bgm["db_root"], "ui_bgm_id"))
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToList();
-
-            return bgmIds.Count > 0 && bgmIds.All(coreBgmIds.Contains);
-        }
-
-        private void DeleteDirectoryIfExists(string path, string logMessage)
-        {
-            if (!Directory.Exists(path))
-                return;
-
-            Directory.Delete(path, true);
-            _logger.LogInformation(logMessage, path);
         }
 
         private void PopulateSeriesPackData(
