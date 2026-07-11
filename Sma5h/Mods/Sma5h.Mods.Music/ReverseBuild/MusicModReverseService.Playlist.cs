@@ -71,12 +71,12 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 return newValue;
 
             newValue.Tracks.AddRange(existingOnlyTracks);
-            MoveConflictingPlaylistOrders(newValue.Tracks, existingOnlyTracks);
+            MoveExistingPlaylistOrder(newValue.Tracks, existingOnlyTracks);
             return newValue;
         }
 
-        //if old order is used by the new values, move the old bgms to the end of the list
-        private static void MoveConflictingPlaylistOrders(List<PlaylistValueConfig> mergedTracks, List<PlaylistValueConfig> existingOnlyTracks)
+        //Order from reverse mod is preserved, the songs already present are pushed to the end of the list
+        private static void MoveExistingPlaylistOrder(List<PlaylistValueConfig> mergedTracks, List<PlaylistValueConfig> existingOnlyTracks)
         {
             var orderAccessors = new (Func<PlaylistValueConfig, short> Get, Action<PlaylistValueConfig, short> Set)[]
             {
@@ -100,30 +100,14 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             foreach (var orderAccessor in orderAccessors)
             {
-                var usedOrders = new HashSet<short>(
-                    mergedTracks
-                        .Except(existingOnlyTracks)
-                        .Select(orderAccessor.Get)
-                        .Where(p => p >= 0));
+                var newOrders = mergedTracks
+                    .Except(existingOnlyTracks)
+                    .Select(orderAccessor.Get)
+                    .Where(p => p >= 0)
+                    .ToList();
 
-                var conflictingTracks = new List<PlaylistValueConfig>();
-                foreach (var track in existingOnlyTracks)
-                {
-                    var order = orderAccessor.Get(track);
-                    if (order < 0)
-                        continue;
-
-                    if (usedOrders.Contains(order))
-                    {
-                        conflictingTracks.Add(track);
-                        continue;
-                    }
-
-                    usedOrders.Add(order);
-                }
-
-                var nextOrder = usedOrders.Count == 0 ? 0 : usedOrders.Max() + 1;
-                foreach (var track in conflictingTracks)
+                var nextOrder = newOrders.Count == 0 ? 0 : newOrders.Max() + 1;
+                foreach (var track in existingOnlyTracks.Where(p => orderAccessor.Get(p) >= 0).OrderBy(orderAccessor.Get))
                 {
                     orderAccessor.Set(track, (short)nextOrder);
                     nextOrder++;
