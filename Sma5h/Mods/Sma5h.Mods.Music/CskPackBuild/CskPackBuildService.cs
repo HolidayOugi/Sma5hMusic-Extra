@@ -80,7 +80,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         }
 
         //get all series from all mods
-        public Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null, bool includeCoreOverrideOnly = false)
+        public Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null)
         {
             return Task.Run<IReadOnlyList<CskPackSeriesOption>>(() =>
             {
@@ -90,9 +90,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var mods = GetMusicMods();
                     var contexts = LoadModContexts(mods);
-                    //core override only 
-                    if (includeCoreOverrideOnly && mods.Count == 0 && contexts.Count == 0)
-                        contexts = LoadCoreOverrideContexts(LoadBuildResources());
 
                     //returns all series from all mods
                     return contexts
@@ -122,11 +119,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var buildResources = LoadBuildResources();
 
                 var contexts = LoadModContexts(mods);
-                //core override only
-                var coreOverrideOnly = buildMode == CskPackBuildMode.Single && mods.Count == 0 && contexts.Count == 0 && buildResources.HasCoreOverrides;
-                if (coreOverrideOnly)
-                    contexts = LoadCoreOverrideContexts(buildResources);
-                else if (mods.Count == 0)
+                if (mods.Count == 0)
                     throw new InvalidOperationException("No music mods were found.");
                 else if (contexts.Count == 0)
                     throw new InvalidOperationException("No metadata_mod.json files were found in the currently loaded music mods.");

@@ -28,10 +28,10 @@ namespace Sma5hMusic.GUI.ViewModels
             try
             {
                 var currentLocale = _viewModelManager.CurrentLocale;
-                var availableSeries = await _cskPackBuildService.GetAvailableSeries(currentLocale, true);
+                var availableSeries = await _cskPackBuildService.GetAvailableSeries(currentLocale);
                 if (availableSeries.Count == 0)
                 {
-                    await _messageDialog.ShowError("CSK pack build failed", "No series were found in the currently loaded music mods and no changes were made to core songs.");
+                    await _messageDialog.ShowError("CSK pack build failed", "No series were found in the currently loaded music mods.");
                     return;
                 }
 
