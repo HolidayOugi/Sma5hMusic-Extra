@@ -685,7 +685,11 @@ namespace Sma5hMusic.GUI.Services
                     result = musicMod.RemoveMusicModEntries(musicModDeleteEntries);
 
                     if (result)
+                    {
                         result = RestoreCoreReplacementInStateAndViewModels(musicModDeleteEntries);
+                        if (result)
+                            result = _sma5hMusicOverride.DeleteCoreBgmEntries(musicModDeleteEntries);
+                    }
                 }
                 catch (Exception e)
                 {

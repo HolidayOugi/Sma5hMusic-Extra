@@ -371,6 +371,32 @@ namespace Sma5h.Mods.Music
             return true;
         }
 
+        public bool DeleteCoreBgmEntries(MusicModDeleteEntries musicModDeleteEntries)
+        {
+            EnsureCoreBgmOverrideCollections();
+
+            if (musicModDeleteEntries == null)
+                return true;
+
+            foreach (var bgmDbRootEntry in musicModDeleteEntries.BgmDbRootEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmDbRootOverrides.Remove(bgmDbRootEntry);
+            foreach (var bgmStreamSetEntry in musicModDeleteEntries.BgmStreamSetEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamSetOverrides.Remove(bgmStreamSetEntry);
+            foreach (var bgmAssignedInfoEntry in musicModDeleteEntries.BgmAssignedInfoEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmAssignedInfoOverrides.Remove(bgmAssignedInfoEntry);
+            foreach (var bgmStreamPropertyEntry in musicModDeleteEntries.BgmStreamPropertyEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamPropertyOverrides.Remove(bgmStreamPropertyEntry);
+            foreach (var bgmPropertyEntry in musicModDeleteEntries.BgmPropertyEntries)
+            {
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmPropertyOverrides.Remove(bgmPropertyEntry);
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmVolumeOverrides.Remove(bgmPropertyEntry);
+            }
+
+            var overrideJsonFile = Path.Combine(_config.CurrentValue.Sma5hMusicOverride.ModPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_CORE_BGM_JSON_FILE);
+            File.WriteAllText(overrideJsonFile, JsonConvert.SerializeObject(_musicOverrideConfig.CoreBgmOverrides, _defaultFormatting));
+            return true;
+        }
+
         private void EnsureCoreBgmOverrideCollections()
         {
             _musicOverrideConfig.CoreBgmOverrides ??= new CoreBgmOverrides();
