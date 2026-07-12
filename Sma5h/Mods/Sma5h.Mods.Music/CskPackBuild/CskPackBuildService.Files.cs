@@ -88,6 +88,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
             foreach (var entry in entries)
             {
                 var source = Path.Combine(generatedBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, entry.NameId));
+                var audioSource = Path.Combine(generatedBgmFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, entry.NameId));
+                if (!File.Exists(source) || File.Exists(audioSource))
+                    continue;
+
                 CopyIfExists(source, Path.Combine(destFolder, Path.GetFileName(source)));
             }
         }
