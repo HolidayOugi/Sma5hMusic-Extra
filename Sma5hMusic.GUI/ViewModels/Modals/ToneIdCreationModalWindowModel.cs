@@ -217,11 +217,16 @@ namespace Sma5hMusic.GUI.ViewModels
                 .FirstOrDefault(p => string.Equals(p.ToneId, ToneId, StringComparison.OrdinalIgnoreCase));
         }
 
+        //TODO: I really REALLY don't like this, but it works
         public void LoadToneId(string toneId)
         {
             SelectedCoreSongReplacement = null;
             var sanitizedToneId = Regex.Replace(toneId.Replace(" ", "_"), REGEX_REPLACE, string.Empty).ToLower();
-            ToneId = string.IsNullOrEmpty(sanitizedToneId) ? Guid.NewGuid().ToString("N") : sanitizedToneId;
+            var newToneId = string.IsNullOrEmpty(sanitizedToneId) ? Guid.NewGuid().ToString("N") : sanitizedToneId;
+            if (string.Equals(ToneId, newToneId, StringComparison.Ordinal))
+                ToneId = string.Empty;
+
+            ToneId = newToneId;
             RefreshToneIdValidation();
         }
 
