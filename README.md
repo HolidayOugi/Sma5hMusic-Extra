@@ -37,6 +37,9 @@ Here's a rundown of the added features.
 > [!TIP]
 > When using the Modular Packs option, if one or more Vanilla Series did not contain any songs during the generation, an optional Series Order pack is generated. If loaded, it ensures that each Series is in its correct order in the Music Select / Sound Test screen.
 
+> [!TIP]
+> When using the Modular Packs option, if one or more Core songs had their values changed and they weren't already included in a generated Series, an optional Vanilla Song Changes pack is generated. If loaded, it will apply the changes made to the edited Core Songs.
+
 ## Icon Selection and Conversion
 
 **Icons** can now be assigned to Series directly from the Create Series / Edit Series menu. The Software accepts PNGs or BNTXs as input and assigns them to a Series, converting them if needed. The Icons are automatically copied to the output build.
@@ -139,23 +142,24 @@ Victory themes can be generated for both base-game and custom characters. When g
 ## Miscellaneous fixes and improvements
 
 * (*Should have*) fixed bug where songs would stop playing in-game due to their order in the global song list.
-* Packs now are output in a subfolder of the build folder. This can be disabled in settings.
-* The default volume for a new song can now be set in settings.
+* Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
+* The default volume for a new song can now be set in Global Settings.
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
-* The Song List can now be exported in a spreadsheet.
-* [Experimental] A mod can now be imported from an old Music Pack build from an option in the Extra submenu.
-* Small text now shows correctly in GUI.
-* A display box has been added to the BGM Properties window to show how the text will appear in game, with both colors and small text.
-* A button has been added to the BGM Properties window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
-* A checkbox has been added to the Series Properties window to enable or disable the "Series" text suffix in Music Select / Sound Test.
-* Changes to core songs volume are now saved and the corresponding nus3bank can now be built.
+* The Song List can now be exported to a spreadsheet.
+* [Experimental] Added option to generate a Sma5hMusic Mod from an already generated build.
+* Small text is now shown directly in the GUI.
+* A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
+* A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
+* Added a checkbox in the Series Properties Window to enable/disable the "Series" suffix after the Series name in Music Select.
+* Core Songs volume can now be changed in app and the relevant nus3bank will be generated at build time. This can be disabled in Global Settings.
 * Songs can now be sorted alphabetically per game or per series automatically.
-* If a song from custom Series was not manually added to a playlist, the software will automatically add it to the Battlefield playlist to ensure it shows up in-game.
-* Settings can now be saved when output folder is missing.
-* Fixed importing of files with Japanese characters.
-* Fixed possible silent conversion fail between lopus and Nus3audio during build.
-* Fixed importing of old overrides having invalid characters.
-* Fixed UI elements not showing properly on low screen resolutions.
+* If a song from custom Series was not manually added to a playlist, it will be automatically added to the Battlefield playlist to ensure it shows up in-game.
+* Global Settings can now be saved when output folder is missing.
+* Fixed importing of files with Japanese characters not working.
+* Fixed a possible silent conversion fail with BRSTM/IDSP/LOPUS files at build time.
+* Fixed importing of overrides from older Sma5hMusic builds having invalid characters.
+* Fixed some UI elements not showing properly at lower screen resolutions.
+* Fixed tone ID validation not always checking if the value is already present.
 
 ## FAQ
 
@@ -179,6 +183,12 @@ Just load the Mods in Sma5hMusic Extra and build a CSK Pack(s) from the Project 
 ### How do I install Pymusiclooper?
 
 Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/PyMusicLooper), it should then be recognized automatically.
+
+## Generate a Release build
+
+```
+dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true
+```
 
 ## Issues
 
