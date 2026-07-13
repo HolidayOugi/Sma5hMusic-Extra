@@ -29,6 +29,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private readonly IFileDialog _fileDialog;
         private readonly IMessageDialog _messageDialog;
+        private readonly IBuildDialog _buildDialog;
         private readonly IVictoryThemeGeneratorService _victoryThemeGenerator;
         private readonly ILogger _logger;
         private readonly float _defaultVolume;
@@ -51,12 +52,14 @@ namespace Sma5hMusic.GUI.ViewModels
         public GenerateVictoryThemesModalWindowViewModel(
             IFileDialog fileDialog,
             IMessageDialog messageDialog,
+            IBuildDialog buildDialog,
             IVictoryThemeGeneratorService victoryThemeGenerator,
             IOptionsMonitor<ApplicationSettings> config,
             ILogger<GenerateVictoryThemesModalWindowViewModel> logger)
         {
             _fileDialog = fileDialog;
             _messageDialog = messageDialog;
+            _buildDialog = buildDialog;
             _victoryThemeGenerator = victoryThemeGenerator;
             _logger = logger;
             _defaultVolume = RoundVolume((float)config.CurrentValue.Sma5hMusicGUI.DefaultSongVolume);
@@ -149,6 +152,9 @@ namespace Sma5hMusic.GUI.ViewModels
             try
             {
                 var entries = ValidateEntries();
+                if (!await _buildDialog.EnsureArcOutputIsClean())
+                    return;
+
                 IsGenerating = true;
                 Action<int, int, string> normalizationProgress = null;
                 if (entries.Any(p => p.ApplyNormalization))
@@ -408,13 +414,13 @@ namespace Sma5hMusic.GUI.ViewModels
                 throw new InvalidOperationException("Enter a Tone ID.");
 
             if (toneId.Length > MusicConstants.GameResources.ToneIdMaximumSize)
-                throw new InvalidOperationException($"Tone ID '{toneId}' is too long. Maximum is {MusicConstants.GameResources.ToneIdMaximumSize}.");
+                throw new InvalidOperationException($"The ToneId is too long. Maximum is {MusicConstants.GameResources.ToneIdMaximumSize}");
 
             if (toneId.Length < MusicConstants.GameResources.ToneIdMinimumSize)
-                throw new InvalidOperationException($"Tone ID '{toneId}' is too short. Minimum is {MusicConstants.GameResources.ToneIdMinimumSize}.");
+                throw new InvalidOperationException($"The ToneId is too short. Minimum is {MusicConstants.GameResources.ToneIdMinimumSize}");
 
             if (!ToneIdRegex.IsMatch(toneId))
-                throw new InvalidOperationException($"Tone ID '{toneId}' can only contain lowercase letters, digits and underscore.");
+                throw new InvalidOperationException("The ToneId can only contain lowercase letters, digits and underscore.");
         }
 
         private static void ClearDirectory(string path)
@@ -591,6 +597,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private VictoryThemeFighterOption _selectedFighter;
         private string _customName;
         private string _toneId;
+        private string _toneIdValidationError;
         private bool _useDefaultName = true;
         private float _volume = 2.7f;
 
@@ -654,11 +661,15 @@ namespace Sma5hMusic.GUI.ViewModels
             get => _toneId;
             set
             {
-                var limitedValue = value?.Length > ToneIdMaximumSize
-                    ? value.Substring(0, ToneIdMaximumSize)
-                    : value;
-                this.RaiseAndSetIfChanged(ref _toneId, limitedValue);
+                this.RaiseAndSetIfChanged(ref _toneId, value);
+                ToneIdValidationError = GetToneIdValidationError(value);
             }
+        }
+
+        public string ToneIdValidationError
+        {
+            get => _toneIdValidationError;
+            private set => this.RaiseAndSetIfChanged(ref _toneIdValidationError, value);
         }
 
         [Reactive]
@@ -694,6 +705,23 @@ namespace Sma5hMusic.GUI.ViewModels
                 ? SelectedFighter.CharaName
                 : name;
             ToneId = string.IsNullOrWhiteSpace(customName) ? string.Empty : $"zzc_f_{customName}";
+        }
+
+        private static string GetToneIdValidationError(string toneId)
+        {
+            if (string.IsNullOrWhiteSpace(toneId))
+                return "Enter a Tone ID.";
+
+            if (!Regex.IsMatch(toneId, @"^[a-z0-9_]+$"))
+                return "The ToneId can only contain lowercase letters, digits and underscore.";
+
+            if (toneId.Length > ToneIdMaximumSize)
+                return $"The ToneId is too long. Maximum is {ToneIdMaximumSize}";
+
+            if (toneId.Length < MusicConstants.GameResources.ToneIdMinimumSize)
+                return $"The ToneId is too short. Minimum is {MusicConstants.GameResources.ToneIdMinimumSize}";
+
+            return string.Empty;
         }
 
         private static string SanitizeIdPart(string value)

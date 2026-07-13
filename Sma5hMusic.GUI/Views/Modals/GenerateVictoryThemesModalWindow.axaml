@@ -103,18 +103,21 @@
                   <StackPanel Grid.Row="2"
                               Grid.Column="0"
                               Grid.ColumnSpan="4"
-                              Orientation="Horizontal"
                               Margin="6,8,6,0"
-                              Spacing="8"
-                              VerticalAlignment="Center">
-                    <TextBlock Text="Tone ID" VerticalAlignment="Center"/>
-                    <TextBox MinWidth="360"
-                             MaxWidth="460"
-                             ClipToBounds="True"
-                             TextWrapping="NoWrap"
-                             MaxLength="47"
-                             Text="{Binding ToneId, Mode=TwoWay}"
-                             IsEnabled="{Binding IsToneIdEnabled}" />
+                              Spacing="4">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                VerticalAlignment="Center">
+                      <TextBlock Text="Tone ID" VerticalAlignment="Center"/>
+                      <TextBox MinWidth="360"
+                               MaxWidth="460"
+                               ClipToBounds="True"
+                               TextWrapping="NoWrap"
+                               Text="{Binding ToneId, Mode=TwoWay}"
+                               IsEnabled="{Binding IsToneIdEnabled}" />
+                    </StackPanel>
+                    <TextBlock Classes="error"
+                               Text="{Binding ToneIdValidationError}" />
                   </StackPanel>
                 </Grid>
               </Border>
