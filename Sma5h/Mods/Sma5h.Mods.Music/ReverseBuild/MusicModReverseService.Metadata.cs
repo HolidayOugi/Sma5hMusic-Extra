@@ -21,8 +21,15 @@ namespace Sma5h.Mods.Music.ReverseBuild
             string modName,
             MusicModInformation modInformation)
         {
-            var newBgmIds = output.BgmDbRootEntries.Keys.Except(core.BgmDbRootEntries.Keys).OrderBy(p => p).ToList();
-            _logger.LogInformation("Reverse MusicMod: found {BgmCount} new BGM entry/entries.", newBgmIds.Count);
+            //added songs + replacement core songs
+            var replacementBgmIds = GetReplacementCoreBgmIds(core, outputPath);
+            var bgmIds = output.BgmDbRootEntries.Keys
+                .Except(core.BgmDbRootEntries.Keys)
+                .Concat(replacementBgmIds)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => p)
+                .ToList();
+            _logger.LogInformation("Reverse MusicMod: found {BgmCount} BGM entry/entries, including {ReplacementCount} replacement core song(s).", bgmIds.Count, replacementBgmIds.Count);
 
             //create new mod from folder name
             var metadata = new MusicModConfig(Guid.NewGuid().ToString())
@@ -39,7 +46,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var seriesById = new Dictionary<string, SeriesConfig>();
             var gameById = new Dictionary<string, GameConfig>();
 
-            foreach (var uiBgmId in newBgmIds)
+            foreach (var uiBgmId in bgmIds)
             {
                 var dbRoot = output.BgmDbRootEntries[uiBgmId];
                 if (!output.GameTitleEntries.TryGetValue(dbRoot.UiGameTitleId, out var gameTitle))
@@ -162,7 +169,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             return null;
         }
 
-        private static void CopyNus3Audio(string outputPath, string toneId, string destinationFile)
+        private void CopyNus3Audio(string outputPath, string toneId, string destinationFile)
         {
             var sourceFile = Path.Combine(outputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, toneId));
             if (!File.Exists(sourceFile))
@@ -170,6 +177,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
             File.Copy(sourceFile, destinationFile, true);
+            _logger.LogInformation("Reverse MusicMod: copied {SourceFile} to {DestinationFile}.", sourceFile, destinationFile);
         }
 
         private static float ReadNus3BankVolume(string outputPath, string toneId)
@@ -184,6 +192,28 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 return 2.7f;
 
             return (float)Math.Round(BitConverter.ToSingle(bytes, matches[1] + 4), 2, MidpointRounding.AwayFromZero);
+        }
+
+        private static List<string> GetReplacementCoreBgmIds(ResourceSnapshot core, string outputPath)
+        {
+            var bgmPath = Path.Combine(outputPath, "stream;", "sound", "bgm");
+            if (!Directory.Exists(bgmPath))
+                return new List<string>();
+
+            //check if core replacement
+            var output = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in Directory.EnumerateFiles(bgmPath, "*.nus3audio"))
+            {
+                var toneId = Path.GetFileNameWithoutExtension(file);
+                if (toneId.StartsWith(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX, StringComparison.OrdinalIgnoreCase))
+                    toneId = toneId.Substring(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX.Length);
+
+                var uiBgmId = $"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}";
+                if (core.BgmDbRootEntries.ContainsKey(uiBgmId))
+                    output.Add(uiBgmId);
+            }
+
+            return output.ToList();
         }
 
         private static IEnumerable<int> Locate(byte[] haystack, byte[] needle)

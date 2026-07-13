@@ -1,4 +1,5 @@
 using paracobNET;
+using Microsoft.Extensions.Logging;
 using Sma5h.Data;
 using Sma5h.Data.Ui.Param.Database;
 using Sma5h.Helpers;
@@ -19,23 +20,25 @@ namespace Sma5h.Mods.Music.ReverseBuild
     {
         private ResourceSnapshot LoadSnapshot(string rootPath, string fallbackRootPath = null)
         {
-            var bgmDbPath = Path.Combine(rootPath, PrcExtConstants.PRC_UI_BGM_DB_PATH);
-            EnsureSnapshotFileExists(bgmDbPath);
-
             //loads either from build or resources
+            var bgmDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_BGM_DB_PATH, fallbackRootPath);
             var gameTitleDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_GAMETITLE_DB_PATH, fallbackRootPath);
             var seriesDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_SERIES_DB_PATH, fallbackRootPath);
             var stageDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_STAGE_DB_PATH, fallbackRootPath);
-            var bgmPropertyPath = ResolveSnapshotFilePath(rootPath, BgmPropertyFileConstants.BGM_PROPERTY_PATH, fallbackRootPath);
+            var bgmPropertyPath = Path.Combine(rootPath, BgmPropertyFileConstants.BGM_PROPERTY_PATH);
 
             //read build files
             var bgmDb = _prcProvider.ReadFile<PrcUiBgmDatabase>(bgmDbPath, true);
             var gameTitleDb = _prcProvider.ReadFile<PrcUiGameTitleDatabase>(gameTitleDbPath);
             var seriesDb = ReadSeriesDatabase(seriesDbPath);
             var stageDb = _prcProvider.ReadFile<PrcUiStageDatabase>(stageDbPath);
-            var bgmProperty = _bgmPropertyProvider.ReadFile<BinBgmProperty>(bgmPropertyPath);
+            var bgmProperty = File.Exists(bgmPropertyPath)
+                ? _bgmPropertyProvider.ReadFile<BinBgmProperty>(bgmPropertyPath)
+                : null;
+            if (bgmProperty != null && !string.IsNullOrWhiteSpace(fallbackRootPath))
+                _logger.LogInformation("Reverse MusicMod: loaded {RelativePath} from output: {Path}.", BgmPropertyFileConstants.BGM_PROPERTY_PATH, bgmPropertyPath);
 
-            if (bgmDb == null || gameTitleDb == null || seriesDb == null || stageDb == null || bgmProperty == null)
+            if (bgmDb == null || gameTitleDb == null || seriesDb == null || stageDb == null)
                 throw new InvalidOperationException($"Could not read required music resources from {rootPath}.");
 
             var snapshot = new ResourceSnapshot();
@@ -137,12 +140,54 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
         private void LoadBgmPropertyEntries(ResourceSnapshot snapshot, string rootPath, BinBgmProperty bgmProperty, List<string> toneIds)
         {
+            if (bgmProperty == null)
+            {
+                //if bgm property is missing, try to read info from nus3audio files in the bgm folder
+                LoadBgmPropertyEntriesFromAudioFallback(snapshot, rootPath);
+                return;
+            }
+
             foreach (var value in bgmProperty.Entries.Values)
             {
                 //generate bgm property nameID from tone ID
                 value.NameId = ResolveGeneratedId(value.NameId, toneIds, string.Empty);
                 var filename = Path.Combine(rootPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, value.NameId));
                 snapshot.BgmPropertyEntries.Add(value.NameId, _mapper.Map(value, new BgmPropertyEntry(value.NameId, filename)));
+            }
+        }
+
+        private void LoadBgmPropertyEntriesFromAudioFallback(ResourceSnapshot snapshot, string rootPath)
+        {
+            var bgmPath = Path.Combine(rootPath, "stream;", "sound", "bgm");
+            if (!Directory.Exists(bgmPath))
+                return;
+
+            foreach (var file in Directory.EnumerateFiles(bgmPath, "*.nus3audio"))
+            {
+                //get nameID from nus3audio filename
+                var nameId = Path.GetFileNameWithoutExtension(file);
+                if (nameId.StartsWith(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX, StringComparison.OrdinalIgnoreCase))
+                    nameId = nameId.Substring(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX.Length);
+                if (nameId.StartsWith(MusicConstants.InternalIds.UI_BGM_ID_PREFIX, StringComparison.OrdinalIgnoreCase))
+                    nameId = nameId.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length);
+
+                //read audio metadata from nus3audio file
+                _logger.LogInformation("Reverse MusicMod: scanning {AudioFile} with vgmstream.", file);
+                var audioCuePoints = _audioMetadataService.GetCuePoints(file).GetAwaiter().GetResult();
+                if (audioCuePoints == null || audioCuePoints.TotalSamples == 0)
+                    throw new InvalidOperationException($"Could not read audio metadata from '{Path.GetFileName(file)}'.");
+
+                var entry = new BgmPropertyEntry(nameId, file)
+                {
+                    TotalSamples = audioCuePoints.TotalSamples,
+                    TotalTimeMs = audioCuePoints.TotalTimeMs,
+                    LoopStartSample = audioCuePoints.LoopStartSample,
+                    LoopEndSample = audioCuePoints.LoopEndSample,
+                    LoopStartMs = audioCuePoints.LoopStartMs,
+                    LoopEndMs = audioCuePoints.LoopEndMs
+                };
+
+                snapshot.BgmPropertyEntries[nameId] = entry;
             }
         }
 
@@ -275,17 +320,26 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 throw new FileNotFoundException($"Required music resource file was not found: {file}", file);
         }
 
-        private static string ResolveSnapshotFilePath(string rootPath, string relativePath, string fallbackRootPath)
+        private string ResolveSnapshotFilePath(string rootPath, string relativePath, string fallbackRootPath)
         {
+            //if it exists, read from the build output
             var path = Path.Combine(rootPath, relativePath);
             if (File.Exists(path))
+            {
+                if (!string.IsNullOrWhiteSpace(fallbackRootPath))
+                    _logger.LogInformation("Reverse MusicMod: loaded {RelativePath} from output: {Path}.", relativePath, path);
                 return path;
+            }
 
+            //else read from the core resources
             if (!string.IsNullOrWhiteSpace(fallbackRootPath))
             {
                 var fallbackPath = Path.Combine(fallbackRootPath, relativePath);
                 if (File.Exists(fallbackPath))
+                {
+                    _logger.LogInformation("Reverse MusicMod: loaded {RelativePath} from fallback: {Path}.", relativePath, fallbackPath);
                     return fallbackPath;
+                }
             }
 
             throw new FileNotFoundException($"Required music resource file was not found: {path}", path);
@@ -297,18 +351,34 @@ namespace Sma5h.Mods.Music.ReverseBuild
             foreach (var locale in LocaleHelper.ValidLocales)
             {
                 var file = Path.Combine(rootPath, string.Format(resourcePattern, locale));
+                //if only msg_title or msg_bgm exist, use them for every locale
+                if (!File.Exists(file))
+                {
+                    var defaultFile = Path.Combine(rootPath, string.Format(resourcePattern, string.Empty).Replace("+.msbt", ".msbt"));
+                    if (File.Exists(defaultFile))
+                        file = defaultFile;
+                }
+
+                //use core fallback if either file is missing in the build output
                 if (!File.Exists(file) && !string.IsNullOrWhiteSpace(fallbackRootPath))
                     file = Path.Combine(fallbackRootPath, string.Format(resourcePattern, locale));
 
                 if (File.Exists(file))
+                {
+                    if (!string.IsNullOrWhiteSpace(fallbackRootPath))
+                    {
+                        var source = file.StartsWith(fallbackRootPath, StringComparison.OrdinalIgnoreCase) ? "fallback" : "output";
+                        _logger.LogInformation("Reverse MusicMod: loaded {ResourcePattern} locale {Locale} from {Source}: {Path}.", resourcePattern, locale, source, file);
+                    }
                     output.Add(locale, _msbtProvider.ReadFile<MsbtDatabase>(file));
+                }
             }
             return output;
         }
 
         private static List<string> GetToneIds(string rootPath, BinBgmProperty bgmProperty)
         {
-            var toneIds = new HashSet<string>(bgmProperty.Entries.Keys.Where(p => !string.IsNullOrEmpty(p)));
+            var toneIds = new HashSet<string>(bgmProperty?.Entries?.Keys.Where(p => !string.IsNullOrEmpty(p)) ?? Enumerable.Empty<string>());
             var bgmPath = Path.Combine(rootPath, "stream;", "sound", "bgm");
             if (Directory.Exists(bgmPath))
             {

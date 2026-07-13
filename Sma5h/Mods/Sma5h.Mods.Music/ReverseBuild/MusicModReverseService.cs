@@ -1,6 +1,8 @@
 using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Sma5h;
 using Sma5h.Interfaces;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
@@ -21,14 +23,18 @@ namespace Sma5h.Mods.Music.ReverseBuild
         private readonly ILogger _logger;
         private readonly IMapper _mapper;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IOptionsMonitor<Sma5hOptions> _config;
+        private readonly IAudioMetadataService _audioMetadataService;
         private PrcResourceProvider _prcProvider;
         private MsbtResourceProvider _msbtProvider;
         private BgmPropertyProvider _bgmPropertyProvider;
 
-        public MusicModReverseService(IServiceProvider serviceProvider, IMapper mapper, ILogger<MusicModReverseService> logger)
+        public MusicModReverseService(IServiceProvider serviceProvider, IMapper mapper, IOptionsMonitor<Sma5hOptions> config, IAudioMetadataService audioMetadataService, ILogger<MusicModReverseService> logger)
         {
             _logger = logger;
             _mapper = mapper;
+            _config = config;
+            _audioMetadataService = audioMetadataService;
             _serviceProvider = serviceProvider;
         }
 
@@ -59,7 +65,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             Directory.CreateDirectory(overrideOutputPath);
 
             var metadata = GenerateMetadata(core, output, outputPath, modOutputPath, modName, modInformation);
-            GenerateCoreBgmOverride(core, output, overrideOutputPath);
+            GenerateCoreBgmOverride(core, output, outputPath, overrideOutputPath);
             GenerateCoreGameOverride(core, output, overrideOutputPath);
             GenerateCoreSeriesOverride(core, output, overrideOutputPath);
             GenerateOrderOverride(core, output, overrideOutputPath);

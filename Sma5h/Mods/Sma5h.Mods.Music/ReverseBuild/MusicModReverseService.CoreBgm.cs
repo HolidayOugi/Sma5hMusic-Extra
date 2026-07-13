@@ -3,24 +3,30 @@ using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.MusicMods.MusicModModels;
 using Sma5h.Mods.Music.MusicOverride.MusicOverrideConfigModels;
 using Sma5h.Mods.Music.Models;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 
 namespace Sma5h.Mods.Music.ReverseBuild
 {
     public partial class MusicModReverseService
     {
-        private void GenerateCoreBgmOverride(ResourceSnapshot core, ResourceSnapshot output, string overrideOutputPath)
+        private void GenerateCoreBgmOverride(ResourceSnapshot core, ResourceSnapshot output, string outputPath, string overrideOutputPath)
         {
             var newValues = new CoreBgmOverrides();
+            var replacementBgmIds = new HashSet<string>(GetReplacementCoreBgmIds(core, outputPath), StringComparer.OrdinalIgnoreCase);
 
             foreach (var outputDbRoot in output.BgmDbRootEntries)
             {
                 if (!core.BgmDbRootEntries.ContainsKey(outputDbRoot.Key))
                     continue;
                 //if there are changes to core songs, add them to override
-                AddCoreBgmOverrideIfChanged(core, output, outputDbRoot.Key, newValues);
+                AddCoreBgmOverrideIfChanged(core, output, outputDbRoot.Key, newValues, replacementBgmIds.Contains(outputDbRoot.Key));
             }
+            //check if there are nus3bank volume changes for core bgms
+            AddCoreBgmVolumeOverrides(core, outputPath, newValues);
 
             if (!HasCoreBgmValues(newValues))
                 return;
@@ -33,7 +39,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             _logger.LogInformation("Reverse MusicMod: wrote {OverridePath}.", path);
         }
 
-        private void AddCoreBgmOverrideIfChanged(ResourceSnapshot core, ResourceSnapshot output, string uiBgmId, CoreBgmOverrides newValues)
+        private void AddCoreBgmOverrideIfChanged(ResourceSnapshot core, ResourceSnapshot output, string uiBgmId, CoreBgmOverrides newValues, bool force)
         {
             var outputDbRoot = output.BgmDbRootEntries[uiBgmId];
             var outputStreamSet = output.StreamSetEntries.GetValueOrDefault(outputDbRoot.StreamSetId);
@@ -52,7 +58,8 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var streamPropertyChanged = IsCoreBgmConfigChanged<BgmStreamPropertyEntry, BgmStreamPropertyConfig>(core.StreamPropertyEntries, outputStreamProperty.StreamId, outputStreamProperty);
             var bgmPropertyChanged = IsCoreBgmConfigChanged<BgmPropertyEntry, BgmPropertyEntryConfig>(core.BgmPropertyEntries, outputBgmProperty.NameId, outputBgmProperty);
 
-            if (!dbRootChanged && !streamSetChanged && !assignedInfoChanged && !streamPropertyChanged && !bgmPropertyChanged)
+            //force for core replacements
+            if (!force && !dbRootChanged && !streamSetChanged && !assignedInfoChanged && !streamPropertyChanged && !bgmPropertyChanged)
                 return;
 
             newValues.CoreBgmDbRootOverrides[uiBgmId] = _mapper.Map<BgmDbRootConfig>(outputDbRoot);
@@ -93,6 +100,8 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 target.CoreBgmStreamPropertyOverrides[value.Key] = value.Value;
             foreach (var value in source.CoreBgmPropertyOverrides)
                 target.CoreBgmPropertyOverrides[value.Key] = value.Value;
+            foreach (var value in source.CoreBgmVolumeOverrides)
+                target.CoreBgmVolumeOverrides[value.Key] = value.Value;
         }
 
         private static bool HasCoreBgmValues(CoreBgmOverrides values)
@@ -102,7 +111,8 @@ namespace Sma5h.Mods.Music.ReverseBuild
                    values.CoreBgmStreamSetOverrides.Count > 0 ||
                    values.CoreBgmAssignedInfoOverrides.Count > 0 ||
                    values.CoreBgmStreamPropertyOverrides.Count > 0 ||
-                   values.CoreBgmPropertyOverrides.Count > 0;
+                   values.CoreBgmPropertyOverrides.Count > 0 ||
+                   values.CoreBgmVolumeOverrides.Count > 0;
         }
 
         private static void EnsureCoreBgmOverrides(CoreBgmOverrides values)
@@ -112,6 +122,72 @@ namespace Sma5h.Mods.Music.ReverseBuild
             values.CoreBgmAssignedInfoOverrides ??= new Dictionary<string, BgmAssignedInfoConfig>();
             values.CoreBgmStreamPropertyOverrides ??= new Dictionary<string, BgmStreamPropertyConfig>();
             values.CoreBgmPropertyOverrides ??= new Dictionary<string, BgmPropertyEntryConfig>();
+            values.CoreBgmVolumeOverrides ??= new Dictionary<string, CoreBgmVolumeConfig>();
+        }
+
+        private void AddCoreBgmVolumeOverrides(ResourceSnapshot core, string outputPath, CoreBgmOverrides newValues)
+        {
+            var bgmPath = Path.Combine(outputPath, "stream;", "sound", "bgm");
+            if (!Directory.Exists(bgmPath))
+                return;
+
+            //load original volumes from csv
+            var originalVolumes = GetCoreNus3BankVolumes();
+            foreach (var file in Directory.EnumerateFiles(bgmPath, "*.nus3bank"))
+            {
+                var toneId = Path.GetFileNameWithoutExtension(file);
+                if (toneId.StartsWith(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX, StringComparison.OrdinalIgnoreCase))
+                    toneId = toneId.Substring(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX.Length);
+
+                //check if core song
+                var uiBgmId = $"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}";
+                if (!core.BgmDbRootEntries.ContainsKey(uiBgmId))
+                    continue;
+                if (!originalVolumes.TryGetValue(toneId, out var originalVolume))
+                    continue;
+
+                //add entry to core bgm volume override
+                newValues.CoreBgmVolumeOverrides[toneId] = new CoreBgmVolumeConfig
+                {
+                    NameId = toneId,
+                    OriginalVolume = originalVolume,
+                    Volume = ReadNus3BankVolume(outputPath, toneId)
+                };
+            }
+        }
+
+        private Dictionary<string, float> GetCoreNus3BankVolumes()
+        {
+            var output = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            var path = Path.Combine(_config.CurrentValue.ResourcesPath, MusicConstants.Resources.NUS3BANK_IDS_FILE);
+            if (!File.Exists(path))
+                return output;
+
+            var lines = File.ReadLines(path).ToList();
+            if (lines.Count == 0)
+                return output;
+
+            var headers = lines[0].Split(',').Select(p => p.Replace(" ", string.Empty)).ToList();
+            var nameIndex = headers.IndexOf("NUS3BankName");
+            var volumeIndex = headers.IndexOf("Volume");
+            if (nameIndex < 0 || volumeIndex < 0)
+                return output;
+
+            foreach (var line in lines.Skip(1))
+            {
+                var values = line.Split(',');
+                if (values.Length <= Math.Max(nameIndex, volumeIndex) ||
+                    !float.TryParse(values[volumeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var volume))
+                    continue;
+
+                var name = values[nameIndex].Trim();
+                if (name.StartsWith(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX, StringComparison.OrdinalIgnoreCase))
+                    name = name.Substring(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX.Length);
+                if (!string.IsNullOrEmpty(name))
+                    output[name] = volume;
+            }
+
+            return output;
         }
     }
 }

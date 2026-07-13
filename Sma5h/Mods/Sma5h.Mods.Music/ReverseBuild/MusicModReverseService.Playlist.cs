@@ -32,7 +32,10 @@ namespace Sma5h.Mods.Music.ReverseBuild
         {
             var playlistConfig = _mapper.Map<PlaylistConfig>(playlistEntry);
             if (string.IsNullOrWhiteSpace(playlistConfig.Title))
-                playlistConfig.Title = string.IsNullOrWhiteSpace(existingTitle) ? playlistEntry.Id : existingTitle;
+                //get title from music constants if available
+                playlistConfig.Title = MusicConstants.CONVERTER_CORE_PLAYLISTS.TryGetValue(playlistEntry.Id, out var title)
+                    ? title
+                    : string.IsNullOrWhiteSpace(existingTitle) ? playlistEntry.Id : existingTitle;
 
             return playlistConfig;
         }

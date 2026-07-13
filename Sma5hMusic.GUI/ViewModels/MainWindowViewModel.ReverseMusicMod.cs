@@ -39,7 +39,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     _logger.LogWarning("Generate Mod from build files rejected invalid folder: {BuildFolder}", buildFolder);
                     await _messageDialog.ShowError(
                         "Generate Mod from build files",
-                        $"The selected folder does not look like a Sma5hMusic build output.\r\nIt must contain sound, stream; and ui folders:\r\n{buildFolder}");
+                        $"The selected folder does not look like a Sma5hMusic build output.\r\nIt must contain a stream; folder:\r\n{buildFolder}");
                     return;
                 }
 
@@ -101,11 +101,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private static bool IsValidMusicBuildFolder(string buildFolder)
         {
-            return Directory.Exists(Path.Combine(buildFolder, "sound")) &&
-                   Directory.Exists(Path.Combine(buildFolder, "stream;")) &&
-                   Directory.Exists(Path.Combine(buildFolder, "ui")) &&
-                   File.Exists(Path.Combine(buildFolder, "sound", "config", "bgm_property.bin")) &&
-                   File.Exists(Path.Combine(buildFolder, "ui", "param", "database", "ui_bgm_db.prc"));
+            return Directory.Exists(Path.Combine(buildFolder, "stream;"));
         }
 
         private static int CountSongs(Sma5h.Mods.Music.MusicMods.MusicModModels.MusicModConfig metadata)
