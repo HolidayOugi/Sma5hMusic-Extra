@@ -22,11 +22,15 @@ namespace Sma5h.Mods.Music.ReverseBuild
             {
                 if (!core.BgmDbRootEntries.ContainsKey(outputDbRoot.Key))
                     continue;
+
+                if (replacementBgmIds.Contains(outputDbRoot.Key))
+                    continue;
+
                 //if there are changes to core songs, add them to override
-                AddCoreBgmOverrideIfChanged(core, output, outputDbRoot.Key, newValues, replacementBgmIds.Contains(outputDbRoot.Key));
+                AddCoreBgmOverrideIfChanged(core, output, outputDbRoot.Key, newValues);
             }
             //check if there are nus3bank volume changes for core bgms
-            AddCoreBgmVolumeOverrides(core, outputPath, newValues);
+            AddCoreBgmVolumeOverrides(core, outputPath, replacementBgmIds, newValues);
 
             if (!HasCoreBgmValues(newValues))
                 return;
@@ -39,7 +43,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             _logger.LogInformation("Reverse MusicMod: wrote {OverridePath}.", path);
         }
 
-        private void AddCoreBgmOverrideIfChanged(ResourceSnapshot core, ResourceSnapshot output, string uiBgmId, CoreBgmOverrides newValues, bool force)
+        private void AddCoreBgmOverrideIfChanged(ResourceSnapshot core, ResourceSnapshot output, string uiBgmId, CoreBgmOverrides newValues)
         {
             var outputDbRoot = output.BgmDbRootEntries[uiBgmId];
             var outputStreamSet = output.StreamSetEntries.GetValueOrDefault(outputDbRoot.StreamSetId);
@@ -58,8 +62,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             var streamPropertyChanged = IsCoreBgmConfigChanged<BgmStreamPropertyEntry, BgmStreamPropertyConfig>(core.StreamPropertyEntries, outputStreamProperty.StreamId, outputStreamProperty);
             var bgmPropertyChanged = IsCoreBgmConfigChanged<BgmPropertyEntry, BgmPropertyEntryConfig>(core.BgmPropertyEntries, outputBgmProperty.NameId, outputBgmProperty);
 
-            //force for core replacements
-            if (!force && !dbRootChanged && !streamSetChanged && !assignedInfoChanged && !streamPropertyChanged && !bgmPropertyChanged)
+            if (!dbRootChanged && !streamSetChanged && !assignedInfoChanged && !streamPropertyChanged && !bgmPropertyChanged)
                 return;
 
             newValues.CoreBgmDbRootOverrides[uiBgmId] = _mapper.Map<BgmDbRootConfig>(outputDbRoot);
@@ -125,7 +128,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
             values.CoreBgmVolumeOverrides ??= new Dictionary<string, CoreBgmVolumeConfig>();
         }
 
-        private void AddCoreBgmVolumeOverrides(ResourceSnapshot core, string outputPath, CoreBgmOverrides newValues)
+        private void AddCoreBgmVolumeOverrides(ResourceSnapshot core, string outputPath, HashSet<string> replacementBgmIds, CoreBgmOverrides newValues)
         {
             var bgmPath = Path.Combine(outputPath, "stream;", "sound", "bgm");
             if (!Directory.Exists(bgmPath))
@@ -142,6 +145,8 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 //check if core song
                 var uiBgmId = $"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}";
                 if (!core.BgmDbRootEntries.ContainsKey(uiBgmId))
+                    continue;
+                if (replacementBgmIds.Contains(uiBgmId))
                     continue;
                 if (!originalVolumes.TryGetValue(toneId, out var originalVolume))
                     continue;

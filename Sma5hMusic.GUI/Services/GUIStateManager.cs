@@ -105,6 +105,10 @@ namespace Sma5hMusic.GUI.Services
                 if (!await PersistMusicModEntryChanges(musicModEntries, musicMod))
                     throw new Exception($"At least one entry could not be added to the mod.\r\nPlease check the logs.");
 
+                //remove core BGM override entries when adding a replacement song
+                if (!_sma5hMusicOverride.DeleteCoreBgmEntries(musicModEntries.GetMusicModDeleteEntries()))
+                    throw new Exception($"The matching core BGM override entries could not be removed.\r\nPlease check the logs.");
+
                 if (!ApplyCoreReplacementToStateAndViewModels(musicModEntries))
                     throw new Exception($"The core replacement could not be applied to the current state.\r\nPlease check the logs.");
 
