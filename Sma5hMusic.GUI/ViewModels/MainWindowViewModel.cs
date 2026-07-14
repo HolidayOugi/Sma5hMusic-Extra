@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using VGMMusic;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
@@ -531,7 +532,8 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             if (vmBgmEntry != null)
             {
-                var result = await _messageDialog.ShowWarningConfirm($"Delete '{vmBgmEntry.Title}'?", "Do you really want to remove this song?\r\nIf it's a Core song, this could cause unknown issues. Prefer hiding the song instead.");
+                var title = GetPlainTitle(vmBgmEntry.Title);
+                var result = await _messageDialog.ShowWarningConfirm($"Delete '{title}'?", "Do you really want to remove this song?\r\nIf it's a Core song, this could cause unknown issues. Prefer hiding the song instead.");
 
                 if (result)
                 {
@@ -553,6 +555,15 @@ namespace Sma5hMusic.GUI.ViewModels
                     }
                 }
             }
+        }
+
+        private static string GetPlainTitle(string title)
+        {
+            if (string.IsNullOrEmpty(title))
+                return title;
+
+            title = title.Replace("{{", string.Empty).Replace("}}", string.Empty);
+            return Regex.Replace(title, @"<[/\\]?color(?:=[^>]+)?>", string.Empty, RegexOptions.IgnoreCase);
         }
 
         public async Task DeleteBgmEntries(List<BgmDbRootEntryViewModel> vmBgmEntries)
