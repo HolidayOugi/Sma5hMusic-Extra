@@ -453,7 +453,7 @@ namespace Sma5h.Mods.Music
         private bool ProcessSeriesOrderAutoMapping()
         {
             var series = _audioStateService.GetSeriesEntries().Where(s => s.DispOrderSound > -1).ToDictionary(p => p.UiSeriesId, p => p);
-            sbyte i = 0;
+            var i = GetStartingOrderForSeries();
 
             var sortedGames = _audioStateService.GetBgmDbRootEntries()
                 .Where(p => p.TestDispOrder >= 0)
@@ -475,6 +475,12 @@ namespace Sma5h.Mods.Music
             }
 
             return true;
+        }
+
+        private sbyte GetStartingOrderForSeries()
+        {
+            var value = _config.CurrentValue.Sma5hMusicGUI?.StartingOrderForSeries ?? 1;
+            return (sbyte)Math.Clamp(value, 0, 39);
         }
 
         private void CheckBuildSpecialCategory()

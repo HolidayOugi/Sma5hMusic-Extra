@@ -128,7 +128,7 @@
             </fields:PropertyField>
           </Grid>
           <Grid ColumnDefinitions="*,*">
-            <fields:PropertyField Grid.Column="0" Label="Starting Order for Series" ToolTip="Starting disp_order_sound value used in a CSK Pack build.">
+            <fields:PropertyField Grid.Column="0" Label="Starting Order for Series" ToolTip="Starting disp_order_sound value used when building series order.">
               <fields:PropertyField.FieldContent>
                 <NumericUpDown Value="{Binding SelectedItem.StartingOrderForSeries, Mode=TwoWay}" Minimum="0" Maximum="39" Increment="1"/>
               </fields:PropertyField.FieldContent>

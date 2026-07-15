@@ -168,6 +168,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 : new List<string> { $"bgm{seriesName}" };
         }
 
+        private bool IsManualPlaylistGeneration()
+        {
+            return _config.CurrentValue.Sma5hMusic?.PlaylistMapping?.GenerationMode == Sma5hMusicOptions.PlaylistGeneration.Manual;
+        }
+
         private int AddToPlaylists(string uiBgmId, JObject songData, JObject playlistOverride, string seriesName, int orderCounter)
         {
             var found = false;
@@ -210,7 +215,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .FirstOrDefault(p => GetString(p, "ui_bgm_id") == uiBgmId) as JObject;
 
             //if bgm not found we try to add it to a fallback playlist (bgmseries for vanilla, battlefield for custom)
-            if (!found && currentEntry != null && GetInt(currentEntry, "test_disp_order", -1) != -1)
+            if (!found && !IsManualPlaylistGeneration() && currentEntry != null && GetInt(currentEntry, "test_disp_order", -1) != -1)
             {
                 foreach (var fallbackPlaylistId in GetFallbackPlaylistIds(seriesName))
                 {

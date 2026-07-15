@@ -32,6 +32,7 @@ namespace Sma5h.Mods.Music
         {
             public bool BuildNus3bankForCoreSongs { get; set; }
             public bool SaveOutputToSubfolder { get; set; }
+            public int StartingOrderForSeries { get; set; }
         }
 
         public enum PlaylistGeneration
