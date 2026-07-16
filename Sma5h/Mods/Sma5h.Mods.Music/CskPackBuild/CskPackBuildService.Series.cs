@@ -52,6 +52,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private void GenerateVanillaSongsChangesPack(
             List<CskModContext> contexts,
             string outputRoot,
+            HashSet<string> selectedSeriesKeys,
             string generatedBgmFolder,
             CskBuildResources buildResources,
             bool includeAudio)
@@ -67,7 +68,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var msgBgmEntries = new List<string>();
             var msgTitleEntries = new List<string>();
 
-            if (!AddVanillaSongsChanges(contexts, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio))
+            if (!AddVanillaSongsChanges(contexts, selectedSeriesKeys, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio))
                 return;
 
             if (GetArray(songData, "bgm_database_entries").Count > 0)
@@ -95,6 +96,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private bool AddVanillaSongsChanges(
             List<CskModContext> contexts,
+            HashSet<string> selectedSeriesKeys,
             JObject songData,
             List<string> msgBgmEntries,
             List<string> msgTitleEntries,
@@ -110,13 +112,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var msgBgmCount = msgBgmEntries.Count;
             var msgTitleCount = msgTitleEntries.Count;
             var copiedAudio = false;
-            //get series already covered
-            var coveredSeriesNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var context in contexts)
-            {
-                foreach (var series in context.SeriesList)
-                    coveredSeriesNames.Add(GetString(series, "name_id"));
-            }
+            //get all games already covered by the selected series
+            var selectedGameTitleIds = GetSelectedGameTitleIds(contexts, selectedSeriesKeys ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
             var dbRoots = buildResources.CoreBgmOverride["CoreBgmDbRootOverrides"] as JObject ?? new JObject();
 
@@ -127,10 +124,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 if (string.IsNullOrEmpty(uiBgmId))
                     continue;
 
-                //ignore if already covered
                 var uiGameTitleId = GetString(db, "ui_gametitle_id");
-                if (buildResources.CoreGameSeriesById.TryGetValue(uiGameTitleId, out var seriesName) &&
-                    coveredSeriesNames.Contains(seriesName))
+                if (selectedGameTitleIds.Contains(uiGameTitleId))
                     continue;
 
                 var bgmDbRootEntry = _audioStateService.GetBgmDbRootEntries()
@@ -161,6 +156,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var gameTitle = GetLocalizedString(game?["msbt_title"]);
                 if (!string.IsNullOrEmpty(gameTitle))
                     AddUniqueMessage(msgTitleEntries, $"tit_{GetString(game, "name_id")}", gameTitle);
+
+                //add game title entry if custom
+                AddNonCoreGameTitleEntry(songData, msgTitleEntries, uiGameTitleId);
             }
 
             //write nus3bank for volume overrides
@@ -169,8 +167,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var db = GetOriginalCoreDbRootByNameId(p.NameId);
                     return db != null &&
-                           (!buildResources.CoreGameSeriesById.TryGetValue(db.UiGameTitleId, out var seriesName) ||
-                            !coveredSeriesNames.Contains(seriesName));
+                           !selectedGameTitleIds.Contains(db.UiGameTitleId);
                 })
                 .ToList();
 
@@ -193,6 +190,51 @@ namespace Sma5h.Mods.Music.CskPackBuild
                    msgBgmEntries.Count > msgBgmCount ||
                    msgTitleEntries.Count > msgTitleCount ||
                    copiedAudio;
+        }
+
+        private void AddNonCoreGameTitleEntry(
+            JObject songData,
+            List<string> msgTitleEntries,
+            string uiGameTitleId)
+        {
+            if (string.IsNullOrEmpty(uiGameTitleId))
+                return;
+
+            var gameEntry = _audioStateService.GetGameTitleEntries()
+                .FirstOrDefault(p => string.Equals(p.UiGameTitleId, uiGameTitleId, StringComparison.OrdinalIgnoreCase));
+            if (gameEntry == null || gameEntry.Source == EntrySource.Core)
+                return;
+
+            if (!(songData["gametitle_database_entries"] is JArray))
+                songData["gametitle_database_entries"] = new JArray();
+
+            var game = CreateGameObject(gameEntry);
+            if (!GetArray(songData, "gametitle_database_entries")
+                .Any(p => string.Equals(GetString(p, "ui_gametitle_id"), uiGameTitleId, StringComparison.OrdinalIgnoreCase)))
+            {
+                AddGameTitleEntry(songData, game);
+            }
+
+            var gameName = GetString(game, "name_id");
+            if (!string.IsNullOrEmpty(gameName))
+                AddUniqueMessage(msgTitleEntries, $"tit_{gameName}", GetLocalizedString(game["msbt_title"], gameName));
+        }
+
+        private HashSet<string> GetSelectedGameTitleIds(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
+        {
+            var selectedSeriesIds = contexts
+                .SelectMany(context => context.SeriesList
+                    .Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
+                .Select(series => GetString(series, "ui_series_id"))
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            return _audioStateService.GetGameTitleEntries()
+                .Where(p => !string.IsNullOrEmpty(p.UiGameTitleId) &&
+                            !string.IsNullOrEmpty(p.UiSeriesId) &&
+                            selectedSeriesIds.Contains(p.UiSeriesId))
+                .Select(p => p.UiGameTitleId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
 
         #endregion

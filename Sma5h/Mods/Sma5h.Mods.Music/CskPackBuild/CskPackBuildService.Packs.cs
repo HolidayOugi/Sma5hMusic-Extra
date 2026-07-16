@@ -76,10 +76,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 seriesSoundOrder,
                 buildResources.CoreSeriesOverride);
 
-            //generates pack with changes to vanilla songs not already covered
+            //generates pack with vanilla song changes for non-selected series
             GenerateVanillaSongsChangesPack(
                 contextList,
                 outputRoot,
+                selectedSeriesKeys,
                 generatedBgmFolder,
                 buildResources,
                 includeAudio);
@@ -159,8 +160,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 buildResources.CoreSeriesOverride);
             AddSeriesOrderEntries(songData, coreOnlyVanillaSeriesOrderEntries);
 
-            //adds vanilla song changes not covered by mod metadata
-            AddVanillaSongsChanges(contextList, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio);
+            //adds vanilla song changes for non-selected series
+            AddVanillaSongsChanges(contextList, selectedSeriesKeys, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio);
 
             //remove duplicates
             NormalizeCombinedSongData(songData);

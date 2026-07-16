@@ -148,7 +148,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         : null;
 
                     if (contextList.Count == 0)
-                        GenerateVanillaSongsChangesPack(contextList, outputRoot, generatedBgmFolder, buildResources, includeAudio);
+                        GenerateVanillaSongsChangesPack(contextList, outputRoot, selectedSeriesKeys, generatedBgmFolder, buildResources, includeAudio);
                     else if (buildMode == CskPackBuildMode.Single)
                         GenerateSingleCskPack(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
                     else
