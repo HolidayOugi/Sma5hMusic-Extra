@@ -66,6 +66,8 @@ namespace Sma5hMusic.GUI.ViewModels
 
             var observableBgmEntries = viewModelManager.ObservableDbRootEntries.Connect()
                 .DeferUntilLoaded()
+                .AutoRefresh(p => p.UiGameTitleId, TimeSpan.FromMilliseconds(50))
+                .AutoRefresh(p => p.GameTitleViewModel.UiSeriesId, TimeSpan.FromMilliseconds(50))
                 .Filter(p => p.UiBgmId != MusicConstants.InternalIds.BGM_ID_RANDOM);
 
             var whenAnyPropertyChanged = this.WhenAnyPropertyChanged("SelectedSeries", "SelectedGame",

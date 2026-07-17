@@ -160,6 +160,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Fixed importing of overrides from older Sma5hMusic builds having invalid characters.
 * Fixed some UI elements not showing properly at lower screen resolutions.
 * Fixed tone ID validation not always checking if the value is already present.
+* Fixed song list not refreshing when a filter was active.
 
 ## FAQ
 
