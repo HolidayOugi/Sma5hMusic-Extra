@@ -69,8 +69,6 @@ namespace Sma5hMusic.GUI.Services
                 {
                     NormalizeNus3AudioToFile(toneId, filename, normalizedNus3AudioFile);
                     File.Copy(normalizedNus3AudioFile, outputFile, true);
-                    if (!string.Equals(outputFile, filename, StringComparison.OrdinalIgnoreCase))
-                        File.Delete(filename);
 
                     return outputFile;
                 }
@@ -106,11 +104,9 @@ namespace Sma5hMusic.GUI.Services
                 try
                 {
                     //create a new nus3audio file with updated loop points
-                    //if original was not nus3audio, create a new nus3audio file and delete the original file
+                    //if original was not nus3audio, create a new nus3audio file next to the original file
                     UpdateNus3AudioLoopPointsToFile(toneId, filename, updatedNus3AudioFile, loopStartSample, loopEndSample);
                     File.Copy(updatedNus3AudioFile, outputFile, true);
-                    if (!string.Equals(outputFile, filename, StringComparison.OrdinalIgnoreCase))
-                        File.Delete(filename);
 
                     return outputFile;
                 }

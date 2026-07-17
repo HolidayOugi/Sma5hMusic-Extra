@@ -40,6 +40,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IMessageDialog _messageDialog;
         private readonly IServiceProvider _serviceProvider;
         private readonly List<GameTitleEntryViewModel> _recentGameTitles;
+        private readonly HashSet<string> _pendingConvertedNus3AudioFiles;
         private readonly List<ComboItem> _recordTypes;
         private readonly List<ComboItem> _specialCategories;
         private readonly ReadOnlyObservableCollection<SeriesEntryViewModel> _series;
@@ -47,6 +48,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly ReadOnlyObservableCollection<string> _assignedInfoIds;
         private readonly Subject<Window> _whenNewRequestToAddGameEntry;
         private bool _isUpdatingSpecialRule = false;
+        private bool _isSaving;
         private string _originalGameTitleId;
         private string _originalFilename;
 
@@ -115,6 +117,7 @@ namespace Sma5hMusic.GUI.ViewModels
             _specialCategories = GetSpecialCategories();
             _whenNewRequestToAddGameEntry = new Subject<Window>();
             _recentGameTitles = new List<GameTitleEntryViewModel>();
+            _pendingConvertedNus3AudioFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             //Bind observables
             viewModelManager.ObservableSeries.Connect()
@@ -327,16 +330,46 @@ namespace Sma5hMusic.GUI.ViewModels
                     if (BgmPropertyViewModel.MusicPlayer != null)
                         await BgmPropertyViewModel.MusicPlayer.StopSong();
 
+                    //check if the converted nus3audio already exists
+                    var previousFilename = BgmPropertyViewModel.Filename;
+                    var convertedOutputExists = false;
+                    if (!string.IsNullOrWhiteSpace(BgmPropertyViewModel.NameId) &&
+                        !string.IsNullOrWhiteSpace(previousFilename) &&
+                        !_audioImportService.IsNus3Audio(previousFilename))
+                    {
+                        var outputFile = Path.Combine(Path.GetDirectoryName(previousFilename) ?? string.Empty, $"{BgmPropertyViewModel.NameId}.nus3audio");
+                        convertedOutputExists = File.Exists(outputFile);
+                    }
+
                     var updatedFile = await UpdateNus3AudioLoopPointsWithProgress(
                         parentWindow,
                         BgmPropertyViewModel.NameId,
-                        BgmPropertyViewModel.Filename,
+                        previousFilename,
                         newLoopStartSample,
                         newLoopEndSample
                     );
 
-                    if (!string.Equals(updatedFile, BgmPropertyViewModel.Filename, StringComparison.OrdinalIgnoreCase))
+                    //if it doesn't add it to the list of pending nus3audios
+                    if (!string.Equals(updatedFile, previousFilename, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrWhiteSpace(previousFilename) &&
+                            !string.IsNullOrWhiteSpace(updatedFile) &&
+                            !convertedOutputExists &&
+                            !_audioImportService.IsNus3Audio(previousFilename) &&
+                            _audioImportService.IsNus3Audio(updatedFile))
+                        {
+                            try
+                            {
+                                _pendingConvertedNus3AudioFiles.Add(Path.GetFullPath(updatedFile));
+                            }
+                            catch
+                            {
+                                _pendingConvertedNus3AudioFiles.Add(updatedFile);
+                            }
+                        }
+
                         BgmPropertyViewModel.Filename = GetRelativeDisplayPath(updatedFile);
+                    }
 
                     await CalculateAudioCues(BgmPropertyViewModel);
 
@@ -484,10 +517,40 @@ namespace Sma5hMusic.GUI.ViewModels
 
             try
             {
-                var normalizedFile = await _audioImportService.NormalizeExistingNus3Audio(BgmPropertyViewModel.NameId, BgmPropertyViewModel.Filename);
+                //check if the converted nus3audio already exists
+                var previousFilename = BgmPropertyViewModel.Filename;
+                var convertedOutputExists = false;
+                if (!string.IsNullOrWhiteSpace(BgmPropertyViewModel.NameId) &&
+                    !string.IsNullOrWhiteSpace(previousFilename) &&
+                    !_audioImportService.IsNus3Audio(previousFilename))
+                {
+                    var outputFile = Path.Combine(Path.GetDirectoryName(previousFilename) ?? string.Empty, $"{BgmPropertyViewModel.NameId}.nus3audio");
+                    convertedOutputExists = File.Exists(outputFile);
+                }
+
+                var normalizedFile = await _audioImportService.NormalizeExistingNus3Audio(BgmPropertyViewModel.NameId, previousFilename);
                 //update filename in bgmproperty window if changed
-                if (!string.Equals(normalizedFile, BgmPropertyViewModel.Filename, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(normalizedFile, previousFilename, StringComparison.OrdinalIgnoreCase))
+                {
+                    //add it to the list of pending nus3audios if it doesn't already exist
+                    if (!string.IsNullOrWhiteSpace(previousFilename) &&
+                        !string.IsNullOrWhiteSpace(normalizedFile) &&
+                        !convertedOutputExists &&
+                        !_audioImportService.IsNus3Audio(previousFilename) &&
+                        _audioImportService.IsNus3Audio(normalizedFile))
+                    {
+                        try
+                        {
+                            _pendingConvertedNus3AudioFiles.Add(Path.GetFullPath(normalizedFile));
+                        }
+                        catch
+                        {
+                            _pendingConvertedNus3AudioFiles.Add(normalizedFile);
+                        }
+                    }
+
                     BgmPropertyViewModel.Filename = GetRelativeDisplayPath(normalizedFile);
+                }
                 await CalculateAudioCues(BgmPropertyViewModel);
                 progressVm.SetComplete();
             }
@@ -578,12 +641,35 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private void ClosingWindow(Window w)
         {
+            //if we choose to save, we keep it
             BgmPropertyViewModel?.MusicPlayer?.ChangeFilename(_originalFilename);
+            if (_isSaving)
+            {
+                _pendingConvertedNus3AudioFiles.Clear();
+                return;
+            }
+            
+            //else we delete it
+            foreach (var file in _pendingConvertedNus3AudioFiles.ToList())
+            {
+                try
+                {
+                    if (File.Exists(file))
+                        File.Delete(file);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogWarning(e, "Could not delete pending converted NUS3AUDIO file {Filename}.", file);
+                }
+            }
+
+            _pendingConvertedNus3AudioFiles.Clear();
         }
 
         protected override Task<bool> SaveChanges()
         {
             _logger.LogDebug("Save Changes");
+            _isSaving = true;
             if (BgmPropertyViewModel.AudioVolume < Constants.MinimumGameVolume)
                 BgmPropertyViewModel.AudioVolume = Constants.MinimumGameVolume;
             if (BgmPropertyViewModel.AudioVolume > Constants.MaximumGameVolume)
@@ -637,6 +723,8 @@ namespace Sma5hMusic.GUI.ViewModels
             StreamPropertyViewModel = item?.StreamPropertyViewModel;
             BgmPropertyViewModel = item?.BgmPropertyViewModel;
             _originalFilename = BgmPropertyViewModel?.Filename;
+            _isSaving = false;
+            _pendingConvertedNus3AudioFiles.Clear();
 
             IsModSong = item.MusicMod != null;
 
