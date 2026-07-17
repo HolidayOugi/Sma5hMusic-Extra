@@ -153,12 +153,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
 
             //adds vanilla series entries for sound order
-            var coreOnlyVanillaSeriesOrderEntries = CreateCoreOnlyVanillaSeriesOrderEntries(
+            var VanillaSeriesOrderEntries = CreateVanillaSeriesOrderEntries(
                 contextList,
                 selectedSeriesKeys,
                 seriesSoundOrder,
                 buildResources.CoreSeriesOverride);
-            AddSeriesOrderEntries(songData, coreOnlyVanillaSeriesOrderEntries);
+            AddSeriesOrderEntries(songData, VanillaSeriesOrderEntries);
 
             //adds vanilla song changes for non-selected series
             AddVanillaSongsChanges(contextList, selectedSeriesKeys, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio);

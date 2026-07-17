@@ -25,7 +25,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             JObject coreSeriesOverride)
         {
             //# of series with no added entries
-            var seriesEntries = CreateCoreOnlyVanillaSeriesOrderEntries(
+            var seriesEntries = CreateVanillaSeriesOrderEntries(
                 contexts,
                 selectedSeriesKeys,
                 seriesSoundOrder,
@@ -305,29 +305,28 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Series Entries
 
-        //TODO: this is a mess and needs to be cleaned
-        private List<JObject> CreateCoreOnlyVanillaSeriesOrderEntries(
+        private List<JObject> CreateVanillaSeriesOrderEntries(
             IEnumerable<CskModContext> contexts,
             HashSet<string> selectedSeriesKeys,
             Dictionary<string, int> seriesSoundOrder,
             JObject coreSeriesOverride)
         {
-            var excludedVanillaSeries = contexts
+            //get all series selected
+            var selectedSeriesIds = contexts
                 .SelectMany(context => context.SeriesList
-                    .Where(series => IsVanillaSeries(GetString(series, "name_id")))
-                    .Where(SeriesHasCustomBgms)
-                    .Select(series => GetString(series, "name_id")))
+                    .Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series)))
+                    .Select(series => GetString(series, "ui_series_id")))
                 .Where(p => !string.IsNullOrEmpty(p))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            return _audioStateService.GetSeriesEntries()
+            //get all vanilla series that are not selected
+            var unselectedVanillaSeries = _audioStateService.GetSeriesEntries()
                 .Where(series => IsVanillaSeries(series.NameId))
                 .Where(series => !string.IsNullOrEmpty(series.UiSeriesId))
-                .Where(series => !excludedVanillaSeries.Contains(series.NameId))
-                .GroupBy(series => series.UiSeriesId, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group
-                    .OrderBy(series => series.Source == EntrySource.Core ? 0 : 1)
-                    .First())
+                .Where(series => !selectedSeriesIds.Contains(series.UiSeriesId));
+
+            //create series entry
+            var seriesEntries = unselectedVanillaSeries
                 .Select(series =>
                 {
                     var seriesObject = CreateSeriesObject(series);
@@ -340,27 +339,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .OrderBy(entry => GetInt(entry, "disp_order_sound", 0))
                 .ThenBy(entry => GetString(entry, "name_id"), StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            return seriesEntries;
         }
 
         private static bool IsVanillaSeries(string seriesName)
         {
             return !string.IsNullOrEmpty(seriesName) &&
                    VanillaSeries.Contains(seriesName);
-        }
-
-        private static bool SeriesHasCustomBgms(JObject series)
-        {
-            foreach (JObject game in GetArray(series, "games"))
-            {
-                foreach (JObject bgm in GetArray(game, "bgms"))
-                {
-                    var filename = GetString(bgm, "filename");
-                    if (!string.IsNullOrWhiteSpace(filename))
-                        return true;
-                }
-            }
-
-            return false;
         }
 
         private static JObject CreateSeriesOrderSongData(IEnumerable<JObject> seriesEntries)
