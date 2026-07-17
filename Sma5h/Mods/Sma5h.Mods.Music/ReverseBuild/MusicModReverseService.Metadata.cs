@@ -22,7 +22,9 @@ namespace Sma5h.Mods.Music.ReverseBuild
             MusicModInformation modInformation)
         {
             //added songs + replacement core songs
-            var replacementBgmIds = GetReplacementCoreBgmIds(core, outputPath);
+            var replacementBgmIds = GetReplacementCoreBgmIds(core, outputPath)
+                .Where(output.BgmDbRootEntries.ContainsKey)
+                .ToList();
             var bgmIds = output.BgmDbRootEntries.Keys
                 .Except(core.BgmDbRootEntries.Keys)
                 .Concat(replacementBgmIds)

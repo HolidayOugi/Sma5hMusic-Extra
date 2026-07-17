@@ -63,13 +63,15 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             //add entries to snapshot
             LoadBgmEntries(snapshot, bgmDb, bgmMsbts, toneIds, gameTitleIds);
-            LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
+            var skippedFallbackToneIds = LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
             LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
             LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
             //generate playlist IDs
             var playlistIdHints = BuildStagePlaylistIdHints(stageDb);
             var playlistIds = LoadPlaylistEntries(snapshot, bgmDb, toneIds, playlistIdHints);
             LoadStageEntries(snapshot, stageDb, seriesIds, playlistIds);
+            //if some tracks are invalid, remove them
+            RemoveSkippedBgmEntries(snapshot, skippedFallbackToneIds);
 
             return snapshot;
         }
@@ -138,13 +140,12 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
         }
 
-        private void LoadBgmPropertyEntries(ResourceSnapshot snapshot, string rootPath, BinBgmProperty bgmProperty, List<string> toneIds)
+        private HashSet<string> LoadBgmPropertyEntries(ResourceSnapshot snapshot, string rootPath, BinBgmProperty bgmProperty, List<string> toneIds)
         {
             if (bgmProperty == null)
             {
                 //if bgm property is missing, try to read info from nus3audio files in the bgm folder
-                LoadBgmPropertyEntriesFromAudioFallback(snapshot, rootPath);
-                return;
+                return LoadBgmPropertyEntriesFromAudioFallback(snapshot, rootPath);
             }
 
             foreach (var value in bgmProperty.Entries.Values)
@@ -154,13 +155,16 @@ namespace Sma5h.Mods.Music.ReverseBuild
                 var filename = Path.Combine(rootPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, value.NameId));
                 snapshot.BgmPropertyEntries.Add(value.NameId, _mapper.Map(value, new BgmPropertyEntry(value.NameId, filename)));
             }
+
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        private void LoadBgmPropertyEntriesFromAudioFallback(ResourceSnapshot snapshot, string rootPath)
+        private HashSet<string> LoadBgmPropertyEntriesFromAudioFallback(ResourceSnapshot snapshot, string rootPath)
         {
+            var skippedToneIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var bgmPath = Path.Combine(rootPath, "stream;", "sound", "bgm");
             if (!Directory.Exists(bgmPath))
-                return;
+                return skippedToneIds;
 
             foreach (var file in Directory.EnumerateFiles(bgmPath, "*.nus3audio"))
             {
@@ -173,9 +177,24 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
                 //read audio metadata from nus3audio file
                 _logger.LogInformation("Reverse MusicMod: scanning {AudioFile} with vgmstream.", file);
-                var audioCuePoints = _audioMetadataService.GetCuePoints(file).GetAwaiter().GetResult();
+                AudioCuePoints audioCuePoints;
+                try
+                {
+                    audioCuePoints = _audioMetadataService.GetCuePoints(file).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Reverse MusicMod: skipping {AudioFile} because vgmstream could not read audio metadata.", file);
+                    skippedToneIds.Add(nameId);
+                    continue;
+                }
+
                 if (audioCuePoints == null || audioCuePoints.TotalSamples == 0)
-                    throw new InvalidOperationException($"Could not read audio metadata from '{Path.GetFileName(file)}'.");
+                {
+                    _logger.LogWarning("Reverse MusicMod: skipping {AudioFile} because vgmstream could not read audio metadata.", file);
+                    skippedToneIds.Add(nameId);
+                    continue;
+                }
 
                 var entry = new BgmPropertyEntry(nameId, file)
                 {
@@ -189,6 +208,33 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
                 snapshot.BgmPropertyEntries[nameId] = entry;
             }
+
+            return skippedToneIds;
+        }
+
+        private void RemoveSkippedBgmEntries(ResourceSnapshot snapshot, HashSet<string> skippedToneIds)
+        {
+            if (skippedToneIds == null || skippedToneIds.Count == 0)
+                return;
+
+            //get ui_bgm_ IDs for skipped tone IDs
+            var skippedUiBgmIds = skippedToneIds
+                .Select(p => $"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{p}")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            //remove from snapshot
+            foreach (var toneId in skippedToneIds)
+            {
+                snapshot.BgmPropertyEntries.Remove(toneId);
+                snapshot.BgmDbRootEntries.Remove($"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}");
+                snapshot.StreamSetEntries.Remove($"{MusicConstants.InternalIds.STREAM_SET_PREFIX}{toneId}");
+                snapshot.AssignedInfoEntries.Remove($"{MusicConstants.InternalIds.INFO_ID_PREFIX}{toneId}");
+                snapshot.StreamPropertyEntries.Remove($"{MusicConstants.InternalIds.STREAM_PREFIX}{toneId}");
+            }
+
+            //remove from playlists
+            foreach (var playlist in snapshot.PlaylistEntries.Values)
+                playlist.Tracks.RemoveAll(p => skippedUiBgmIds.Contains(p.UiBgmId));
         }
 
         private void LoadGameEntries(
