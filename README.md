@@ -195,6 +195,14 @@ dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r win-x86 --self
 
 If you encounter any problems using the software, submit an issue here on GitHub.
 
+## To-Do List
+
+- [ ] Update vgmstream library and main executable to x64
+- [ ] Decouple CSK Build service from JSONs
+- [ ] Allow editing of Color Picker color list
+- [ ] Add Trim function when importing from audio
+- [ ] Add Filter to MainWindow for songs not in a playlist
+
 ## Thanks & Repos of the different tools
 1.  Original Code and Author: Deinonychus71
 2.  Research: soneek
