@@ -149,7 +149,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 return;
 
             _selectedIconPath = iconPath;
-            IconPath = iconPath;
+            IconPath = Path.GetFileName(iconPath);
 
             if (Path.GetExtension(iconPath).Equals(".bntx", StringComparison.OrdinalIgnoreCase))
                 SetIconPreview(_seriesIconService.CreatePreviewFromBntxFile(iconPath));
@@ -200,7 +200,8 @@ namespace Sma5hMusic.GUI.ViewModels
 
             if (!string.IsNullOrEmpty(_selectedIconPath))
             {
-                IconPath = _seriesIconService.SaveIcon(_selectedIconPath, UiSeriesId);
+                var savedIconPath = _seriesIconService.SaveIcon(_selectedIconPath, UiSeriesId);
+                IconPath = Path.GetFileName(savedIconPath);
                 SetIconPreview(_seriesIconService.CreatePreviewFromBntx(UiSeriesId));
             }
 
@@ -284,7 +285,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 DlcCharaId = item.DlcCharaId;
                 IsUseAmiiboBg = item.IsUseAmiiboBg;
                 var iconPath = _seriesIconService.GetIconPath(item.UiSeriesId);
-                IconPath = File.Exists(iconPath) ? iconPath : string.Empty;
+                IconPath = File.Exists(iconPath) ? Path.GetFileName(iconPath) : string.Empty;
                 SetIconPreview(File.Exists(iconPath) ? _seriesIconService.CreatePreviewFromBntx(item.UiSeriesId) : null);
                 _selectedIconPath = null;
                 MSBTTitleEditor.MSBTValues = item.MSBTTitle;
