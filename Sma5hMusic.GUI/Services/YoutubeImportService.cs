@@ -1,0 +1,383 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Sma5h.Mods.Music;
+using Sma5hMusic.GUI.Helpers;
+using Sma5hMusic.GUI.Interfaces;
+using Sma5hMusic.GUI.Models;
+using System;
+using System.Threading;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace Sma5hMusic.GUI.Services
+{
+    public class YoutubeImportService : IYoutubeImportService
+    {
+        private readonly IOptionsMonitor<ApplicationSettings> _config;
+        private readonly ILogger _logger;
+
+        public YoutubeImportService(IOptionsMonitor<ApplicationSettings> config, ILogger<YoutubeImportService> logger)
+        {
+            _config = config;
+            _logger = logger;
+        }
+
+        public bool IsYtDlpConfigured()
+        {
+            var executable = _config.CurrentValue.YtDlpPath;
+            return !string.IsNullOrWhiteSpace(executable) && File.Exists(executable);
+        }
+
+        public bool IsFfmpegConfigured()
+        {
+            var executable = _config.CurrentValue.FfmpegPath;
+            return !string.IsNullOrWhiteSpace(executable) && File.Exists(executable);
+        }
+
+
+        public async Task<YoutubeDownloadResult> DownloadAudio(
+            string url,
+            bool allowPlaylist = false,
+            int playlistTotal = 0,
+            Action<int, int> onProgress = null,
+            CancellationToken cancellationToken = default)
+        {
+            return await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                ValidateYoutubeUrl(url);
+
+                var ytexecutable = _config.CurrentValue.YtDlpPath;
+                var ffmpegExecutable = _config.CurrentValue.FfmpegPath;
+
+                if (string.IsNullOrWhiteSpace(ytexecutable) || !File.Exists(ytexecutable))
+                    throw new FileNotFoundException("yt-dlp.exe is not configured. Set its path in Global Settings.", ytexecutable);
+
+                if (string.IsNullOrWhiteSpace(ffmpegExecutable) || !File.Exists(ffmpegExecutable))
+                    throw new FileNotFoundException("ffmpeg.exe is not configured. Set its path in Global Settings.", ffmpegExecutable);
+
+                var tempRoot = GetTempRoot();
+                var tempDirectory = Path.Combine(tempRoot, Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tempDirectory);
+
+                try
+                {
+                    var outputTemplate = Path.Combine(tempDirectory, "%(title)s [%(id)s].%(ext)s");
+
+                    var runResult = RunYtDlp(
+                        ytexecutable,
+                        playlistTotal,
+                        onProgress,
+                        cancellationToken,
+                        allowPlaylist ? "--yes-playlist" : "--no-playlist",
+                        "--ignore-errors",
+                        "--no-progress",
+                        "--format", "bestaudio/best",
+                        "--extract-audio",
+                        "--ffmpeg-location", ffmpegExecutable,
+                        "--audio-format", "wav",
+                        "--audio-quality", "0",
+                        "--restrict-filenames",
+                        "--print", "after_move:filepath",
+                        "--output", outputTemplate,
+                        url
+                    );
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var filenames = runResult.Output
+                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(p => p.Trim().Trim('"'))
+                        .Where(File.Exists)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    if (filenames.Count == 0)
+                    {
+                        filenames = Directory
+                            .EnumerateFiles(tempDirectory, "*.wav")
+                            .OrderBy(p => p)
+                            .ToList();
+                    }
+
+                    if (filenames.Count == 0)
+                    {
+                        if (runResult.ExitCode != 0)
+                            throw new InvalidOperationException($"yt-dlp failed: {runResult.Error}{runResult.Output}");
+
+                        throw new InvalidOperationException("yt-dlp completed, but the downloaded audio files could not be found.");
+                    }
+
+                    var failedItemsCount = Math.Max(
+                        CountYtDlpErrors(runResult.Error),
+                        runResult.ExitCode != 0 ? 1 : 0
+                    );
+                    if (runResult.ExitCode != 0 || failedItemsCount > 0)
+                    {
+                        _logger.LogWarning(
+                            "yt-dlp completed with partial errors. ExitCode={ExitCode}, DownloadedFiles={DownloadedFiles}, FailedItems={FailedItems}. Continuing with valid files.",
+                            runResult.ExitCode,
+                            filenames.Count,
+                            failedItemsCount
+                        );
+                    }
+
+                    return new YoutubeDownloadResult
+                    {
+                        Filename = filenames[0],
+                        Filenames = filenames,
+                        TempDirectory = tempDirectory,
+                        FailedItemsCount = failedItemsCount
+                    };
+                }
+                catch
+                {
+                    DeleteTempDirectory(tempDirectory);
+                    TempDirectoryHelper.DeleteIfEmpty(tempRoot);
+                    throw;
+                }
+            }, cancellationToken);
+        }
+
+        public void CleanupDownload(YoutubeDownloadResult download)
+        {
+            if (download == null || string.IsNullOrWhiteSpace(download.TempDirectory))
+                return;
+
+            DeleteTempDirectory(download.TempDirectory);
+            TempDirectoryHelper.DeleteIfEmpty(GetTempRoot());
+        }
+
+        private YtDlpRunResult RunYtDlp(
+            string executable,
+            int playlistTotal,
+            Action<int, int> onProgress,
+            CancellationToken cancellationToken,
+            params string[] arguments)
+        {
+            _logger.LogInformation(
+                "Running yt-dlp: {Executable} {Arguments}",
+                executable,
+                string.Join(" ", arguments.Select(p => $"\"{p}\""))
+            );
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = executable,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            foreach (var argument in arguments)
+                startInfo.ArgumentList.Add(argument);
+
+            using var process = new Process
+            {
+                StartInfo = startInfo,
+                EnableRaisingEvents = true
+            };
+
+            var stdout = new System.Text.StringBuilder();
+            var stderr = new System.Text.StringBuilder();
+            var downloadedCount = 0;
+
+            process.OutputDataReceived += (sender, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(e.Data))
+                    return;
+
+                stdout.AppendLine(e.Data);
+
+                var line = e.Data.Trim().Trim('"');
+                _logger.LogInformation("yt-dlp stdout: {Line}", line);
+
+                if (File.Exists(line))
+                {
+                    downloadedCount++;
+                    onProgress?.Invoke(downloadedCount, playlistTotal);
+                }
+            };
+
+            process.ErrorDataReceived += (sender, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(e.Data))
+                    return;
+
+                stderr.AppendLine(e.Data);
+                _logger.LogInformation("yt-dlp stderr: {Line}", e.Data);
+            };
+
+            process.Start();
+
+            using var cancellationRegistration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        _logger.LogInformation("Cancellation requested. Killing yt-dlp process...");
+                        process.Kill(true);
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogWarning(e, "Could not kill yt-dlp process.");
+                }
+            });
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            process.WaitForExit();
+
+            if (cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException(cancellationToken);
+
+            var output = stdout.ToString();
+            var error = stderr.ToString();
+
+            _logger.LogInformation(
+                "yt-dlp exited. ExitCode={ExitCode}. StdOut={StdOut}. StdErr={StdErr}",
+                process.ExitCode,
+                output,
+                error
+            );
+
+            return new YtDlpRunResult
+            {
+                Output = output,
+                Error = error,
+                ExitCode = process.ExitCode
+            };
+        }
+
+        private static int CountYtDlpErrors(string error)
+        {
+            if (string.IsNullOrWhiteSpace(error))
+                return 0;
+
+            return Regex.Matches(error, @"(?m)^ERROR:").Count;
+        }
+
+        private static void ValidateYoutubeUrl(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                !IsYoutubeHost(uri.Host))
+            {
+                throw new InvalidOperationException("Enter a valid YouTube URL.");
+            }
+        }
+
+        private static bool IsYoutubeHost(string host)
+        {
+            return string.Equals(host, "youtu.be", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(host, "youtube.com", StringComparison.OrdinalIgnoreCase) ||
+                host.EndsWith(".youtube.com", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string GetTempRoot()
+        {
+            return Path.GetFullPath(Path.Combine(_config.CurrentValue.TempPath, "YoutubeImport"));
+        }
+
+        private void DeleteTempDirectory(string directory)
+        {
+            try
+            {
+                var tempRoot = GetTempRoot();
+                var fullDirectory = Path.GetFullPath(directory);
+                var rootPrefix = tempRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+                if (!fullDirectory.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("Refusing to delete YouTube import directory outside the configured temp root: {Directory}", fullDirectory);
+                    return;
+                }
+
+                if (Directory.Exists(fullDirectory))
+                {
+                    Directory.Delete(fullDirectory, true);
+                    _logger.LogInformation("Deleted temporary YouTube import directory {Directory}.", fullDirectory);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Could not delete temporary YouTube import directory {Directory}.", directory);
+            }
+        }
+
+        public Task<bool> IsPlaylist(string url)
+        {
+            return Task.Run(() =>
+            {
+                ValidateYoutubeUrl(url);
+
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                    return false;
+
+                if (uri.AbsolutePath.Equals("/playlist", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                var query = uri.Query.TrimStart('?');
+
+                if (string.IsNullOrWhiteSpace(query))
+                    return false;
+
+                var parts = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+                return parts.Any(part =>
+                {
+                    var key = part.Split('=', 2)[0];
+                    return string.Equals(key, "list", StringComparison.OrdinalIgnoreCase);
+                });
+            });
+        }
+
+        public Task<int> GetPlaylistItemCount(string url, CancellationToken cancellationToken = default)
+        {
+            return Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                ValidateYoutubeUrl(url);
+
+                var ytexecutable = _config.CurrentValue.YtDlpPath;
+
+                if (string.IsNullOrWhiteSpace(ytexecutable) || !File.Exists(ytexecutable))
+                    throw new FileNotFoundException("yt-dlp.exe is not configured. Set its path in Global Settings.", ytexecutable);
+
+                var runResult = RunYtDlp(
+                    ytexecutable,
+                    0,
+                    null,
+                    cancellationToken,
+                    "--yes-playlist",
+                    "--flat-playlist",
+                    "--print", "%(id)s",
+                    url
+                );
+
+                if (runResult.ExitCode != 0)
+                    throw new InvalidOperationException($"yt-dlp failed: {runResult.Error}{runResult.Output}");
+
+                return runResult.Output
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Length;
+            }, cancellationToken);
+        }
+
+        private sealed class YtDlpRunResult
+        {
+            public string Output { get; set; }
+            public string Error { get; set; }
+            public int ExitCode { get; set; }
+        }
+    }
+}

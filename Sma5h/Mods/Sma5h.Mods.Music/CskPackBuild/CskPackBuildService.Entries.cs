@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using Sma5h.Mods.Music.Models;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Sma5h.Mods.Music.CskPackBuild
@@ -50,6 +52,77 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #endregion
 
+        #region Effective BGM Data
+
+        private JObject BuildEffectiveOrderData(JObject orderOverride)
+        {
+            var orderData = new JObject();
+
+            foreach (var bgmEntry in _audioStateService.GetBgmDbRootEntries().Where(p => !string.IsNullOrEmpty(p.UiBgmId)))
+                orderData[bgmEntry.UiBgmId] = bgmEntry.TestDispOrder;
+
+            OverlayProperties(orderData, orderOverride);
+            return orderData;
+        }
+
+        private HashSet<string> BuildCoreBgmIds()
+        {
+            return _audioStateService.GetBgmDbRootEntries()
+                .Where(p => p.Source == EntrySource.Core && !string.IsNullOrEmpty(p.UiBgmId))
+                .Select(p => p.UiBgmId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        #endregion
+
+        #region Core BGM Entries
+
+        private void AddCoreBgmFromState(JObject songData, string uiBgmId, JObject coreBgmOverride, JObject orderOverride)
+        {
+            if (string.IsNullOrEmpty(uiBgmId))
+                return;
+
+            if (IsCoreBgmOverride(coreBgmOverride, uiBgmId) || HasBgmDatabaseEntry(songData, uiBgmId))
+                return;
+
+            var bgmEntries = GetArray(songData, "bgm_database_entries");
+            var db = _audioStateService.GetBgmDbRootEntries()
+                .FirstOrDefault(p => string.Equals(p.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase));
+            if (db == null)
+                return;
+
+            bgmEntries.Add(new JObject
+            {
+                ["ui_bgm_id"] = db.UiBgmId,
+                ["clone_from_ui_bgm_id"] = CloneBgmId,
+                ["stream_set_id"] = db.StreamSetId,
+                ["name_id"] = db.NameId,
+                ["ui_gametitle_id"] = db.UiGameTitleId,
+                ["test_disp_order"] = orderOverride != null ? GetInt(orderOverride, uiBgmId, db.TestDispOrder) : db.TestDispOrder,
+                ["record_type"] = db.RecordType
+            });
+        }
+
+        private static bool IsCoreBgmOverride(JObject coreBgmOverride, string uiBgmId)
+        {
+            if (coreBgmOverride == null || string.IsNullOrEmpty(uiBgmId))
+                return false;
+
+            var dbRoots = coreBgmOverride["CoreBgmDbRootOverrides"] as JObject;
+            return dbRoots != null && dbRoots[uiBgmId] != null;
+        }
+
+        private static bool HasBgmDatabaseEntry(JObject songData, string uiBgmId)
+        {
+            if (string.IsNullOrEmpty(uiBgmId))
+                return false;
+
+            return GetArray(songData, "bgm_database_entries")
+                .Any(p => string.Equals(GetString(p, "ui_bgm_id"), uiBgmId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        #endregion
+
         #region BGM Entries
 
         private static JObject CreateAssignedInfoEntry(JObject assigned)
@@ -72,61 +145,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
             };
         }
 
-        private static JObject CreateStreamPropertyEntry(JObject streamProperty)
-        {
-            var entry = new JObject
-            {
-                ["stream_id"] = GetString(streamProperty, "stream_id"),
-                ["data_name0"] = GetString(streamProperty, "data_name0")
-            };
-
-            for (var i = 1; i <= 4; i++)
-            {
-                var dataName = GetString(streamProperty, $"data_name{i}");
-                if (!string.IsNullOrEmpty(dataName))
-                    entry[$"data_name{i}"] = dataName;
-            }
-
-            var loop = GetInt(streamProperty, "loop", int.MinValue);
-            if (loop != int.MinValue)
-                entry["loop"] = loop;
-
-            var endPoint = GetString(streamProperty, "end_point");
-            if (!string.IsNullOrEmpty(endPoint))
-                entry["end_point"] = endPoint;
-
-            var fadeoutFrame = GetInt(streamProperty, "fadeout_frame", int.MinValue);
-            if (fadeoutFrame != int.MinValue)
-                entry["fadeout_frame"] = fadeoutFrame;
-
-            foreach (var pointKey in new[]
-            {
-                "start_point_suddendeath", "start_point_transition",
-                "start_point0", "start_point1", "start_point2", "start_point3", "start_point4"
-            })
-            {
-                var point = GetString(streamProperty, pointKey);
-                if (!string.IsNullOrEmpty(point))
-                    entry[pointKey] = point;
-            }
-
-            return entry;
-        }
-
-        private static JObject CreateBgmPropertyEntry(JObject bgmProperty, string streamName)
-        {
-            return new JObject
-            {
-                ["stream_name"] = streamName,
-                ["loop_start_ms"] = GetInt(bgmProperty, "loop_start_ms", 0),
-                ["loop_start_sample"] = GetInt(bgmProperty, "loop_start_sample", 0),
-                ["loop_end_ms"] = GetInt(bgmProperty, "loop_end_ms", 0),
-                ["loop_end_sample"] = GetInt(bgmProperty, "loop_end_sample", 0),
-                ["duration_ms"] = GetInt(bgmProperty, "total_time_ms", GetInt(bgmProperty, "duration_ms", 0)),
-                ["duration_sample"] = GetInt(bgmProperty, "total_samples", GetInt(bgmProperty, "duration_sample", 0))
-            };
-        }
-
         private JObject CreateStreamSetEntry(JObject streamSet, string streamSetId = null)
         {
             var entry = new JObject { ["stream_set_id"] = streamSetId ?? GetString(streamSet, "stream_set_id") };
@@ -143,6 +161,213 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 entry["special_category"] = specialCategory;
 
             return entry;
+        }
+
+        #endregion
+
+        #region Audio State Objects
+
+        private static JObject CreateBgmDbRootObject(BgmDbRootEntry db)
+        {
+            return new JObject
+            {
+                ["ui_bgm_id"] = db.UiBgmId,
+                ["stream_set_id"] = db.StreamSetId,
+                ["record_type"] = db.RecordType,
+                ["ui_gametitle_id"] = db.UiGameTitleId,
+                ["name_id"] = db.NameId,
+                ["test_disp_order"] = db.TestDispOrder,
+                ["msbt_title"] = CreateLocalizedObject(db.Title),
+                ["msbt_author"] = CreateLocalizedObject(db.Author),
+                ["msbt_copyright"] = CreateLocalizedObject(db.Copyright)
+            };
+        }
+
+        private static JObject CreateStreamSetObject(BgmStreamSetEntry streamSet)
+        {
+            var output = new JObject
+            {
+                ["stream_set_id"] = streamSet.StreamSetId,
+                ["special_category"] = streamSet.SpecialCategory
+            };
+
+            var infos = new[]
+            {
+                streamSet.Info0, streamSet.Info1, streamSet.Info2, streamSet.Info3,
+                streamSet.Info4, streamSet.Info5, streamSet.Info6, streamSet.Info7,
+                streamSet.Info8, streamSet.Info9, streamSet.Info10, streamSet.Info11,
+                streamSet.Info12, streamSet.Info13, streamSet.Info14, streamSet.Info15
+            };
+
+            for (var i = 0; i < infos.Length; i++)
+                output[$"info{i}"] = infos[i];
+
+            return output;
+        }
+
+        private static JObject CreateAssignedInfoObject(BgmAssignedInfoEntry assignedInfo)
+        {
+            return new JObject
+            {
+                ["info_id"] = assignedInfo.InfoId,
+                ["stream_id"] = assignedInfo.StreamId,
+                ["condition"] = assignedInfo.Condition,
+                ["condition_process"] = assignedInfo.ConditionProcess,
+                ["start_frame"] = assignedInfo.StartFrame,
+                ["change_fadein_frame"] = assignedInfo.ChangeFadeInFrame,
+                ["change_start_delay_frame"] = assignedInfo.ChangeStartDelayFrame,
+                ["change_fadeout_frame"] = assignedInfo.ChangeFadoutFrame,
+                ["change_stop_delay_frame"] = assignedInfo.ChangeStopDelayFrame,
+                ["menu_change_fadein_frame"] = assignedInfo.MenuChangeFadeInFrame,
+                ["menu_change_start_delay_frame"] = assignedInfo.MenuChangeStartDelayFrame,
+                ["menu_change_fadeout_frame"] = assignedInfo.MenuChangeFadeOutFrame,
+                ["menu_change_stop_delay_frame"] = assignedInfo.MenuChangeStopDelayFrame
+            };
+        }
+
+        private static JObject CreateStreamPropertyObject(BgmStreamPropertyEntry streamProperty)
+        {
+            return new JObject
+            {
+                ["stream_id"] = streamProperty.StreamId,
+                ["data_name0"] = streamProperty.DataName0,
+                ["data_name1"] = streamProperty.DataName1,
+                ["data_name2"] = streamProperty.DataName2,
+                ["data_name3"] = streamProperty.DataName3,
+                ["data_name4"] = streamProperty.DataName4,
+                ["loop"] = streamProperty.Loop,
+                ["end_point"] = streamProperty.EndPoint,
+                ["fadeout_frame"] = streamProperty.FadeOutFrame,
+                ["start_point_suddendeath"] = streamProperty.StartPointSuddenDeath,
+                ["start_point_transition"] = streamProperty.StartPointTransition,
+                ["start_point0"] = streamProperty.StartPoint0,
+                ["start_point1"] = streamProperty.StartPoint1,
+                ["start_point2"] = streamProperty.StartPoint2,
+                ["start_point3"] = streamProperty.StartPoint3,
+                ["start_point4"] = streamProperty.StartPoint4
+            };
+        }
+
+        private static JObject CreateBgmPropertyObject(BgmPropertyEntry bgmProperty)
+        {
+            return new JObject
+            {
+                ["name_id"] = bgmProperty.NameId,
+                ["loop_start_ms"] = bgmProperty.LoopStartMs,
+                ["loop_start_sample"] = bgmProperty.LoopStartSample,
+                ["loop_end_ms"] = bgmProperty.LoopEndMs,
+                ["loop_end_sample"] = bgmProperty.LoopEndSample,
+                ["total_time_ms"] = bgmProperty.TotalTimeMs,
+                ["total_samples"] = bgmProperty.TotalSamples
+            };
+        }
+
+        private static JObject CreateLocalizedObject(Dictionary<string, string> localizedText)
+        {
+            var output = new JObject();
+            if (localizedText == null)
+                return output;
+
+            foreach (var entry in localizedText)
+                output[entry.Key] = entry.Value;
+
+            return output;
+        }
+
+        #endregion
+
+        #region BGM Processing
+
+        private int ProcessBgm(
+            JObject bgm,
+            JObject songData,
+            JObject playlistOverride,
+            List<string> msgBgmEntries,
+            JObject coreBgmOverride,
+            JObject orderOverride,
+            string seriesName,
+            string seriesFolderName,
+            string outputRoot,
+            string generatedBgmFolder,
+            bool includeAudio,
+            int orderCounter)
+        {
+            var db = bgm["db_root"] as JObject;
+            var assigned = bgm["assigned_info"] as JObject;
+            var streamProp = bgm["stream_property"] as JObject;
+            var bgmProp = bgm["bgm_properties"] as JObject;
+            var streamSet = bgm["stream_set"] as JObject;
+
+            var uiBgmId = GetString(db, "ui_bgm_id");
+            var nameId = GetString(bgmProp, "name_id");
+            if (includeAudio && _unavailableBgmNameIds.Value?.Contains(nameId) == true)
+            {
+                _logger.LogWarning("[CSK] Excluding unavailable song {NameId} from pack metadata.", nameId);
+                return orderCounter;
+            }
+
+            var handledByCoreBgmOverride = IsCoreBgmOverride(coreBgmOverride, uiBgmId);
+            var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
+
+            // If this song is present in CoreBgmOverride, let ProcessCoreBgmOverrides add the
+            // database/stream/message entries. ProcessBgm still handles playlists and file copy.
+            if (!handledByCoreBgmOverride && !HasBgmDatabaseEntry(songData, uiBgmId))
+            {
+                GetArray(songData, "bgm_database_entries").Add(new JObject
+                {
+                    ["ui_bgm_id"] = uiBgmId,
+                    ["clone_from_ui_bgm_id"] = CloneBgmId,
+                    ["stream_set_id"] = GetString(db, "stream_set_id"),
+                    ["name_id"] = nameId,
+                    ["ui_gametitle_id"] = GetString(db, "ui_gametitle_id"),
+                    ["test_disp_order"] = testDispOrder,
+                    ["record_type"] = GetString(db, "record_type", "record_original")
+                });
+
+                AddUniqueJObjectByKey(songData, "stream_set_entries", "stream_set_id", CreateStreamSetEntry(streamSet));
+                AddUniqueJObjectByKey(songData, "assigned_info_entries", "info_id", new JObject
+                {
+                    ["info_id"] = GetString(assigned, "info_id"),
+                    ["stream_id"] = GetString(assigned, "stream_id"),
+                    ["condition"] = GetString(assigned, "condition"),
+                    ["condition_process"] = "sound_condition_process_add",
+                    ["change_fadeout_frame"] = 60,
+                    ["menu_change_fadeout_frame"] = 60
+                });
+
+                AddUniqueJObjectByKey(songData, "stream_property_entries", "stream_id", new JObject
+                {
+                    ["stream_id"] = GetString(streamProp, "stream_id"),
+                    ["data_name0"] = GetString(streamProp, "data_name0")
+                });
+
+                AddUniqueJObjectByKey(songData, "bgm_property_entries", "stream_name", new JObject
+                {
+                    ["stream_name"] = GetString(streamProp, "data_name0"),
+                    ["loop_start_ms"] = GetInt(bgmProp, "loop_start_ms", 0),
+                    ["loop_start_sample"] = GetInt(bgmProp, "loop_start_sample", 0),
+                    ["loop_end_ms"] = GetInt(bgmProp, "loop_end_ms", 0),
+                    ["loop_end_sample"] = GetInt(bgmProp, "loop_end_sample", 0),
+                    ["duration_ms"] = GetInt(bgmProp, "total_time_ms", 0),
+                    ["duration_sample"] = GetInt(bgmProp, "total_samples", 0)
+                });
+
+                var titleText = GetLocalizedString(db["msbt_title"], nameId);
+                AddUniqueMessage(msgBgmEntries, $"bgm_title_{nameId}", titleText);
+
+                var authorText = GetLocalizedString(db["msbt_author"]);
+                AddUniqueMessage(msgBgmEntries, $"bgm_author_{nameId}", authorText);
+
+                var copyrightText = GetLocalizedString(db["msbt_copyright"]);
+                AddUniqueMessage(msgBgmEntries, $"bgm_copyright_{nameId}", copyrightText);
+            }
+
+            orderCounter = AddToPlaylists(uiBgmId, songData, playlistOverride, seriesName, orderCounter);
+
+            if (includeAudio)
+                CopyBgmFiles(bgm, seriesFolderName, outputRoot, generatedBgmFolder);
+
+            return orderCounter;
         }
 
         #endregion

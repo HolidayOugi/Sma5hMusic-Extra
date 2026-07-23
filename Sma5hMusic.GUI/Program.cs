@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sma5h.Mods.Music;
 using Sma5hMusic.GUI.Dialogs;
+using Sma5hMusic.GUI.Helpers;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Mods.Music.Models.AutoMapper;
 using Sma5hMusic.GUI.Services;
@@ -55,6 +56,8 @@ namespace Sma5hMusic.GUI
             var configuration = configurationBuilder.Build();
             Configuration = configuration;
 
+            ConfigureNativeLibraryPaths(configuration);
+
             var loggerFactory = LoggerFactory.Create(builder => builder
                 .SetMinimumLevel(LogLevel.Debug)
                 .AddFile(configuration.GetSection("Logging"), c =>
@@ -86,6 +89,10 @@ namespace Sma5hMusic.GUI
             services.AddSingleton<IDevToolsService, DevToolsService>();
             services.AddSingleton<ISeriesIconService, SeriesIconService>();
             services.AddSingleton<IVGMMusicPlayer, VGMMusicPlayer>();
+            services.AddSingleton<IAudioImportService, AudioImportService>();
+            services.AddSingleton<INus3AudioBatchNormalizationService, Nus3AudioBatchNormalizationService>();
+            services.AddSingleton<IYoutubeImportService, YoutubeImportService>();
+            services.AddSingleton<ISongSpreadsheetService, SongSpreadsheetService>();
             services.AddSingleton<IFileDialog, FileDialog>();
             services.AddSingleton<IMessageDialog, MessageDialog>();
             services.AddSingleton<IBuildDialog, BuildDialog>();
@@ -95,6 +102,23 @@ namespace Sma5hMusic.GUI
 
             //Add to Splat
             services.UseMicrosoftDependencyResolver();
+        }
+
+        private static void ConfigureNativeLibraryPaths(IConfiguration configuration)
+        {
+            var toolsPath = configuration["ToolsPath"];
+
+            if (string.IsNullOrWhiteSpace(toolsPath))
+                toolsPath = "Tools";
+
+            var basePath = GetBasePath();
+
+            var fullToolsPath = Path.IsPathRooted(toolsPath)
+                ? toolsPath
+                : Path.Combine(basePath, toolsPath);
+
+            NativeLibraryPathHelper.AddDirectoryToProcessPath(
+                Path.Combine(fullToolsPath, "vgmstream"));
         }
 
         private static string GetBasePath()
@@ -120,6 +144,8 @@ namespace Sma5hMusic.GUI
                 { "OutputPath", "ArcOutput" },
                 { "BackupPath", "Backup" },
                 { "ToolsPath", "Tools" },
+                { "YtDlpPath", "" },
+                { "FfmpegPath", "" },
                 { "TempPath", "Temp" },
                 { "LogPath", "Log" },
                 { "SkipOutputPathCleanupConfirmation", "false" },
@@ -138,9 +164,11 @@ namespace Sma5hMusic.GUI
                 { "Sma5hMusicGUI:CopyToEmptyLocales", "true" },
                 { "Sma5hMusicGUI:DefaultMSBTLocale", "us_en" },
                 { "Sma5hMusicGUI:PlaylistIncidenceDefault", "0" },
+                { "Sma5hMusicGUI:DefaultSongVolume", "2.7" },
                 { "Sma5hMusicGUI:SkipWarningGameVersion", "false" },
                 { "Sma5hMusicGUI:AutoBackupAtStart", "true" },
                 { "Sma5hMusicGUI:InGameVolume", "false" },
+                { "Sma5hMusicGUI:LoopPreviewSeconds", "6" },
                 { "Sma5hMusicGUI:HideIndexColumn", "false" },
                 { "Sma5hMusicGUI:HideSeriesColumn", "false" },
                 { "Sma5hMusicGUI:HideRecordColumn", "false" },

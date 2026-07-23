@@ -11,6 +11,17 @@ namespace Sma5h.Mods.Music.CskPackBuild
 {
     public partial class CskPackBuildService
     {
+        #region Types
+
+        private class BgmBuildEntry
+        {
+            public string NameId { get; set; }
+            public float AudioVolume { get; set; }
+            public string Filename { get; set; }
+        }
+
+        #endregion
+
         #region BGM Files
 
         private string GenerateBgmFiles(IEnumerable<CskModContext> contexts, string tempRoot, HashSet<string> selectedSeriesKeys, JObject coreGameOverride)
@@ -36,18 +47,43 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var nusBankOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
                 var nusAudioOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, bgmPropertyEntry.NameId));
 
-                _logger.LogInformation("Generating Nus3Bank for {NameId}", bgmPropertyEntry.NameId);
+                if (!File.Exists(bgmPropertyEntry.Filename))
+                {
+                    _unavailableBgmNameIds.Value?.Add(bgmPropertyEntry.NameId);
+                    _logger.LogWarning(
+                        "[CSK] Skipping song {NameId}: source file {Filename} was not found.",
+                        bgmPropertyEntry.NameId,
+                        bgmPropertyEntry.Filename);
+                    continue;
+                }
+
+                _logger.LogInformation("Generating Nus3Bank for {NameId} with volume {Volume}", bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume);
                 _nus3AudioService.GenerateNus3Bank(bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume, nusBankOutputFile);
 
                 if (File.Exists(nusAudioOutputFile))
                     File.Delete(nusAudioOutputFile);
 
                 _logger.LogInformation("Generating or copying Nus3Audio for {NameId}", bgmPropertyEntry.NameId);
-                if (!_nus3AudioService.GenerateNus3Audio(bgmPropertyEntry.NameId, bgmPropertyEntry.Filename, nusAudioOutputFile))
-                    throw new InvalidOperationException($"The song {bgmPropertyEntry.NameId} could not be processed from {bgmPropertyEntry.Filename}.");
+                if (!_nus3AudioService.GenerateNus3Audio(bgmPropertyEntry.NameId, bgmPropertyEntry.Filename, nusAudioOutputFile) ||
+                    !File.Exists(nusAudioOutputFile))
+                {
+                    _unavailableBgmNameIds.Value?.Add(bgmPropertyEntry.NameId);
+                    DeleteIfExists(nusBankOutputFile);
+                    DeleteIfExists(nusAudioOutputFile);
+                    _logger.LogWarning(
+                        "[CSK] Skipping song {NameId}: source file {Filename} could not be processed.",
+                        bgmPropertyEntry.NameId,
+                        bgmPropertyEntry.Filename);
+                }
             }
 
             return outputBgmFolder;
+        }
+
+        private static void DeleteIfExists(string path)
+        {
+            if (File.Exists(path))
+                File.Delete(path);
         }
 
         private IEnumerable<BgmBuildEntry> GetSelectedBgmBuildEntries(CskModContext context, HashSet<string> selectedSeriesKeys, JObject coreGameOverride)

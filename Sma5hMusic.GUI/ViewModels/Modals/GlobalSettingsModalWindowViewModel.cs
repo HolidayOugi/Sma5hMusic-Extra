@@ -63,11 +63,11 @@ namespace Sma5hMusic.GUI.ViewModels
             _fileDialog = fileDialog;
 
             ActionWipeAudioCache = ReactiveCommand.CreateFromTask(OnWipeAudioCache);
-            ActionOpenFileDialog = ReactiveCommand.CreateFromTask<string>(OnChooseFolder);
+            ActionOpenFileDialog = ReactiveCommand.CreateFromTask<string>(OnChoosePath);
 
             this.ValidationRule(p => p.SelectedItem.OutputPath,
-                p => !string.IsNullOrEmpty(p) && Directory.Exists(p),
-                "This directory does not exist.");
+                p => !string.IsNullOrWhiteSpace(p),
+                "Output directory is required.");
 
             this.ValidationRule(p => p.SelectedItem.GameResourcesPath,
                 p => !string.IsNullOrEmpty(p) && Directory.Exists(p),
@@ -96,6 +96,14 @@ namespace Sma5hMusic.GUI.ViewModels
             this.ValidationRule(p => p.SelectedItem.ToolsPath,
                 p => !string.IsNullOrEmpty(p) && Directory.Exists(p),
                 "This directory does not exist.");
+
+            this.ValidationRule(p => p.SelectedItem.YtDlpPath,
+                p => string.IsNullOrWhiteSpace(p) || File.Exists(p),
+                "This file does not exist.");
+
+            this.ValidationRule(p => p.SelectedItem.FfmpegPath,
+                p => string.IsNullOrWhiteSpace(p) || File.Exists(p),
+                "This file does not exist.");
         }
 
         public async Task OnWipeAudioCache()
@@ -103,9 +111,14 @@ namespace Sma5hMusic.GUI.ViewModels
             await _guiStateManager.WipeAudioCache();
         }
 
-        public async Task OnChooseFolder(string param)
+        public async Task OnChoosePath(string param)
         {
-            var result = await _fileDialog.OpenFolderDialog();
+            var result = param switch
+            {
+                "YtDlpPath" => await _fileDialog.OpenFileDialogYtDlp(),
+                "FfmpegPath" => await _fileDialog.OpenFileDialogFfmpeg(),
+                _ => await _fileDialog.OpenFolderDialog()
+            };
             if (!string.IsNullOrEmpty(result))
             {
                 switch (param)
@@ -128,6 +141,12 @@ namespace Sma5hMusic.GUI.ViewModels
                     case "ToolsPath":
                         SelectedItem.ToolsPath = result;
                         break;
+                    case "YtDlpPath":
+                        SelectedItem.YtDlpPath = result;
+                        break;
+                    case "FfmpegPath":
+                        SelectedItem.FfmpegPath = result;
+                        break;
                     case "CachePath":
                         SelectedItem.CachePath = result;
                         break;
@@ -146,6 +165,12 @@ namespace Sma5hMusic.GUI.ViewModels
             SelectedGUILocale = Locales.FirstOrDefault(p => p.Id == item?.DefaultGUILocale);
             SelectedMSBTLocale = Locales.FirstOrDefault(p => p.Id == item?.DefaultMSBTLocale);
             SelectedPlaylistGenerationItem = PlaylistGenerationModes.FirstOrDefault(p => p.Id == (int?)item?.PlaylistGenerationMode);
+
+            if (item != null && item.AudioNormalizationTargetLufs <= 0)
+                item.AudioNormalizationTargetLufs = 14;
+
+            if (item != null && (item.LoopPreviewSeconds < 2 || item.LoopPreviewSeconds > 10))
+                item.LoopPreviewSeconds = 6;
         }
 
         protected override Task<bool> SaveChanges()

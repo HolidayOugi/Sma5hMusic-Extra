@@ -3,10 +3,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        Width="1200" Height="720" MinWidth="1200"  MinHeight="720"
+        Height="760" MinHeight="760"
         x:Class="Sma5hMusic.GUI.Views.GlobalSettingsModalWindow"
         xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
-        ShowInTaskbar="False" Title="Global Settings">
+        Classes="globalSettings" ShowInTaskbar="False" Title="Global Settings">
   <DockPanel Classes="modal" LastChildFill="True" HorizontalAlignment="Stretch">
     <Border Classes="headerTitle" DockPanel.Dock="Top">
       <TextBlock>Global Settings</TextBlock>
@@ -17,7 +17,7 @@
     </StackPanel>
 
     <!-- Properties -->
-    <Grid>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
       <Grid Classes="content" ColumnDefinitions="*,*,*" RowDefinitions="*">
         <!-- UI -->
         <StackPanel Classes="content" Grid.Column="0" Grid.Row="0" HorizontalAlignment="Stretch">
@@ -146,6 +146,25 @@
             <fields:PropertyBooleanField Grid.Column="0" Label="[EXP.] In-Game Volume" IsChecked="{Binding SelectedItem.InGameVolume}" ToolTip="If turned on, the volume parameter of each song will be used to try to get an accurate playback of how loud a song will be in-game. Typically used to normalize songs from within the GUI." />
             <Button Grid.Column="1" Margin="10,10,0,0" Content="Wipe Audio Cache" Command="{Binding ActionWipeAudioCache}"/>
           </Grid>
+          <Grid ColumnDefinitions="*,*">
+            <fields:PropertyField Grid.Column="0" Label="Default Song Volume" ToolTip="Volume when adding a new song.">
+              <fields:PropertyField.FieldContent>
+                <NumericUpDown Value="{Binding SelectedItem.DefaultSongVolume, Mode=TwoWay}" Minimum="-20" Maximum="20" Increment="0.1" FormatString="0.0"/>
+              </fields:PropertyField.FieldContent>
+            </fields:PropertyField>
+          </Grid>
+          <Grid ColumnDefinitions="*,*">
+            <fields:PropertyField Grid.Column="0" Label="Normalization LUFS" ToolTip="Target LUFS value used when applying audio normalization before importing. Default is 14.">
+              <fields:PropertyField.FieldContent>
+                <NumericUpDown Value="{Binding SelectedItem.AudioNormalizationTargetLufs, Mode=TwoWay}" Minimum="1" Maximum="70" Increment="1"/>
+              </fields:PropertyField.FieldContent>
+            </fields:PropertyField>
+            <fields:PropertyField Grid.Column="1" Label="Loop Preview Seconds" ToolTip="Seconds played before and after the loop point. Default is 6.">
+              <fields:PropertyField.FieldContent>
+                <NumericUpDown Value="{Binding SelectedItem.LoopPreviewSeconds, Mode=TwoWay}" Minimum="2" Maximum="10" Increment="1"/>
+              </fields:PropertyField.FieldContent>
+            </fields:PropertyField>
+          </Grid>
         </StackPanel>
         <!-- Path -->
         <StackPanel Classes="content" Grid.Column="2" Grid.Row="0" HorizontalAlignment="Stretch">
@@ -158,11 +177,13 @@
           <fields:PropertyFolderPickupField x:Name="ResourcesPath" Label="Resources Directory" ToolTip="Path where required resources will go." Text="{Binding SelectedItem.ResourcesPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="ResourcesPath"/>
           <fields:PropertyFolderPickupField x:Name="GameResourcesPath" Label="Game Resources Directory" ToolTip="Path where required game resources will go." Text="{Binding SelectedItem.GameResourcesPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="GameResourcesPath"/>
           <fields:PropertyFolderPickupField x:Name="ToolsPath" Label="Tools Directory" ToolTip="Path where required tools will go." Text="{Binding SelectedItem.ToolsPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="ToolsPath"/>
+          <fields:PropertyFolderPickupField x:Name="YtDlpPath" Label="yt-dlp Executable" ToolTip="Optional path to yt-dlp.exe used for YouTube imports." Text="{Binding SelectedItem.YtDlpPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="YtDlpPath"/>
+          <fields:PropertyFolderPickupField x:Name="FfmpegPath" Label="ffmpeg Executable" ToolTip="Optional path to ffmpeg.exe used for YouTube imports and sound normalization." Text="{Binding SelectedItem.FfmpegPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="FfmpegPath"/>
           <!--<fields:PropertyFolderPickupField Label="Log Directory" ToolTip="Path where logs will go." Text="{Binding SelectedItem.LogPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="LogPath"/>-->
           <!--<fields:PropertyFolderPickupField Label="Audio Cache Directory" ToolTip="Path where audio cache will go, if enabled." Text="{Binding SelectedItem.CachePath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="CachePath"/>-->
           <!--<fields:PropertyFolderPickupField Label="Temp Directory" ToolTip="Path where some temporary files will go when a build is happening." Text="{Binding SelectedItem.TempPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="TempPath"/>-->
         </StackPanel>
       </Grid>
-    </Grid>
+    </ScrollViewer>
   </DockPanel>
 </Window>

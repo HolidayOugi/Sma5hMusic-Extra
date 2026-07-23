@@ -1,6 +1,9 @@
 ﻿using AutoMapper;
 using ReactiveUI.Fody.Helpers;
+using ReactiveUI;
 using Sma5h.Mods.Music;
+using Sma5hMusic.GUI.Helpers;
+using System;
 using System.Collections.Generic;
 
 namespace Sma5hMusic.GUI.ViewModels
@@ -25,6 +28,16 @@ namespace Sma5hMusic.GUI.ViewModels
 
         [Reactive]
         public ushort PlaylistIncidenceDefault { get; set; }
+        private decimal _defaultSongVolume;
+        public decimal DefaultSongVolume
+        {
+            get => _defaultSongVolume;
+            set => this.RaiseAndSetIfChanged(
+                ref _defaultSongVolume,
+                Math.Clamp(Math.Round(value, 1, MidpointRounding.AwayFromZero),
+                    (decimal)Constants.MinimumGameVolume,
+                    (decimal)Constants.MaximumGameVolume));
+        }
         [Reactive]
         public bool CopyToEmptyLocales { get; set; }
         [Reactive]
@@ -40,6 +53,10 @@ namespace Sma5hMusic.GUI.ViewModels
         [Reactive]
         public string ToolsPath { get; set; }
         [Reactive]
+        public string YtDlpPath { get; set; }
+        [Reactive]
+        public string FfmpegPath { get; set; }
+        [Reactive]
         public string TempPath { get; set; }
         [Reactive]
         public string ResourcesPath { get; set; }
@@ -48,6 +65,7 @@ namespace Sma5hMusic.GUI.ViewModels
         [Reactive]
         public bool SkipWarningGameVersion { get; set; }
         [Reactive]
+
         public bool AutoBackupAtStart { get; set; }
         [Reactive]
         public ushort PlaylistAutoMappingIncidence { get; set; }
@@ -62,6 +80,10 @@ namespace Sma5hMusic.GUI.ViewModels
         public bool HideRecordColumn { get; set; }
         [Reactive]
         public bool HideModColumn { get; set; }
+        [Reactive]
+        public double AudioNormalizationTargetLufs { get; set; }
+        [Reactive]
+        public uint LoopPreviewSeconds { get; set; }
 
         public ApplicationSettings GetReference()
         {

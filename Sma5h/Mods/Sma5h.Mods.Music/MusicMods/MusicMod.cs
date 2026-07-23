@@ -160,7 +160,7 @@ namespace Sma5h.Mods.Music.MusicMods
                 {
                     var oldBgmData = _musicModConfig.Series.SelectMany(s => s.Games.SelectMany(p => p.Bgms.Where(s => s.ToneId == toneId)))?.FirstOrDefault();
                     string oldFilename = Path.Combine(ModPath, oldBgmData.Filename);
-                    if (oldFilename.ToLower() != bgmProperty.Filename.ToLower())
+                    if (!PathsEqual(oldFilename, bgmProperty.Filename))
                     {
                         _logger.LogInformation("Need to update filename for toneId: {ToneId}", oldBgmData.ToneId);
 
@@ -175,6 +175,13 @@ namespace Sma5h.Mods.Music.MusicMods
                         }
 
                         isFileEdit = false;
+                    }
+                    else
+                    {
+                        _logger.LogDebug(
+                            "The selected file for toneId {ToneId} is already the mod file. Keeping {Filename}.",
+                            toneId,
+                            oldFilename);
                     }
                 }
 
@@ -256,7 +263,7 @@ namespace Sma5h.Mods.Music.MusicMods
                     ToneId = bgmProperty.NameId,
                     NUS3BankConfig = new NUS3BankConfig()
                     {
-                        AudioVolume = bgmProperty.AudioVolume
+                        AudioVolume = RoundVolume(bgmProperty.AudioVolume)
                     }
                 };
 
@@ -326,6 +333,45 @@ namespace Sma5h.Mods.Music.MusicMods
             SaveMusicModConfig();
 
             return true;
+        }
+
+        public bool AdjustSongVolumes(float amount, float minimumVolume, float maximumVolume)
+        {
+            if (_musicModConfig?.Series == null)
+                return true;
+
+            foreach (var bgm in _musicModConfig.Series.SelectMany(s => s.Games.SelectMany(g => g.Bgms)))
+            {
+                if (bgm.NUS3BankConfig == null)
+                    bgm.NUS3BankConfig = new NUS3BankConfig();
+
+                bgm.NUS3BankConfig.AudioVolume = RoundVolume(Math.Clamp(bgm.NUS3BankConfig.AudioVolume + amount, minimumVolume, maximumVolume));
+            }
+
+            return SaveMusicModConfig();
+        }
+
+        public bool SetSongVolumes(float volume, float minimumVolume, float maximumVolume)
+        {
+            if (_musicModConfig?.Series == null)
+                return true;
+
+            var normalizedVolume = RoundVolume(Math.Clamp(volume, minimumVolume, maximumVolume));
+
+            foreach (var bgm in _musicModConfig.Series.SelectMany(s => s.Games.SelectMany(g => g.Bgms)))
+            {
+                if (bgm.NUS3BankConfig == null)
+                    bgm.NUS3BankConfig = new NUS3BankConfig();
+
+                bgm.NUS3BankConfig.AudioVolume = normalizedVolume;
+            }
+
+            return SaveMusicModConfig();
+        }
+
+        private static float RoundVolume(float volume)
+        {
+            return (float)Math.Round(volume, 2, MidpointRounding.AwayFromZero);
         }
 
         public bool RemoveMusicModEntries(MusicModDeleteEntries musicModDeleteEntries)
@@ -448,6 +494,19 @@ namespace Sma5h.Mods.Music.MusicMods
             return Path.Combine(ModPath, bgmFilename);
         }
 
+        private static bool PathsEqual(string firstPath, string secondPath)
+        {
+            if (string.IsNullOrWhiteSpace(firstPath) || string.IsNullOrWhiteSpace(secondPath))
+                return false;
+
+            var firstFullPath = Path.GetFullPath(firstPath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var secondFullPath = Path.GetFullPath(secondPath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            return string.Equals(firstFullPath, secondFullPath, StringComparison.OrdinalIgnoreCase);
+        }
+
         protected virtual MusicModConfig LoadMusicModConfig()
         {
             //Attempt JSON
@@ -485,10 +544,23 @@ namespace Sma5h.Mods.Music.MusicMods
             }
 
             var saveMod = musicModConfig ?? _musicModConfig;
+            NormalizeMusicModConfigVolumes(saveMod);
             var metadataJsonFile = Path.Combine(ModPath, MusicConstants.MusicModFiles.MUSIC_MOD_METADATA_JSON_FILE);
             File.WriteAllText(metadataJsonFile, JsonConvert.SerializeObject(saveMod, Formatting.Indented));
 
             return true;
+        }
+
+        private void NormalizeMusicModConfigVolumes(MusicModConfig musicModConfig)
+        {
+            if (musicModConfig?.Series == null)
+                return;
+
+            foreach (var bgm in musicModConfig.Series.SelectMany(s => s.Games?.SelectMany(g => g.Bgms) ?? Enumerable.Empty<BgmConfig>()))
+            {
+                if (bgm.NUS3BankConfig != null)
+                    bgm.NUS3BankConfig.AudioVolume = RoundVolume(bgm.NUS3BankConfig.AudioVolume);
+            }
         }
 
         private MusicModConfig ConvertFromV2Mod(MusicModConfig v2ModConfig)

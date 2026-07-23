@@ -1,6 +1,7 @@
 ﻿using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
+using Sma5hMusic.GUI.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -21,6 +22,12 @@ namespace Sma5hMusic.GUI.Interfaces
         #region Scripts
         Task UpdateBgmSelectorStages(bool enable);
         Task<bool> ReorderSongsMod();
+        Task<bool> AdjustModSongVolumes(float amount);
+        Task<bool> SetModSongVolumes(float volume);
+        IEnumerable<GameTitleSortOption> GetSortableGameTitleOptions();
+        Task<bool> SortSongsAlphabeticallyByGame(IEnumerable<string> gameTitleIds);
+        IEnumerable<SeriesSortOption> GetSortableSeriesOptions();
+        Task<bool> SortSongsAlphabeticallyBySeries(IEnumerable<string> seriesIds);
         Task<bool> ResetModOverrideFile(string file);
         #endregion
 

@@ -31,7 +31,7 @@ namespace Sma5hMusic.GUI.ViewModels
             set
             {
                 _audioVolume = ConvertVolumeToMusicPlayer(value);
-                if (_musicPlayer != null && _isPlaying)
+                if (_inGameVolume && _musicPlayer != null && _isPlaying)
                     _musicPlayer.Volume = _audioVolume;
             }
         }
@@ -74,11 +74,19 @@ namespace Sma5hMusic.GUI.ViewModels
             if (_currentPlayControl != null)
                 await _currentPlayControl.StopSong();
 
-            _musicPlayer.Volume = AudioVolume;
+            _musicPlayer.ApplyVolume = _inGameVolume;
+            if (_inGameVolume)
+                _musicPlayer.Volume = AudioVolume;
             await _musicPlayer.Play(Filename);
             Text = STOP;
             _currentPlayControl = this;
             _isPlaying = true;
+        }
+
+        public static async Task StopCurrentSong()
+        {
+            if (_currentPlayControl != null)
+                await _currentPlayControl.StopSong();
         }
 
         public async Task StopSong()
@@ -86,6 +94,8 @@ namespace Sma5hMusic.GUI.ViewModels
             await _musicPlayer.Stop();
             Text = PLAY;
             _isPlaying = false;
+            if (_currentPlayControl == this)
+                _currentPlayControl = null;
         }
 
         private float ConvertVolumeToMusicPlayer(float volume)

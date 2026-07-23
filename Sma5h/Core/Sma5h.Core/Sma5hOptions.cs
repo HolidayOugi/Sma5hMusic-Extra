@@ -11,6 +11,12 @@
         //Tools Path
         public string ToolsPath { get; set; }
 
+        //yt-dlp executable path
+        public string YtDlpPath { get; set; }
+
+        //ffmpeg executable path
+        public string FfmpegPath { get; set; }
+
         //Temp Path
         public string TempPath { get; set; }
 

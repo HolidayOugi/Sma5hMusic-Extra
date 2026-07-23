@@ -52,8 +52,8 @@
         </MenuItem>
         <Separator></Separator>
         <MenuItem Header="Scripts">
-          <MenuItem Header="Export Song Entries to CSV" Command="{Binding ActionExportSongsCSV}"></MenuItem>
-          <Separator></Separator>
+        <MenuItem Header="Export Song Entries to CSV" Command="{Binding ActionExportSongsCSV}"></MenuItem>
+        <Separator></Separator>
           <MenuItem Header="Enable Song Selector in all Stages" Command="{Binding ActionUpdateBgmSelector}">
             <MenuItem.CommandParameter>
               <sys:Boolean>True</sys:Boolean>
@@ -78,6 +78,40 @@
           <MenuItem Header="Reset Stage Metadata (stage_override.json)" Command="{Binding ActionResetModOverrideFile}" CommandParameter="stage_override.json"></MenuItem>
         </MenuItem>
       </MenuItem>
+      <MenuItem Header="Extra">
+        <MenuItem Header="Build CSK Metadata only"
+                  ToolTip.Tip="Builds modular CSK pack metadata for all series without any BGM files."
+                  Command="{Binding ActionBuildCskMetadataOnly}"></MenuItem>
+        <Separator></Separator>
+        <MenuItem Header="Create Song Spreadsheet">
+          <MenuItem Header="Song List"
+                    Command="{Binding ActionCreateSongSpreadsheet}"
+                    CommandParameter="SongList"></MenuItem>
+          <MenuItem Header="Pinch Songs"
+                    Command="{Binding ActionCreateSongSpreadsheet}"
+                    CommandParameter="PinchSongs"></MenuItem>
+          <MenuItem Header="Main Menu"
+                    Command="{Binding ActionCreateSongSpreadsheet}"
+                    CommandParameter="MainMenu"></MenuItem>
+        </MenuItem>
+        <Separator></Separator>
+        <MenuItem Header="Normalize Songs in all Mods"
+                  ToolTip.Tip="Normalizes every song in every mod."
+                  Command="{Binding ActionNormalizeNus3AudioFiles}"></MenuItem>
+        <MenuItem Header="Increase / Decrease Volume for all Songs"
+                  ToolTip.Tip="Increases or decreases the volume of every song in every mod by the selected value."
+                  Command="{Binding ActionAdjustModSongVolumes}"></MenuItem>
+        <MenuItem Header="Set Volume for all Songs"
+                  ToolTip.Tip="Sets every song volume in every mod to the same value."
+                  Command="{Binding ActionSetModSongVolumes}"></MenuItem>
+        <Separator></Separator>
+        <MenuItem Header="Sort Songs Alphabetically by Game"
+                  ToolTip.Tip="Sorts selected games alphabetically."
+                  Command="{Binding ActionSortSongsAlphabeticallyByGame}"></MenuItem>
+        <MenuItem Header="Sort Songs Alphabetically by Series"
+                  ToolTip.Tip="Sorts selected series alphabetically, ignoring games."
+                  Command="{Binding ActionSortSongsAlphabeticallyBySeries}"></MenuItem>
+      </MenuItem>
       <MenuItem Header="Settings">
         <MenuItem Header="Show Advanced BGM Options" Command="{Binding ActionToggleAdvanced}">
           <MenuItem.Icon>
@@ -100,7 +134,7 @@
     </Menu>
     <DockPanel Grid.Row="1">
       <Image Classes="logo" Source="/Assets/smash_logo.png"/>
-      <TextBlock DockPanel.Dock="Left" Classes="title">Sma5h Music</TextBlock>
+      <TextBlock DockPanel.Dock="Left" Classes="title">Sma5hMusic Extra</TextBlock>
       <TabStrip DockPanel.Dock="Right" Name="TabsMenu" HorizontalAlignment="Right" Margin="10">
         <TabStripItem Content="Songs"/>
         <TabStripItem Content="Playlists"/>

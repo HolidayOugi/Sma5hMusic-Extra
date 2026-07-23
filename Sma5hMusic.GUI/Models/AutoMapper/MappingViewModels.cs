@@ -41,9 +41,12 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                     DefaultMSBTLocale = p.DefaultMSBTLocale,
                     CopyToEmptyLocales = p.CopyToEmptyLocales,
                     PlaylistIncidenceDefault = p.PlaylistIncidenceDefault,
+                    DefaultSongVolume = (double)p.DefaultSongVolume,
                     SkipWarningGameVersion = p.SkipWarningGameVersion,
                     AutoBackupAtStart = p.AutoBackupAtStart,
                     InGameVolume = p.InGameVolume,
+                    AudioNormalizationTargetLufs = p.AudioNormalizationTargetLufs,
+                    LoopPreviewSeconds = p.LoopPreviewSeconds,
                     HideIndexColumn = p.HideIndexColumn,
                     HideModColumn = p.HideModColumn,
                     HideRecordColumn = p.HideRecordColumn,
@@ -54,7 +57,9 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                     ModPath = p.ModOverridePath
                 }))
                 .ForMember(i => i.TempPath, me => me.MapFrom(p => p.TempPath))
-                .ForMember(i => i.ToolsPath, me => me.MapFrom(p => p.ToolsPath));
+                .ForMember(i => i.ToolsPath, me => me.MapFrom(p => p.ToolsPath))
+                .ForMember(i => i.YtDlpPath, me => me.MapFrom(p => p.YtDlpPath))
+                .ForMember(i => i.FfmpegPath, me => me.MapFrom(p => p.FfmpegPath));
             CreateMap<ApplicationSettings, GUI.ViewModels.GlobalConfigurationViewModel>()
                 .ForMember(i => i.GameResourcesPath, me => me.MapFrom(p => p.GameResourcesPath))
                 .ForMember(i => i.LogPath, me => me.MapFrom(p => p.LogPath))
@@ -78,16 +83,21 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.DefaultMSBTLocale, me => me.MapFrom(p => p.Sma5hMusicGUI.DefaultMSBTLocale))
                 .ForMember(i => i.CopyToEmptyLocales, me => me.MapFrom(p => p.Sma5hMusicGUI.CopyToEmptyLocales))
                 .ForMember(i => i.PlaylistIncidenceDefault, me => me.MapFrom(p => p.Sma5hMusicGUI.PlaylistIncidenceDefault))
+                .ForMember(i => i.DefaultSongVolume, me => me.MapFrom(p => (decimal)p.Sma5hMusicGUI.DefaultSongVolume))
                 .ForMember(i => i.SkipWarningGameVersion, me => me.MapFrom(p => p.Sma5hMusicGUI.SkipWarningGameVersion))
                 .ForMember(i => i.AutoBackupAtStart, me => me.MapFrom(p => p.Sma5hMusicGUI.AutoBackupAtStart))
                 .ForMember(i => i.InGameVolume, me => me.MapFrom(p => p.Sma5hMusicGUI.InGameVolume))
+                .ForMember(i => i.AudioNormalizationTargetLufs, me => me.MapFrom(p => p.Sma5hMusicGUI.AudioNormalizationTargetLufs))
+                .ForMember(i => i.LoopPreviewSeconds, me => me.MapFrom(p => p.Sma5hMusicGUI.LoopPreviewSeconds))
                 .ForMember(i => i.HideIndexColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideIndexColumn))
                 .ForMember(i => i.HideModColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideModColumn))
                 .ForMember(i => i.HideRecordColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideRecordColumn))
                 .ForMember(i => i.HideSeriesColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideSeriesColumn))
                 .ForMember(i => i.ModOverridePath, me => me.MapFrom(p => p.Sma5hMusicOverride.ModPath))
                 .ForMember(i => i.TempPath, me => me.MapFrom(p => p.TempPath))
-                .ForMember(i => i.ToolsPath, me => me.MapFrom(p => p.ToolsPath));
+                .ForMember(i => i.ToolsPath, me => me.MapFrom(p => p.ToolsPath))
+                .ForMember(i => i.YtDlpPath, me => me.MapFrom(p => p.YtDlpPath))
+                .ForMember(i => i.FfmpegPath, me => me.MapFrom(p => p.FfmpegPath));
 
             CreateMap<GUI.ViewModels.StageEntryViewModel, StageEntry>()
                 .ForMember(i => i.UiStageId, me => me.Ignore())

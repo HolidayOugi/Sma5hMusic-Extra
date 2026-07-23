@@ -46,7 +46,7 @@ namespace Sma5hMusic.GUI.Dialogs
                 {
                     Extensions = new List<string>()
                     {
-                        "brstm", "lopus", "idsp", "nus3audio"
+                        "brstm", "lopus", "idsp", "nus3audio", "mp3", "flac", "wav", "ogg", "m4a"
                     },
                     Name = "Songs"
                 }
@@ -135,6 +135,99 @@ namespace Sma5hMusic.GUI.Dialogs
             return null;
         }
 
+        public async Task<string> OpenFileDialogYtDlp(Window parent = null)
+        {
+            _logger.LogDebug("Opening yt-dlp FileDialog...");
+
+            _openFileDialog.AllowMultiple = false;
+            _openFileDialog.Directory = _savedDirectory;
+            _openFileDialog.Filters = new List<FileDialogFilter>()
+            {
+                new FileDialogFilter()
+                {
+                    Extensions = new List<string>() { "exe" },
+                    Name = "yt-dlp executable"
+                }
+            };
+            _openFileDialog.Title = "Select yt-dlp.exe";
+
+            string[] results;
+            if (parent == null)
+                results = await _openFileDialog.ShowAsync(_rootDialogWindow.Window);
+            else
+                results = await _openFileDialog.ShowAsync(parent);
+
+            if (results.Length > 0)
+            {
+                _savedDirectory = Path.GetDirectoryName(results[0]);
+                return results[0];
+            }
+
+            return null;
+        }
+
+        public async Task<string> OpenFileDialogFfmpeg(Window parent = null)
+        {
+            _logger.LogDebug("Opening ffmpeg FileDialog...");
+
+            _openFileDialog.AllowMultiple = false;
+            _openFileDialog.Directory = _savedDirectory;
+            _openFileDialog.Filters = new List<FileDialogFilter>()
+            {
+                new FileDialogFilter()
+                {
+                    Extensions = new List<string>() { "exe" },
+                    Name = "ffmpeg executable"
+                }
+            };
+            _openFileDialog.Title = "Select ffmpeg.exe";
+
+            string[] results;
+            if (parent == null)
+                results = await _openFileDialog.ShowAsync(_rootDialogWindow.Window);
+            else
+                results = await _openFileDialog.ShowAsync(parent);
+
+            if (results.Length > 0)
+            {
+                _savedDirectory = Path.GetDirectoryName(results[0]);
+                return results[0];
+            }
+
+            return null;
+        }
+
+        public async Task<string> OpenFileDialogYoutubeLinksText(Window parent = null)
+        {
+            _logger.LogDebug("Opening YouTube links text FileDialog...");
+
+            _openFileDialog.AllowMultiple = false;
+            _openFileDialog.Directory = _savedDirectory;
+            _openFileDialog.Filters = new List<FileDialogFilter>()
+            {
+                new FileDialogFilter()
+                {
+                    Extensions = new List<string>() { "txt" },
+                    Name = "Text file"
+                }
+            };
+            _openFileDialog.Title = "Load YouTube Links File";
+
+            string[] results;
+            if (parent == null)
+                results = await _openFileDialog.ShowAsync(_rootDialogWindow.Window);
+            else
+                results = await _openFileDialog.ShowAsync(parent);
+
+            if (results.Length > 0)
+            {
+                _savedDirectory = Path.GetDirectoryName(results[0]);
+                return results[0];
+            }
+
+            return null;
+        }
+
         public async Task<string> SaveFileCSVDialog(Window parent = null)
         {
             _logger.LogDebug("Opening SaveDialog...");
@@ -165,6 +258,34 @@ namespace Sma5hMusic.GUI.Dialogs
                 _savedSaveFileName = Path.GetFileName(result);
                 _savedSaveFileDirectory = Path.GetDirectoryName(result);
             }
+
+            return result;
+        }
+
+        public async Task<string> SaveFileSpreadsheetDialog(string defaultFileName, Window parent = null)
+        {
+            _logger.LogDebug("Opening spreadsheet SaveDialog...");
+
+            _saveFileDialog.Directory = _savedSaveFileDirectory;
+            _saveFileDialog.InitialFileName = defaultFileName;
+            _saveFileDialog.Filters = new List<FileDialogFilter>()
+            {
+                new FileDialogFilter()
+                {
+                    Extensions = new List<string>() { "xlsx" },
+                    Name = "Excel Workbook"
+                }
+            };
+            _saveFileDialog.Title = "Save Song Spreadsheet";
+
+            string result;
+            if (parent == null)
+                result = await _saveFileDialog.ShowAsync(_rootDialogWindow.Window);
+            else
+                result = await _saveFileDialog.ShowAsync(parent);
+
+            if (!string.IsNullOrEmpty(result))
+                _savedSaveFileDirectory = Path.GetDirectoryName(result);
 
             return result;
         }

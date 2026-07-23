@@ -9,6 +9,8 @@ using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using Sma5h.Mods.Music.Models.PlaylistEntryModels;
 using Sma5hMusic.GUI.Interfaces;
+using Sma5hMusic.GUI.Models;
+using Sma5hMusic.GUI.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,6 +21,8 @@ namespace Sma5hMusic.GUI.Services
 {
     public class GUIStateManager : IGUIStateManager
     {
+        private const string SmashUltimateGameTitleId = "ui_gametitle_super_smash_bros_special";
+
         private readonly ILogger _logger;
         protected readonly IMapper _mapper;
         private readonly IMessageDialog _messageDialog;
@@ -1198,6 +1202,314 @@ namespace Sma5hMusic.GUI.Services
 
         }
 
+        public IEnumerable<GameTitleSortOption> GetSortableGameTitleOptions()
+        {
+            return _viewModelManager.GetBgmDbRootEntriesViewModels()
+                .Where(p => !p.HiddenInSoundTest)
+                .Where(p => !string.IsNullOrEmpty(p.UiGameTitleId))
+                .Where(p => !string.Equals(p.UiGameTitleId, SmashUltimateGameTitleId, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(p => p.UiGameTitleId)
+                .Select(p =>
+                {
+                    var gameTitle = _viewModelManager.GetGameTitleViewModel(p.Key);
+                    return new GameTitleSortOption
+                    {
+                        UiGameTitleId = p.Key,
+                        UiSeriesId = gameTitle?.UiSeriesId,
+                        SeriesTitle = !string.IsNullOrWhiteSpace(gameTitle?.SeriesViewModel?.Title) ? gameTitle.SeriesViewModel.Title : gameTitle?.UiSeriesId,
+                        Title = !string.IsNullOrWhiteSpace(gameTitle?.Title) ? gameTitle.Title : p.Key,
+                        SongCount = p.Count()
+                    };
+                })
+                .OrderBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.UiGameTitleId, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public async Task<bool> SortSongsAlphabeticallyByGame(IEnumerable<string> gameTitleIds)
+        {
+            var selectedGameTitleIds = new HashSet<string>(
+                gameTitleIds ?? Enumerable.Empty<string>(),
+                StringComparer.OrdinalIgnoreCase);
+            selectedGameTitleIds.Remove(SmashUltimateGameTitleId);
+
+            return await SortSongsAlphabeticallyByGroup(
+                selectedGameTitleIds,
+                p => p.UiGameTitleId,
+                "Sort Songs Alphabetically by Game",
+                "This script will sort songs alphabetically inside each selected game.\r\nContinue?",
+                "Error while sorting songs alphabetically by game",
+                "Error while sorting songs alphabetically by game.");
+        }
+
+        public IEnumerable<SeriesSortOption> GetSortableSeriesOptions()
+        {
+            return _viewModelManager.GetBgmDbRootEntriesViewModels()
+                .Where(p => !p.HiddenInSoundTest)
+                .Where(p => !string.IsNullOrEmpty(p.SeriesId))
+                .GroupBy(p => p.SeriesId, StringComparer.OrdinalIgnoreCase)
+                .Select(p =>
+                {
+                    var series = _viewModelManager.GetSeriesViewModel(p.Key);
+                    return new SeriesSortOption
+                    {
+                        UiSeriesId = p.Key,
+                        Title = !string.IsNullOrWhiteSpace(series?.Title) ? series.Title : p.Key,
+                        SongCount = p.Count()
+                    };
+                })
+                .OrderBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(p => p.UiSeriesId, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public async Task<bool> SortSongsAlphabeticallyBySeries(IEnumerable<string> seriesIds)
+        {
+            return await SortSongsAlphabeticallyByGroup(
+                seriesIds,
+                p => p.SeriesId,
+                "Sort Songs Alphabetically by Series",
+                "This script will sort songs alphabetically inside each selected series, ignoring games.\r\nContinue?",
+                "Error while sorting songs alphabetically by series",
+                "Error while sorting songs alphabetically by series.");
+        }
+
+        private async Task<bool> SortSongsAlphabeticallyByGroup(
+            IEnumerable<string> groupIds,
+            Func<BgmDbRootEntryViewModel, string> groupIdSelector,
+            string title,
+            string confirmMessage,
+            string errorLogMessage,
+            string errorUserMessage)
+        {
+            var selectedGroupIds = new HashSet<string>(
+                groupIds ?? Enumerable.Empty<string>(),
+                StringComparer.OrdinalIgnoreCase);
+
+            if (selectedGroupIds.Count == 0)
+                return false;
+
+            bool confirm = false;
+            bool result = true;
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                confirm = await _messageDialog.ShowWarningConfirm(title, confirmMessage);
+            }, DispatcherPriority.Background);
+
+            if (!confirm)
+                return false;
+
+            try
+            {
+                await BackupProject(false, false);
+
+                foreach (var groupId in selectedGroupIds)
+                {
+                    var groupSongs = _viewModelManager.GetBgmDbRootEntriesViewModels()
+                        .Where(p => !p.HiddenInSoundTest)
+                        .Where(p => string.Equals(groupIdSelector(p), groupId, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(p => p.TestDispOrder)
+                        .ToList();
+
+                    var orderSlots = groupSongs
+                        .Select(p => p.TestDispOrder)
+                        .OrderBy(p => p)
+                        .ToList();
+
+                    var sortedSongs = groupSongs
+                        .OrderBy(p => p.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(p => p.UiBgmId, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    for (var i = 0; i < sortedSongs.Count; i++)
+                    {
+                        sortedSongs[i].TestDispOrder = orderSlots[i];
+                        sortedSongs[i].GetReferenceEntity().TestDispOrder = orderSlots[i];
+                    }
+                }
+
+                result = _sma5hMusicOverride.UpdateSoundTestOrderConfig(
+                    _viewModelManager.GetBgmDbRootEntriesViewModels().ToDictionary(p => p.UiBgmId, p => p.TestDispOrder));
+
+                if (result)
+                    result = ReorderMusicModSongs();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, errorLogMessage);
+                result = false;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (result)
+                    await _messageDialog.ShowInformation(title, "Done!");
+                else
+                    await _messageDialog.ShowError(title, errorUserMessage);
+            }, DispatcherPriority.Background);
+
+            return result;
+        }
+
+        private bool ReorderMusicModSongs()
+        {
+            var allModSongs = _viewModelManager.GetBgmDbRootEntriesViewModels()
+                .Where(p => p.MusicMod != null)
+                .OrderBy(p => p.TestDispOrder);
+
+            foreach (var mod in _musicModManagerService.MusicMods)
+            {
+                var orderedModSongs = allModSongs
+                    .Where(p => p.MusicMod.Id == mod.Id)
+                    .Select(p => p.UiBgmId)
+                    .ToList();
+
+                if (!mod.ReorderSongs(orderedModSongs))
+                    return false;
+            }
+
+            return true;
+        }
+
+        public async Task<bool> AdjustModSongVolumes(float amount)
+        {
+            bool confirm = false;
+            bool result = true;
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                var isIncrease = amount >= 0;
+                var action = isIncrease ? "Increase" : "Decrease";
+                var amountText = isIncrease ? amount.ToString("0.##") : Math.Abs(amount).ToString("0.##");
+
+                confirm = await _messageDialog.ShowWarningConfirm($"{action} Volume for all Songs",
+                    $"This script will {action.ToLower()} the volume of every song in every mod by {amountText}.\r\n" +
+                    "Continue?");
+            }, DispatcherPriority.Background);
+
+            if (confirm && await BackupProject(false, false))
+            {
+                try
+                {
+                    foreach (var mod in _musicModManagerService.MusicMods)
+                    {
+                        if (!mod.AdjustSongVolumes(amount, Helpers.Constants.MinimumGameVolume, Helpers.Constants.MaximumGameVolume))
+                        {
+                            result = false;
+                            break;
+                        }
+                    }
+
+                    if (result)
+                    {
+                        foreach (var bgmProperty in _audioState.GetModBgmPropertyEntries())
+                        {
+                            bgmProperty.AudioVolume = RoundVolume(Math.Clamp(
+                                bgmProperty.AudioVolume + amount,
+                                Helpers.Constants.MinimumGameVolume,
+                                Helpers.Constants.MaximumGameVolume));
+                        }
+
+                        foreach (var bgmPropertyVm in _viewModelManager.GetBgmPropertyEntriesViewModels().Where(p => p.MusicMod != null))
+                        {
+                            bgmPropertyVm.AudioVolume = RoundVolume(Math.Clamp(
+                                bgmPropertyVm.AudioVolume + amount,
+                                Helpers.Constants.MinimumGameVolume,
+                                Helpers.Constants.MaximumGameVolume));
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "An error happened while adjusting one or multiple mod song volumes. {Message}", e.Message);
+                    result = false;
+                }
+
+                if (!result)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await _messageDialog.ShowError("Increase / Decrease Volume for all Songs", "An error happened while adjusting one or multiple mod song volumes.");
+                    }, DispatcherPriority.Background);
+                    return false;
+                }
+
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await _messageDialog.ShowInformation("Increase / Decrease Volume for all Songs", "Done!");
+                }, DispatcherPriority.Background);
+                return true;
+            }
+
+            return false;
+        }
+
+        public async Task<bool> SetModSongVolumes(float volume)
+        {
+            bool confirm = false;
+            bool result = true;
+            var normalizedVolume = RoundVolume(Math.Clamp(
+                volume,
+                Helpers.Constants.MinimumGameVolume,
+                Helpers.Constants.MaximumGameVolume));
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                confirm = await _messageDialog.ShowWarningConfirm("Set Volume for all Songs",
+                    $"This script will set the volume of every song in every mod to {normalizedVolume:0.00}.\r\n" +
+                    "Continue?");
+            }, DispatcherPriority.Background);
+
+            if (confirm && await BackupProject(false, false))
+            {
+                try
+                {
+                    foreach (var mod in _musicModManagerService.MusicMods)
+                    {
+                        if (!mod.SetSongVolumes(normalizedVolume, Helpers.Constants.MinimumGameVolume, Helpers.Constants.MaximumGameVolume))
+                        {
+                            result = false;
+                            break;
+                        }
+                    }
+
+                    if (result)
+                    {
+                        foreach (var bgmProperty in _audioState.GetModBgmPropertyEntries())
+                        {
+                            bgmProperty.AudioVolume = normalizedVolume;
+                        }
+
+                        foreach (var bgmPropertyVm in _viewModelManager.GetBgmPropertyEntriesViewModels().Where(p => p.MusicMod != null))
+                        {
+                            bgmPropertyVm.AudioVolume = normalizedVolume;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "An error happened while setting one or multiple mod song volumes. {Message}", e.Message);
+                    result = false;
+                }
+
+                if (!result)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await _messageDialog.ShowError("Set Volume for all Songs", "An error happened while setting one or multiple mod song volumes.");
+                    }, DispatcherPriority.Background);
+                    return false;
+                }
+
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await _messageDialog.ShowInformation("Set Volume for all Songs", "Done!");
+                }, DispatcherPriority.Background);
+                return true;
+            }
+
+            return false;
+        }
+
         public async Task<bool> ResetModOverrideFile(string file)
         {
             bool confirm = false;
@@ -1234,25 +1546,64 @@ namespace Sma5hMusic.GUI.Services
 
         public async Task<AudioCuePoints> UpdateAudioCuePoints(string filename)
         {
-            //Calculate cues
-            var audioCuePoints = await _audioMetadataService.GetCuePoints(filename);
-            if (audioCuePoints == null || audioCuePoints.TotalSamples <= 0)
+            var metadataFilename = CreateAudioMetadataCompatibleInputCopy(filename);
+            try
             {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
+                //Calculate cues
+                var audioCuePoints = await _audioMetadataService.GetCuePoints(metadataFilename);
+                if (audioCuePoints == null || audioCuePoints.TotalSamples <= 0)
                 {
-                    await _messageDialog.ShowError("Update Audio Cue Points", $"The filename {filename} didn't have cue points. Make sure audio library is properly installed.");
-                }, DispatcherPriority.Background);
-                return null;
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await _messageDialog.ShowError("Update Audio Cue Points", $"The filename {filename} didn't have cue points. Make sure audio library is properly installed.");
+                    }, DispatcherPriority.Background);
+                    return null;
+                }
+                if (audioCuePoints.Frequency < 32000)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await _messageDialog.ShowError("Update Audio Cue Points", $"The frequency of the audio file {filename} must be at least 32Khz.");
+                    }, DispatcherPriority.Background);
+                    return null;
+                }
+                return audioCuePoints;
             }
-            if (audioCuePoints.Frequency < 32000)
+            finally
             {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await _messageDialog.ShowError("Update Audio Cue Points", $"The frequency of the audio file {filename} must be at least 32Khz.");
-                }, DispatcherPriority.Background);
-                return null;
+                DeleteAudioMetadataCompatibleInputCopy(filename, metadataFilename);
             }
-            return audioCuePoints;
+        }
+
+        private string CreateAudioMetadataCompatibleInputCopy(string filename)
+        {
+            if (!filename.Any(character => character > 127))
+                return filename;
+
+            var tempPath = Path.Combine(_config.CurrentValue.TempPath, "AudioMetadata");
+            Directory.CreateDirectory(tempPath);
+
+            var tempFilename = Path.Combine(tempPath, $"{Guid.NewGuid():N}_source{Path.GetExtension(filename)}");
+            _logger.LogInformation("Copying audio file with non-ASCII path to temporary metadata path. Source: {SourceFilename}, Temporary: {TemporaryFilename}",
+                filename, tempFilename);
+            File.Copy(filename, tempFilename);
+            return tempFilename;
+        }
+
+        private void DeleteAudioMetadataCompatibleInputCopy(string originalFilename, string metadataFilename)
+        {
+            if (string.Equals(originalFilename, metadataFilename, StringComparison.Ordinal))
+                return;
+
+            try
+            {
+                if (File.Exists(metadataFilename))
+                    File.Delete(metadataFilename);
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Could not delete temporary audio metadata file {Filename}", metadataFilename);
+            }
         }
 
         public string GameVersion
@@ -1462,7 +1813,7 @@ namespace Sma5hMusic.GUI.Services
 
         private MusicModEntries CreateNewMusicModEntriesSet(string toneId, string filename, IMusicMod musicMod)
         {
-            var newBgmPropertyEntry = new BgmPropertyEntry(toneId, filename, musicMod);
+            var newBgmPropertyEntry = new BgmPropertyEntry(toneId, filename, musicMod) { AudioVolume = GetDefaultSongVolume() };
             var newBgmStreamPropertyEntry = new BgmStreamPropertyEntry($"{MusicConstants.InternalIds.STREAM_PREFIX}{toneId}", musicMod) { DataName0 = newBgmPropertyEntry.NameId };
             var newBgmAssignedInfoEntry = new BgmAssignedInfoEntry($"{MusicConstants.InternalIds.INFO_ID_PREFIX}{toneId}", musicMod) { StreamId = newBgmStreamPropertyEntry.StreamId };
             var newBgmStreamSetEntry = new BgmStreamSetEntry($"{MusicConstants.InternalIds.STREAM_SET_PREFIX}{toneId}", musicMod) { Info0 = newBgmAssignedInfoEntry.InfoId };
@@ -1478,6 +1829,16 @@ namespace Sma5hMusic.GUI.Services
             musicModEntries.BgmPropertyEntries.Add(newBgmPropertyEntry);
 
             return musicModEntries;
+        }
+
+        private float GetDefaultSongVolume()
+        {
+            var volume = (decimal)_config.CurrentValue.Sma5hMusicGUI.DefaultSongVolume;
+
+            return (float)Math.Clamp(
+                Math.Round(volume, 1, MidpointRounding.AwayFromZero),
+                (decimal)Helpers.Constants.MinimumGameVolume,
+                (decimal)Helpers.Constants.MaximumGameVolume);
         }
 
         public async Task<bool> BackupProject(bool fullBackup, bool showConfirm = true)
@@ -1524,6 +1885,11 @@ namespace Sma5hMusic.GUI.Services
                 }, DispatcherPriority.Background);
                 return false;
             }
+        }
+
+        private static float RoundVolume(float volume)
+        {
+            return (float)Math.Round(volume, 2, MidpointRounding.AwayFromZero);
         }
     }
 }

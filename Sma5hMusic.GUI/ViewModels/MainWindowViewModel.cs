@@ -25,7 +25,7 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Sma5hMusic.GUI.ViewModels
 {
-    public class MainWindowViewModel : ViewModelBase
+    public partial class MainWindowViewModel : ViewModelBase
     {
         private readonly IDevToolsService _devTools;
         private readonly IGUIStateManager _guiStateManager;
@@ -35,7 +35,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IFileDialog _fileDialog;
         private readonly IDialogWindow _rootDialog;
         private readonly IBuildDialog _buildDialog;
-        private readonly ICskPackBuildService _cskPackBuildService;
+        private readonly ISongSpreadsheetService _songSpreadsheetService;
         private readonly IOptionsMonitor<ApplicationSettings> _appSettings;
         private readonly ILogger _logger;
         private readonly IMapper _mapper;
@@ -75,8 +75,6 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Unit, Unit> ActionExit { get; }
         public ReactiveCommand<Unit, Unit> ActionBuild { get; }
         public ReactiveCommand<Unit, Unit> ActionBuildNoCache { get; }
-        public ReactiveCommand<Unit, Unit> ActionBuildCskPacks { get; }
-        public ReactiveCommand<Unit, Unit> ActionBuildSingleCskPack { get; }
         public ReactiveCommand<Unit, Unit> ActionRefreshData { get; }
         public ReactiveCommand<Unit, Unit> ActionToggleAdvanced { get; }
         public ReactiveCommand<Unit, Unit> ActionToggleConsole { get; }
@@ -90,19 +88,28 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Unit, Unit> ActionExportSongsCSV { get; }
         public ReactiveCommand<Unit, Unit> ActionFixUnknownValues { get; }
         public ReactiveCommand<Unit, Unit> ActionReorderSongsMod { get; }
+        public ReactiveCommand<Unit, Unit> ActionAdjustModSongVolumes { get; }
+        public ReactiveCommand<Unit, Unit> ActionSetModSongVolumes { get; }
+        public ReactiveCommand<Unit, Unit> ActionSortSongsAlphabeticallyByGame { get; }
+        public ReactiveCommand<Unit, Unit> ActionSortSongsAlphabeticallyBySeries { get; }
+        public ReactiveCommand<string, Unit> ActionCreateSongSpreadsheet { get; }
         public ReactiveCommand<bool, Unit> ActionUpdateBgmSelector { get; }
         public ReactiveCommand<string, Unit> ActionResetModOverrideFile { get; }
         public ReactiveCommand<bool, Unit> ActionBackupProject { get; }
 
 
         public MainWindowViewModel(IServiceProvider serviceProvider, IViewModelManager viewModelManager, IGUIStateManager guiStateManager, IMapper mapper, IVGMMusicPlayer musicPlayer,
-            IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
+               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
         {
             _viewModelManager = viewModelManager;
             _guiStateManager = guiStateManager;
             _musicPlayer = musicPlayer;
             _fileDialog = fileDialog;
+            _audioImportService = audioImportService;
+            _nus3AudioBatchNormalizationService = nus3AudioBatchNormalizationService;
+            _youtubeImportService = youtubeImportService;
             _buildDialog = buildDialog;
+            _songSpreadsheetService = songSpreadsheetService;
             _cskPackBuildService = cskPackBuildService;
             _messageDialog = messageDialog;
             _rootDialog = rootDialog;
@@ -113,7 +120,7 @@ namespace Sma5hMusic.GUI.ViewModels
             IsLoading = true;
 
             _logger.LogInformation($"GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")} | Game v{_guiStateManager.GameVersion}");
-            Title = $"Sma5hMusic (CSK Mod) - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")}";
+            Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")}";
 
             //Set values
             IsAdvanced = appSettings.CurrentValue.Sma5hMusicGUI.Advanced;
@@ -155,6 +162,7 @@ namespace Sma5hMusic.GUI.ViewModels
             _dialogGamePicker = new ModalDialog<GamePickerModalWindow, GamePickerModalWindowViewModel, GameTitleEntryViewModel>(vmGamePicker);
             _dialogGameDeletePicker = new ModalDialog<GameDeletePickerModalWindow, GameDeletePickerModalWindowViewModel, GameTitleEntryViewModel>(vmGameDeletePicker);
             _vmToneIdCreation = ActivatorUtilities.CreateInstance<ToneIdCreationModalWindowModel>(serviceProvider);
+            _vmYoutubeImport = ActivatorUtilities.CreateInstance<YoutubeImportModalWindowViewModel>(serviceProvider);
 
             //Setup BgmEditor
             var vmBgmEditor = ActivatorUtilities.CreateInstance<BgmPropertiesModalWindowViewModel>(serviceProvider);
@@ -174,6 +182,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
             //Listen to requests from children
             VMContextMenu.WhenNewRequestToAddBgmEntry.Subscribe(async (o) => await AddNewBgmEntry(o));
+            VMContextMenu.WhenNewRequestToAddYoutubeBgmEntry.Subscribe(async (o) => await AddNewYoutubeBgmEntry(o));
             VMContextMenu.WhenNewRequestToAddModEntry.Subscribe(async (o) => await AddNewOrEditMod());
             VMContextMenu.WhenNewRequestToAddSeriesEntry.Subscribe(async (o) => await AddNewOrEditSeries());
             VMContextMenu.WhenNewRequestToAddGameEntry.Subscribe(async (o) => await AddNewOrEditGame());
@@ -200,6 +209,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionBuildNoCache = ReactiveCommand.CreateFromTask(OnBuildNoCache);
             ActionBuildCskPacks = ReactiveCommand.CreateFromTask(OnBuildCskPacks);
             ActionBuildSingleCskPack = ReactiveCommand.CreateFromTask(OnBuildSingleCskPack);
+            ActionBuildCskMetadataOnly = ReactiveCommand.CreateFromTask(OnBuildCskMetadataOnly);
             ActionRefreshData = ReactiveCommand.CreateFromTask(() => OnInitData());
             ActionToggleAdvanced = ReactiveCommand.Create(OnAdvancedToggle);
             ActionToggleConsole = ReactiveCommand.Create(OnConsoleToggle);
@@ -211,8 +221,14 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionOpenResourcesFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.ResourcesPath));
             ActionOpenLogsFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.LogPath));
             ActionExportSongsCSV = ReactiveCommand.CreateFromTask(ExportSongsToCSV);
+            ActionNormalizeNus3AudioFiles = ReactiveCommand.CreateFromTask(NormalizeNus3AudioFiles);
             ActionFixUnknownValues = ReactiveCommand.CreateFromTask(FixUnknownValues);
             ActionReorderSongsMod = ReactiveCommand.CreateFromTask(ReorderSongsMod);
+            ActionAdjustModSongVolumes = ReactiveCommand.CreateFromTask(AdjustModSongVolumes);
+            ActionSetModSongVolumes = ReactiveCommand.CreateFromTask(SetModSongVolumes);
+            ActionSortSongsAlphabeticallyByGame = ReactiveCommand.CreateFromTask(SortSongsAlphabeticallyByGame);
+            ActionSortSongsAlphabeticallyBySeries = ReactiveCommand.CreateFromTask(SortSongsAlphabeticallyBySeries);
+            ActionCreateSongSpreadsheet = ReactiveCommand.CreateFromTask<string>(CreateSongSpreadsheet);
             ActionUpdateBgmSelector = ReactiveCommand.CreateFromTask<bool>((enabled) => UpdateBgmSelector(enabled));
             ActionResetModOverrideFile = ReactiveCommand.CreateFromTask<string>((file) => ResetModOverrideFile(file));
             ActionBackupProject = ReactiveCommand.CreateFromTask<bool>((fullBackup) => _guiStateManager.BackupProject(fullBackup));
@@ -262,95 +278,6 @@ namespace Sma5hMusic.GUI.ViewModels
             });
         }
 
-        public async Task OnBuildCskPacks()
-        {
-            await BuildCskPacks(false);
-        }
-
-        public async Task OnBuildSingleCskPack()
-        {
-            var buildStarted = false;
-            try
-            {
-                var availableSeries = await _cskPackBuildService.GetAvailableSeries();
-                if (availableSeries.Count == 0)
-                {
-                    await _messageDialog.ShowError("CSK pack build failed", "No series were found in the currently loaded music mods.");
-                    return;
-                }
-
-                IsLoading = true;
-                IsShowingDebug = true;
-                buildStarted = true;
-                await _musicPlayer.Stop();
-                _logger.LogInformation("Building single CSK pack for all {SeriesCount} available series.", availableSeries.Count);
-
-                await _cskPackBuildService.BuildSingle(availableSeries.Select(p => p.Key));
-                await _messageDialog.ShowInformation("Complete", "Single CSK pack build complete.");
-            }
-            catch (Exception e)
-            {
-                await _messageDialog.ShowError("CSK pack build failed", e.Message, e);
-            }
-            finally
-            {
-                if (buildStarted)
-                {
-                    IsLoading = false;
-                    IsShowingDebug = false;
-                }
-            }
-        }
-
-        private async Task BuildCskPacks(bool singlePack)
-        {
-            var buildStarted = false;
-            try
-            {
-                var availableSeries = await _cskPackBuildService.GetAvailableSeries();
-                if (availableSeries.Count == 0)
-                {
-                    await _messageDialog.ShowError("CSK pack build failed", "No series were found in the currently loaded music mods.");
-                    return;
-                }
-
-                var pickerViewModel = new CskPackSeriesPickerModalWindowViewModel(availableSeries);
-                var pickerWindow = new CskPackSeriesPickerModalWindow { DataContext = pickerViewModel };
-                var pickerResult = await pickerWindow.ShowDialog<CskPackSeriesPickerModalWindow>(_rootDialog.Window);
-                if (pickerResult == null)
-                    return;
-
-                var selectedSeriesKeys = pickerViewModel.GetSelectedSeriesKeys().ToList();
-                if (selectedSeriesKeys.Count == 0)
-                    return;
-
-                IsLoading = true;
-                IsShowingDebug = true;
-                buildStarted = true;
-                await _musicPlayer.Stop();
-                _logger.LogInformation("Building {CskBuildMode} CSK pack(s) for {SelectedSeriesCount} selected series.", singlePack ? "single" : "modular", selectedSeriesKeys.Count);
-
-                if (singlePack)
-                    await _cskPackBuildService.BuildSingle(selectedSeriesKeys);
-                else
-                    await _cskPackBuildService.Build(selectedSeriesKeys);
-
-                await _messageDialog.ShowInformation("Complete", singlePack ? "Single CSK pack build complete." : "Modular CSK packs build complete.");
-            }
-            catch (Exception e)
-            {
-                await _messageDialog.ShowError("CSK pack build failed", e.Message, e);
-            }
-            finally
-            {
-                if (buildStarted)
-                {
-                    IsLoading = false;
-                    IsShowingDebug = false;
-                }
-            }
-        }
-
         public async Task OnInitData(bool backupData = false)
         {
             IsLoading = true;
@@ -380,7 +307,7 @@ namespace Sma5hMusic.GUI.ViewModels
                         await _messageDialog.ShowInformation("Game version not found", $"The version of your game could not be identified.\r\nIt might be that you are using a version that is unsupported or that your game files are customized.\r\nThis is known to cause some issues, such as silent files or wrong text information.\r\nBefore asking for support please make sure that the proper version of the files is recognized.");
                     }, DispatcherPriority.Background);
                 }
-                Title = $"Sma5hMusic (CSK Mod) - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")} | Game v{_guiStateManager.GameVersion}";
+                Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")} | Game v{_guiStateManager.GameVersion}";
 
                 IsLoading = false;
             }, (o) =>
@@ -396,12 +323,12 @@ namespace Sma5hMusic.GUI.ViewModels
                 $"Sma5hMusic - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")} by deinonychus71\r\n" +
                 $"Mod Sma5hMusic - v{MusicConstants.VersionSma5hMusic} by deinonychus71\r\n" +
                 $"Mod Sma5hMusicOverride - v{MusicConstants.VersionSma5hMusicOverride} by deinonychus71\r\n" +
-                $"CSK Mod by HolidayOugi\r\n" +
+                $"Extra Features by HolidayOugi\r\n" +
                 $"Game - v{_guiStateManager.GameVersion}\r\n" +
                 "https://github.com/Deinonychus71/Sma5hMusic \r\n\r\n" +
                 "Research: soneek\r\n" +
                 "Testing: Demonslayerx8, Segtendo\r\n" +
-                "Icon: Segtendo\r\n\r\n" +
+                "Original Icon: Segtendo\r\n\r\n" +
                 "prcEditor: https://github.com/BenHall-7/paracobNET \r\nBenHall-7\r\n\r\n" +
                 "paramLabels: https://github.com/ultimate-research/param-labels \r\nBenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8\r\n\r\n" +
                 "msbtEditor: https://github.com/IcySon55/3DLandMSBTeditor \r\nIcySon55, exelix11 \r\n\r\n" +
@@ -409,9 +336,11 @@ namespace Sma5hMusic.GUI.ViewModels
                 "bgm-property: https://github.com/jam1garner/smash-bgm-property \r\njam1garner \r\n\r\n" +
                 "VGAudio: https://github.com/Thealexbarney/VGAudio \r\nThealexbarney, soneek, jam1garner, devlead, Raytwo, nnn1590\r\n\r\n" +
                 "vgmstream: https://github.com/vgmstream/vgmstream \r\nbnnm, kode54, NicknineTheEagle, bxaimc, Thealexbarney\r\nAll contributors: https://github.com/vgmstream/vgmstream/graphs/contributors \r\n\r\n" +
+                "SoX: https://sox.sourceforge.net/ \r\nSoX contributors\r\n\r\n" +
+                "PyMusicLooper: https://github.com/arkrow/PyMusicLooper \r\narkrow and contributors\r\n\r\n" +
                 "CrossArc: https://github.com/Ploaj/ArcCross \r\nPloaj, ScanMountGoat, BenHall-7, shadowninja108, jam1garner, M-1-RLG\r\n\r\n" +
-                "BCnEncoder.NET: https://github.com/Nominom/BCnEncoder.NET \r\nNominom and contributors\r\n\r\n" +
-                "SkiaSharp: https://github.com/mono/SkiaSharp \r\nMono/SkiaSharp contributors\r\n\r\n");
+                "yt-dlp: https://github.com/yt-dlp/yt-dlp \r\nytdlp contributors\r\n\r\n" +
+                "FFmpeg: https://github.com/FFmpeg/FFmpeg \r\nFFmpeg contributors\r\n\r\n");
         }
 
         public void OnWikiOpen()
@@ -462,6 +391,64 @@ namespace Sma5hMusic.GUI.ViewModels
                 await OnInitData();
         }
 
+        public async Task AdjustModSongVolumes()
+        {
+            var volumeAdjustmentPickerVm = new SongVolumeAdjustmentPickerModalWindowViewModel();
+            var volumeAdjustmentPicker = new SongVolumeAdjustmentPickerModalWindow() { DataContext = volumeAdjustmentPickerVm };
+            var result = await volumeAdjustmentPicker.ShowDialog<SongVolumeAdjustmentPickerModalWindow>(_rootDialog.Window);
+
+            if (result == null)
+                return;
+
+            if (await _guiStateManager.AdjustModSongVolumes((float)volumeAdjustmentPickerVm.VolumeAdjustment))
+                await OnInitData();
+        }
+
+        public async Task SetModSongVolumes()
+        {
+            var volumePickerVm = new SongVolumeAdjustmentPickerModalWindowViewModel(
+                "Set Volume for all Songs",
+                "Set Volume",
+                "Volume value to set for every song.",
+                -20.0,
+                20.0,
+                1);
+            var volumePicker = new SongVolumeAdjustmentPickerModalWindow() { DataContext = volumePickerVm };
+            var result = await volumePicker.ShowDialog<SongVolumeAdjustmentPickerModalWindow>(_rootDialog.Window);
+
+            if (result == null)
+                return;
+
+            if (await _guiStateManager.SetModSongVolumes((float)volumePickerVm.VolumeAdjustment))
+                await OnInitData();
+        }
+
+        public async Task SortSongsAlphabeticallyByGame()
+        {
+            var pickerVm = new GameMultiPickerModalWindowViewModel(
+                _guiStateManager.GetSortableGameTitleOptions());
+            var picker = new GameMultiPickerModalWindow() { DataContext = pickerVm };
+            var result = await picker.ShowDialog<GameMultiPickerModalWindow>(_rootDialog.Window);
+
+            if (result == null)
+                return;
+
+            await _guiStateManager.SortSongsAlphabeticallyByGame(pickerVm.GetSelectedGameTitleIds());
+        }
+
+        public async Task SortSongsAlphabeticallyBySeries()
+        {
+            var pickerVm = new SeriesMultiPickerModalWindowViewModel(
+                _guiStateManager.GetSortableSeriesOptions());
+            var picker = new SeriesMultiPickerModalWindow() { DataContext = pickerVm };
+            var result = await picker.ShowDialog<SeriesMultiPickerModalWindow>(_rootDialog.Window);
+
+            if (result == null)
+                return;
+
+            await _guiStateManager.SortSongsAlphabeticallyBySeries(pickerVm.GetSelectedSeriesIds());
+        }
+
         public async Task UpdateBgmSelector(bool enable)
         {
             await _guiStateManager.UpdateBgmSelectorStages(enable);
@@ -488,27 +475,10 @@ namespace Sma5hMusic.GUI.ViewModels
             if (results.Length == 0)
                 return;
 
-            //TODO - Handle anything saving in a specific service
-            _logger.LogInformation("Adding {NbrFiles} files to Mod {ModPath}", results.Length, managerMod.ModPath);
-            foreach (var inputFile in results)
-            {
-                _vmToneIdCreation.Filename = inputFile;
-                _vmToneIdCreation.LoadToneId(Path.GetFileNameWithoutExtension(inputFile));
-                var modalToneIdCreation = new ToneIdCreationModalWindow() { DataContext = _vmToneIdCreation };
-                var result = await modalToneIdCreation.ShowDialog<ToneIdCreationModalWindow>(_rootDialog.Window);
-                if (result != null)
-                {
-                    string toneId = _vmToneIdCreation.ToneId;
-
-                    var uiBgmId = await _guiStateManager.CreateNewMusicModFromToneId(toneId, inputFile, managerMod.MusicMod);
-                    if (!string.IsNullOrEmpty(uiBgmId))
-                    {
-                        var vmBgmDbRootEntry = _viewModelManager.GetBgmDbRootViewModel(uiBgmId);
-                        await EditBgmEntry(vmBgmDbRootEntry);
-                    }
-                }
-            }
+            await ImportAudioFiles(managerMod, results);
         }
+
+
 
         public async Task EditBgmEntry(BgmDbRootEntryViewModel vmBgmEntry)
         {
@@ -528,6 +498,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public async Task RenameToneId(BgmDbRootEntryViewModel vmBgmEntry)
         {
             _vmToneIdCreation.Filename = vmBgmEntry.Filename;
+            _vmToneIdCreation.LoadQueueStatus(0);
             _vmToneIdCreation.LoadToneId(vmBgmEntry.ToneId);
             var modalToneIdCreation = new ToneIdCreationModalWindow() { DataContext = _vmToneIdCreation };
             var result = await modalToneIdCreation.ShowDialog<ToneIdCreationModalWindow>(_rootDialog.Window);
