@@ -220,16 +220,17 @@ If you encounter any problems using the software, submit an issue here on GitHub
 2.  Research: soneek
 3.  Testing: Demonslayerx8, Segtendo
 4.  Original Icon: Segtendo
-5.  prcEditor: https://github.com/BenHall-7/paracobNET - BenHall-7
-6.  paramLabels: https://github.com/ultimate-research/param-labels - BenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8
-7.  msbtEditor: https://github.com/IcySon55/3DLandMSBTeditor - IcySon55, exelix11
-8.  nus3audio: https://github.com/jam1garner/nus3audio-rs - jam1garner
-9.  bgm-property: https://github.com/jam1garner/smash-bgm-property - jam1garner
-10.  VGAudio: https://github.com/Thealexbarney/VGAudio - Thealexbarney, soneek, jam1garner, devlead, Raytwo, nnn1590
-11.  vgmstream: https://github.com/vgmstream/vgmstream - bnnm, kode54, NicknineTheEagle, bxaimc, Thealexbarney
+5.  Testing and Support (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char
+6.  prcEditor: https://github.com/BenHall-7/paracobNET - BenHall-7
+7.  paramLabels: https://github.com/ultimate-research/param-labels - BenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8
+8.  msbtEditor: https://github.com/IcySon55/3DLandMSBTeditor - IcySon55, exelix11
+9.  nus3audio: https://github.com/jam1garner/nus3audio-rs - jam1garner
+10.  bgm-property: https://github.com/jam1garner/smash-bgm-property - jam1garner
+11.  VGAudio: https://github.com/Thealexbarney/VGAudio - Thealexbarney, soneek, jam1garner, devlead, Raytwo, nnn1590
+12.  vgmstream: https://github.com/vgmstream/vgmstream - bnnm, kode54, NicknineTheEagle, bxaimc, Thealexbarney
 All contributors: https://github.com/vgmstream/vgmstream/graphs/contributors
-12. SoX: https://sox.sourceforge.net/ - SoX contributors
-13. PyMusicLooper: https://github.com/arkrow/PyMusicLooper - arkrow and contributors
-14. CrossArc: https://github.com/Ploaj/ArcCross Ploaj, ScanMountGoat, BenHall-7, shadowninja108, jam1garner, M-1-RLG
-15. yt-dlp: https://github.com/yt-dlp/yt-dlp - yt-dlp contributors
-16. FFmpeg: https://github.com/FFmpeg/FFmpeg - FFmpeg contributors
+13. SoX: https://sox.sourceforge.net/ - SoX contributors
+14. PyMusicLooper: https://github.com/arkrow/PyMusicLooper - arkrow and contributors
+15. CrossArc: https://github.com/Ploaj/ArcCross Ploaj, ScanMountGoat, BenHall-7, shadowninja108, jam1garner, M-1-RLG
+16. yt-dlp: https://github.com/yt-dlp/yt-dlp - yt-dlp contributors
+17. FFmpeg: https://github.com/FFmpeg/FFmpeg - FFmpeg contributors
