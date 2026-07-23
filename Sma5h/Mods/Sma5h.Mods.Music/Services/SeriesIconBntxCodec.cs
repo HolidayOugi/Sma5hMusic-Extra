@@ -19,6 +19,7 @@ namespace Sma5h.Mods.Music.Services
 
         #region Public
 
+        //read PNG and convert to RGBA
         public static byte[] LoadResizedRgba(string sourcePngPath)
         {
             using var input = SKBitmap.Decode(sourcePngPath);
@@ -29,12 +30,14 @@ namespace Sma5h.Mods.Music.Services
             return ResizeRgba(source, input.Width, input.Height, IconSize, IconSize);
         }
 
+        //read BNTX and convert to RGBA
         public static byte[] LoadRgbaFromBntx(string bntxPath)
         {
             var bntx = File.ReadAllBytes(bntxPath);
             var info = ReadBntxTextureInfo(bntx);
 
             byte[] rgba;
+            //compressed source
             if (TryGetCompressedFormat(info.Format, out var compressionFormat, out var bytesPerBlock))
             {
                 var swizzledPayload = ExtractSwizzledPayload(bntx, info, bytesPerBlock, 4, 4);
@@ -44,6 +47,7 @@ namespace Sma5h.Mods.Music.Services
                 var pixels = decoder.DecodeRaw(linearPayload, info.Width, info.Height, compressionFormat);
                 rgba = PixelsToRgba(pixels, compressionFormat);
             }
+            //raw source
             else if (TryGetRawFormat(info.Format, out var bytesPerPixel, out var channelOrder))
             {
                 var swizzledPayload = ExtractSwizzledPayload(bntx, info, bytesPerPixel, 1, 1);
@@ -61,6 +65,7 @@ namespace Sma5h.Mods.Music.Services
             return rgba;
         }
 
+        //writes RGBA to BNTX using templete
         public static void WriteBc7BntxFromRgba(byte[] rgba, string templatePath, string destinationPath)
         {
             if (rgba == null || rgba.Length != IconSize * IconSize * 4)
@@ -78,6 +83,7 @@ namespace Sma5h.Mods.Music.Services
             File.WriteAllBytes(destinationPath, template);
         }
 
+        //writes preview PNG
         public static void WritePreviewFromBntx(string bntxPath, string previewPath)
         {
             var rgba = LoadRgbaFromBntx(bntxPath);
@@ -88,6 +94,7 @@ namespace Sma5h.Mods.Music.Services
 
         #region Encoding
 
+        //RGBA -> BC7
         private static byte[] EncodeBc7(byte[] rgba)
         {
             var encoder = new BcEncoder(CompressionFormat.Bc7);
@@ -106,6 +113,7 @@ namespace Sma5h.Mods.Music.Services
 
         #region BNTX
 
+        //read BNTX texture info
         private static BntxTextureInfo ReadBntxTextureInfo(byte[] bntx)
         {
             var brtiOffset = FindAscii(bntx, "BRTI");
@@ -167,6 +175,7 @@ namespace Sma5h.Mods.Music.Services
 
         #region Swizzle
 
+        //Swizzle data
         private static byte[] SwizzleBlockData(byte[] linearData, int width, int height, int blockWidth, int blockHeight, int bytesPerBlock, int gobBlockHeight)
         {
             var widthBlocks = DivRoundUp(width, blockWidth);
@@ -186,6 +195,7 @@ namespace Sma5h.Mods.Music.Services
             return output;
         }
 
+        //Unswizzle data
         private static byte[] UnswizzleBlockData(byte[] swizzledData, int width, int height, int blockWidth, int blockHeight, int bytesPerBlock, int gobBlockHeight)
         {
             var widthBlocks = DivRoundUp(width, blockWidth);
@@ -228,6 +238,7 @@ namespace Sma5h.Mods.Music.Services
 
         #region Formats
 
+        //get Compression format
         private static bool TryGetCompressedFormat(uint bntxFormat, out CompressionFormat compressionFormat, out int bytesPerBlock)
         {
             switch (bntxFormat >> 8)
@@ -288,6 +299,7 @@ namespace Sma5h.Mods.Music.Services
 
         #region Pixel Conversion
 
+        //convert to RGBA
         private static byte[] PixelsToRgba(ColorRgba32[] pixels, CompressionFormat sourceFormat)
         {
             var rgba = new byte[pixels.Length * 4];
@@ -297,8 +309,7 @@ namespace Sma5h.Mods.Music.Services
 
                 if (sourceFormat == CompressionFormat.Bc4)
                 {
-                    // Series icons stored as BC4 use the single channel as an alpha mask.
-                    // Keep the visible glyph white and let black mask pixels become transparent.
+                    // BC4 icons use single channel as alpha
                     rgba[offset] = 255;
                     rgba[offset + 1] = 255;
                     rgba[offset + 2] = 255;
@@ -349,6 +360,7 @@ namespace Sma5h.Mods.Music.Services
 
         #region Images
 
+        //resize RGBA buffer
         private static byte[] ResizeRgba(byte[] rgba, int sourceWidth, int sourceHeight, int destinationWidth, int destinationHeight)
         {
             var sourceInfo = new SKImageInfo(sourceWidth, sourceHeight, SKColorType.Rgba8888, SKAlphaType.Unpremul);
@@ -367,6 +379,7 @@ namespace Sma5h.Mods.Music.Services
             return ReadRgbaFromBitmap(resized);
         }
 
+        //PNG -> RGBA
         private static byte[] ReadRgbaFromBitmap(SKBitmap bitmap)
         {
             var sourceBytes = new byte[bitmap.RowBytes * bitmap.Height];

@@ -4,7 +4,7 @@ namespace Sma5hMusic.GUI.Helpers
 {
     public static class Constants
     {
-        public const string GUIVersion = "1.0";
+        public const string GUIVersion = "2.0pre";
         public const bool IsStable = true;
 
         public const float DefaultVolume = 0.8f;
@@ -105,57 +105,7 @@ namespace Sma5hMusic.GUI.Helpers
             { "zh_tw", "Chinese (Traditional)" }
         };
 
-        public readonly static Dictionary<string, string> CONVERTER_CORE_PLAYLISTS = new Dictionary<string, string>()
-        {
-            {"bgmsmashbtl", "Smash Battle" },
-            {"bgmsmashmenu", "Smash Menu" },
-            {"bgmsmashmode", "Smash Mode" },
-            {"bgmstageedit", "Stage Edit" },
-            {"bgmboss", "Boss" },
-            {"bgmadventure", "Adventure" },
-            {"bgmmario", "Mario" },
-            {"bgmmkart", "Mario Kart" },
-            {"bgmdk", "Donkey Kong" },
-            {"bgmkirby", "Kirby" },
-            {"bgmzelda", "The Legend of Zelda" },
-            {"bgmmetroid", "Metroid" },
-            {"bgmfzero", "F-Zero" },
-            {"bgmyoshi", "Yoshi" },
-            {"bgmfox", "Starfox" },
-            {"bgmpokemon", "Pokémon" },
-            {"bgmmother", "Mother" },
-            {"bgmfe", "Fire Emblem" },
-            {"bgmgamewatch", "Game & Watch" },
-            {"bgmicaros", "Kid Icarus" },
-            {"bgmwario", "Wario" },
-            {"bgmpikmin", "Pikmin" },
-            {"bgmanimal", "Animal Crossing" },
-            {"bgmwiifit", "Wii-Fit" },
-            {"bgmpunchout", "Punch-Out!!" },
-            {"bgmxenoblade", "Xenoblade" },
-            {"bgmspla", "Splatoon" },
-            {"bgmmetalgear", "Metal Gear" },
-            {"bgmsonic", "Sonic" },
-            {"bgmrockman", "Megaman" },
-            {"bgmpacman", "Pacman" },
-            {"bgmsf", "Street Fighter" },
-            {"bgmff", "Final Fantasy" },
-            {"bgmbeyo", "Bayonetta" },
-            {"bgmdracula", "Castlevania" },
-            {"bgmother", "Other" },
-            {"bgmjack", "Persona" },
-            {"bgmbrave", "Dragon Quest" },
-            {"bgmbuddy", "Banjo-Kazooie" },
-            {"bgmdolly", "Fatal Fury" },
-            {"bgmmaster", "Fire Emblem Three Houses" },
-            {"bgmtantan", "Arms" },
-            {"bgmpickel", "Minecraft" },
-            {"bgmedge", "Final Fantasy (Sephiroth)" },
-            {"bgmelement", "Xenoblade 2 (Pyra & Mythra)" },
-            {"bgmdemon", "Tekken" },
-            {"bgmtrail", "Kingdom Hearts" },
-            {"bgmplaylist", "Playlist" },
-        };
+        public readonly static Dictionary<string, string> CONVERTER_CORE_PLAYLISTS = Sma5h.Mods.Music.Helpers.MusicConstants.CONVERTER_CORE_PLAYLISTS;
 
         public readonly static Dictionary<string, string> CONVERTER_CORE_STAGES = new Dictionary<string, string>()
         {

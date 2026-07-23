@@ -5,6 +5,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              xmlns:i="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Avalonia.Xaml.Interactivity"
         xmlns:ia="clr-namespace:Avalonia.Xaml.Interactions.Core;assembly=Avalonia.Xaml.Interactions"
+             xmlns:controls="clr-namespace:Sma5hMusic.GUI.Controls"
              x:Class="Sma5hMusic.GUI.Views.BgmSongsView"
              x:Name="SongsWindow">
   <Grid ColumnDefinitions="5*,5,*" RowDefinitions="30,*">
@@ -82,15 +83,15 @@
           <DataGridTemplateColumn Width="7*" Header="Title">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
-                           Foreground="{Binding TestDispOrder, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding Title, Mode=OneWay, Converter={StaticResource LabelValueConverter}}">
-                  <TextBlock.ContextMenu>
+                <controls:ColoredLabelTextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
+                           Text="{Binding Title, Mode=OneWay}">
+                  <controls:ColoredLabelTextBlock.ContextMenu>
                     <ContextMenu IsVisible="{Binding IsMod}">
                       <MenuItem Header="[EXPERIMENTAL] Rename Tone ID..." Command="{Binding $parent[DataGrid].DataContext.ActionRenameToneId, Mode=OneWay}" CommandParameter="{Binding}"/>
                       <MenuItem Header="[EXPERIMENTAL] Move to Another Mod..."  Command="{Binding $parent[DataGrid].DataContext.ActionMoveToOtherMod, Mode=OneWay}" CommandParameter="{Binding}"/>
                     </ContextMenu>
-                  </TextBlock.ContextMenu>
-                </TextBlock>
+                  </controls:ColoredLabelTextBlock.ContextMenu>
+                </controls:ColoredLabelTextBlock>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
@@ -113,7 +114,7 @@
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
                 <TextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center" 
-                           Foreground="{Binding TestDispOrder, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding ModName, Mode=OneWay}">
+                           Foreground="{Binding Converter={StaticResource ModNameForegroundConverter}}" Text="{Binding ModName, Mode=OneWay}">
                   <TextBlock.ContextMenu>
                     <ContextMenu IsVisible="{Binding IsMod}">
                       <MenuItem Header="[EXPERIMENTAL] Rename Tone ID..." Command="{Binding $parent[DataGrid].DataContext.ActionRenameToneId, Mode=OneWay}" CommandParameter="{Binding}"/>
@@ -129,7 +130,7 @@
               <DataTemplate>
                 <StackPanel Orientation="Horizontal">
                   <Button Width="40" HorizontalContentAlignment="Center" FontFamily="Segoe UI Symbol" Content="&#9998;" Command="{Binding $parent[DataGrid].DataContext.ActionEditBgm, Mode=OneWay}" CommandParameter="{Binding}"/>
-                  <Button Width="40" IsEnabled="{Binding IsMod}" FontFamily="Segoe UI Symbol" HorizontalContentAlignment="Center" Content="&#x274C;" Command="{Binding $parent[DataGrid].DataContext.ActionDeleteBgm, Mode=OneWay}" CommandParameter="{Binding}"/>
+                  <Button Width="40" IsEnabled="{Binding CanDelete}" FontFamily="Segoe UI Symbol" HorizontalContentAlignment="Center" Content="&#x274C;" Command="{Binding $parent[DataGrid].DataContext.ActionDeleteBgm, Mode=OneWay}" CommandParameter="{Binding}"/>
                 </StackPanel>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>

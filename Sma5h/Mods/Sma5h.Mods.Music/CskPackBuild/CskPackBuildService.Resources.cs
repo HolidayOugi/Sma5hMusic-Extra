@@ -20,17 +20,27 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var stageOverride = LoadJsonObject(Path.Combine(overridePath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_STAGE_JSON_FILE));
             var effectiveCoreGameOverride = BuildEffectiveCoreGameData(coreGameOverride);
 
+            //build core game resources
             return new CskBuildResources
             {
                 CoreGameSeriesById = BuildCoreGameSeriesById(effectiveCoreGameOverride),
                 CoreBgmIds = BuildCoreBgmIds(),
+                HasCoreOverrides = HasJsonValues(coreBgmOverride) || HasJsonValues(coreGameOverride) || HasJsonValues(coreSeriesOverride),
                 OrderOverride = BuildEffectiveOrderData(orderOverride),
                 PlaylistData = BuildEffectivePlaylistData(playlistOverride),
+                RawCoreBgmOverride = coreBgmOverride,
+                RawCoreGameOverride = coreGameOverride,
+                RawCoreSeriesOverride = coreSeriesOverride,
                 CoreBgmOverride = BuildEffectiveCoreBgmOverrideData(coreBgmOverride),
                 CoreGameOverride = effectiveCoreGameOverride,
                 CoreSeriesOverride = BuildEffectiveCoreSeriesData(coreSeriesOverride),
                 StageOverride = BuildEffectiveStageData(stageOverride)
             };
+        }
+
+        private static bool HasJsonValues(JObject value)
+        {
+            return value != null && value.HasValues;
         }
 
         #endregion

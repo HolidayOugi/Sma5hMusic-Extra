@@ -3,6 +3,7 @@ using Avalonia.ReactiveUI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NReco.Logging.File;
 using Sma5h.Mods.Music;
 using Sma5hMusic.GUI.Dialogs;
 using Sma5hMusic.GUI.Helpers;
@@ -90,6 +91,7 @@ namespace Sma5hMusic.GUI
             services.AddSingleton<ISeriesIconService, SeriesIconService>();
             services.AddSingleton<IVGMMusicPlayer, VGMMusicPlayer>();
             services.AddSingleton<IAudioImportService, AudioImportService>();
+            services.AddSingleton<IVictoryThemeGeneratorService, VictoryThemeGeneratorService>();
             services.AddSingleton<INus3AudioBatchNormalizationService, Nus3AudioBatchNormalizationService>();
             services.AddSingleton<IYoutubeImportService, YoutubeImportService>();
             services.AddSingleton<ISongSpreadsheetService, SongSpreadsheetService>();
@@ -98,7 +100,7 @@ namespace Sma5hMusic.GUI
             services.AddSingleton<IBuildDialog, BuildDialog>();
             services.AddSingleton<IViewModelManager, ViewModelManager>();
             services.AddSingleton<IGUIStateManager, GUIStateManager>();
-            services.AddAutoMapper(typeof(MappingViewModels));
+            services.AddAutoMapper(_ => { }, typeof(MappingViewModels).Assembly);
 
             //Add to Splat
             services.UseMicrosoftDependencyResolver();
@@ -168,7 +170,10 @@ namespace Sma5hMusic.GUI
                 { "Sma5hMusicGUI:SkipWarningGameVersion", "false" },
                 { "Sma5hMusicGUI:AutoBackupAtStart", "true" },
                 { "Sma5hMusicGUI:InGameVolume", "false" },
+                { "Sma5hMusicGUI:BuildNus3bankForCoreSongs", "true" },
+                { "Sma5hMusicGUI:SaveOutputToSubfolder", "true" },
                 { "Sma5hMusicGUI:LoopPreviewSeconds", "6" },
+                { "Sma5hMusicGUI:StartingOrderForSeries", "1" },
                 { "Sma5hMusicGUI:HideIndexColumn", "false" },
                 { "Sma5hMusicGUI:HideSeriesColumn", "false" },
                 { "Sma5hMusicGUI:HideRecordColumn", "false" },

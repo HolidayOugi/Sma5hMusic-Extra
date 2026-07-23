@@ -21,6 +21,12 @@ namespace Sma5h.Mods.Music
         private readonly INus3AudioService _nus3AudioService;
         private const string SmashBattlePlaylistId = "bgmsmashbtl";
 
+        private class StandardBuildPlan
+        {
+            public IReadOnlyList<BgmPropertyEntry> ModBgmEntries { get; set; } = new List<BgmPropertyEntry>();
+            public IReadOnlyList<BgmPropertyEntry> CoreVolumeOverrideEntries { get; set; } = new List<BgmPropertyEntry>();
+        }
+
         public override string ModName => "Sma5hMusic";
 
         public Sma5hMusic(IOptionsMonitor<Sma5hMusicOptions> config, IMusicModManagerService musicModManagerService, IAudioStateService audioStateService,
@@ -55,20 +61,28 @@ namespace Sma5h.Mods.Music
             {
                 //Add to Audio State Service
                 var musicModEntries = musicMod.GetMusicModEntries();
+                _audioStateService.ApplyCoreMusicModEntries(musicModEntries);
                 foreach (var bgmDbRootEntry in musicModEntries.BgmDbRootEntries)
-                    _audioStateService.AddBgmDbRootEntry(bgmDbRootEntry);
+                    if (_audioStateService.CanAddBgmDbRootEntry(bgmDbRootEntry.UiBgmId))
+                        _audioStateService.AddBgmDbRootEntry(bgmDbRootEntry);
                 foreach (var bgmAssignedInfoEntry in musicModEntries.BgmAssignedInfoEntries)
-                    _audioStateService.AddBgmAssignedInfoEntry(bgmAssignedInfoEntry);
+                    if (_audioStateService.CanAddBgmAssignedInfoEntry(bgmAssignedInfoEntry.InfoId))
+                        _audioStateService.AddBgmAssignedInfoEntry(bgmAssignedInfoEntry);
                 foreach (var bgmStreamSetEntry in musicModEntries.BgmStreamSetEntries)
-                    _audioStateService.AddBgmStreamSetEntry(bgmStreamSetEntry);
+                    if (_audioStateService.CanAddBgmStreamSetEntry(bgmStreamSetEntry.StreamSetId))
+                        _audioStateService.AddBgmStreamSetEntry(bgmStreamSetEntry);
                 foreach (var bgmStreamPropertyEntry in musicModEntries.BgmStreamPropertyEntries)
-                    _audioStateService.AddBgmStreamPropertyEntry(bgmStreamPropertyEntry);
+                    if (_audioStateService.CanAddBgmStreamPropertyEntry(bgmStreamPropertyEntry.StreamId))
+                        _audioStateService.AddBgmStreamPropertyEntry(bgmStreamPropertyEntry);
                 foreach (var seriesEntry in musicModEntries.SeriesEntries)
-                    _audioStateService.AddSeriesEntry(seriesEntry);
+                    if (_audioStateService.CanAddSeriesEntry(seriesEntry.UiSeriesId))
+                        _audioStateService.AddSeriesEntry(seriesEntry);
                 foreach (var gameTitleEntry in musicModEntries.GameTitleEntries)
-                    _audioStateService.AddGameTitleEntry(gameTitleEntry);
+                    if (_audioStateService.CanAddGameTitleEntry(gameTitleEntry.UiGameTitleId))
+                        _audioStateService.AddGameTitleEntry(gameTitleEntry);
                 foreach (var bgmPropertiesEntry in musicModEntries.BgmPropertyEntries)
-                    _audioStateService.AddBgmPropertyEntry(bgmPropertiesEntry);
+                    if (_audioStateService.CanAddBgmPropertyEntry(bgmPropertiesEntry.NameId))
+                        _audioStateService.AddBgmPropertyEntry(bgmPropertiesEntry);
             }
 
             return true;
@@ -92,6 +106,8 @@ namespace Sma5h.Mods.Music
         {
             _logger.LogInformation("Starting Build...");
 
+            var buildPlan = CreateStandardBuildPlan();
+
             //AutoAddToBgmSelector - TODO Optimize :-)
             ProcessPlaylistAutoMapping();
 
@@ -104,9 +120,29 @@ namespace Sma5h.Mods.Music
             if (useCache)
                 Directory.CreateDirectory(_config.CurrentValue.Sma5hMusic.CachePath);
 
+            GenerateBgmFiles(useCache, buildPlan);
+
+            CopySeriesIcons();
+
+            return true;
+        }
+
+        private StandardBuildPlan CreateStandardBuildPlan()
+        {
+            var modBgmEntries = _audioStateService.GetModBgmPropertyEntries().ToList();
+
+            return new StandardBuildPlan
+            {
+                ModBgmEntries = modBgmEntries,
+                CoreVolumeOverrideEntries = GetCoreVolumeOverrideEntries().ToList()
+            };
+        }
+
+        private void GenerateBgmFiles(bool useCache, StandardBuildPlan buildPlan)
+        {
             //Save NUS3Audio/Nus3Bank
             _nus3AudioService.ResetGeneratedNus3BankIds();
-            foreach (var bgmPropertyEntry in _audioStateService.GetModBgmPropertyEntries())
+            foreach (var bgmPropertyEntry in buildPlan.ModBgmEntries)
             {
                 var nusBankOutputFile = Path.Combine(_config.CurrentValue.OutputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
                 var nusAudioOutputFile = Path.Combine(_config.CurrentValue.OutputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, bgmPropertyEntry.NameId));
@@ -121,8 +157,40 @@ namespace Sma5h.Mods.Music
                     _logger.LogError("Error! The song with ToneId {NameId}, File {Filename} could not be processed.", bgmPropertyEntry.NameId, bgmPropertyEntry.Filename);
             }
 
-            CopySeriesIcons();
-            return true;
+            GenerateCoreVolumeOverrideNus3Banks(buildPlan.CoreVolumeOverrideEntries);
+        }
+
+        private void GenerateCoreVolumeOverrideNus3Banks(IEnumerable<BgmPropertyEntry> coreVolumeOverrideEntries)
+        {
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs != true)
+                return;
+
+            foreach (var bgmPropertyEntry in coreVolumeOverrideEntries)
+            {
+                var nusBankOutputFile = Path.Combine(_config.CurrentValue.OutputPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
+                _logger.LogInformation("Generating core Nus3Bank for {NameId} with volume {Volume}", bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume);
+                _nus3AudioService.GenerateNus3Bank(bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume, nusBankOutputFile);
+            }
+        }
+
+        private IEnumerable<BgmPropertyEntry> GetCoreVolumeOverrideEntries()
+        {
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs != true)
+                return Enumerable.Empty<BgmPropertyEntry>();
+
+            var originalCoreByNameId = _audioStateService.GetOriginalCoreBgmPropertyEntries()
+                .ToDictionary(p => p.NameId, StringComparer.OrdinalIgnoreCase);
+
+            return _audioStateService.GetBgmPropertyEntries()
+                .Where(p => p.Source == EntrySource.Core && p.MusicMod == null)
+                .Where(p => originalCoreByNameId.TryGetValue(p.NameId, out var original) &&
+                    Math.Abs(RoundVolume(original.AudioVolume) - RoundVolume(p.AudioVolume)) >= 0.0001f)
+                .ToList();
+        }
+
+        private static float RoundVolume(float value)
+        {
+            return (float)Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
         private void CopySeriesIcons()
@@ -385,7 +453,7 @@ namespace Sma5h.Mods.Music
         private bool ProcessSeriesOrderAutoMapping()
         {
             var series = _audioStateService.GetSeriesEntries().Where(s => s.DispOrderSound > -1).ToDictionary(p => p.UiSeriesId, p => p);
-            sbyte i = 0;
+            var i = GetStartingOrderForSeries();
 
             var sortedGames = _audioStateService.GetBgmDbRootEntries()
                 .Where(p => p.TestDispOrder >= 0)
@@ -407,6 +475,12 @@ namespace Sma5h.Mods.Music
             }
 
             return true;
+        }
+
+        private sbyte GetStartingOrderForSeries()
+        {
+            var value = _config.CurrentValue.Sma5hMusicGUI?.StartingOrderForSeries ?? 1;
+            return (sbyte)Math.Clamp(value, 0, 39);
         }
 
         private void CheckBuildSpecialCategory()

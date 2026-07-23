@@ -7,5 +7,6 @@
         void UnloadResources();
         void ResetResource();
         bool WriteChanges();
+        bool WriteChanges(System.Func<string, bool> shouldWriteResource);
     }
 }

@@ -19,6 +19,8 @@ namespace Sma5hMusic.GUI.ViewModels
         public string UITheme { get; set; }
         public bool SkipOutputPathCleanupConfirmation { get; set; }
         public bool InGameVolume { get; set; }
+        public bool BuildNus3bankForCoreSongs { get; set; }
+        public bool SaveOutputToSubfolder { get; set; }
         public bool EnableAudioCaching { get; set; }
         public string AudioConversionFormat { get; set; }
         public string AudioConversionFormatFallBack { get; set; }
@@ -84,6 +86,8 @@ namespace Sma5hMusic.GUI.ViewModels
         public double AudioNormalizationTargetLufs { get; set; }
         [Reactive]
         public uint LoopPreviewSeconds { get; set; }
+        [Reactive]
+        public int StartingOrderForSeries { get; set; }
 
         public ApplicationSettings GetReference()
         {

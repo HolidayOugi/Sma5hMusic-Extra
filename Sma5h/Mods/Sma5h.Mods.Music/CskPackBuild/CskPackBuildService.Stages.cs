@@ -52,7 +52,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         {
             if (stageOverride == null)
                 return;
-
+            //populate stage database
             if (VanillaSeries.Contains(seriesName))
                 PopulateVanillaStageDatabaseEntries(songData, seriesName, stageOverride, playlistData);
             else
@@ -61,9 +61,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private void PopulateCustomStageDatabaseEntries(JObject songData, JObject stageOverride)
         {
+            //get playlists
             var validPlaylists = SeriesToPlaylist.Values.SelectMany(p => p).ToHashSet(StringComparer.OrdinalIgnoreCase);
             validPlaylists.Add("bgmsmashmenu");
 
+            //for each playlist, assign its stage
             foreach (var playlistName in ((JObject)songData["playlist_entries"]).Properties().Select(p => p.Name).ToList())
             {
                 if (validPlaylists.Contains(playlistName))
@@ -89,6 +91,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (!SeriesToPlaylist.ContainsKey(seriesKey))
                 return;
 
+            //get playlists for this series
             var validPlaylists = SeriesToPlaylist[seriesKey];
             var defaultPlaylist = validPlaylists[0];
             var validUiSeries = seriesKey == "etc"
@@ -101,6 +104,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 }, StringComparer.OrdinalIgnoreCase)
                 : new HashSet<string>(new[] { $"ui_series_{seriesKey}" }, StringComparer.OrdinalIgnoreCase);
 
+            //mariokart stage is in mario playlist, need override
             var stageSeriesOverride = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["ui_stage_kart_circuitfor"] = "mariokart",
@@ -117,6 +121,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var validUiSeriesStage = validUiSeries;
                 var uiSeriesIdCheck = uiSeriesId;
 
+                //mario kart case
                 if (stageSeriesOverride.ContainsKey(stageId))
                 {
                     var forcedSeriesKey = stageSeriesOverride[stageId];
@@ -136,6 +141,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 if (string.IsNullOrEmpty(bgmSetId))
                     continue;
 
+                //add stage entry for this series
                 var chosenBgm = validPlaylistsStage.Contains(bgmSetId) || playlistData[bgmSetId] != null
                     ? bgmSetId
                     : defaultPlaylistStage;

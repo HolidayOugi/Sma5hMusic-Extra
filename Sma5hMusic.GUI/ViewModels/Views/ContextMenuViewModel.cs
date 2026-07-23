@@ -93,12 +93,9 @@ namespace Sma5hMusic.GUI.ViewModels
             viewModelManager.ObservableDbRootEntries.Connect()
                 .DeferUntilLoaded()
                 .Filter(p => p.UiBgmId != "ui_bgm_random")
+                .ObserveOn(RxApp.MainThreadScheduler)
                 .Bind(out _items)
-                .CountChanged()
-                .Subscribe((o) =>
-                {
-                    NbrBgms = $"{_items.Count} songs ({_items.Count(p => p.IsMod)} mods)";
-                });
+                .Subscribe(_ => UpdateBgmCounter());
 
             ActionNewMod = ReactiveCommand.Create(AddNewMod);
             ActionNewSeries = ReactiveCommand.Create(AddNewSeries);
@@ -110,6 +107,11 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionAddNewYoutubeBgm = ReactiveCommand.Create<ModEntryViewModel>(AddNewYoutubeBgmEntry);
             ActionDeleteSeries = ReactiveCommand.Create(DeleteSeries);
             ActionDeleteGame = ReactiveCommand.Create(DeleteGame);
+        }
+
+        private void UpdateBgmCounter()
+        {
+            NbrBgms = $"{_items.Count} songs ({_items.Count(p => p.IsCoreReplacement)} replaced) ({_items.Count(p => p.IsMod)} mods)";
         }
 
         public void ChangeLocale(LocaleViewModel vmLocale)

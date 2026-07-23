@@ -5,6 +5,7 @@ using Sma5h.Mods.Music.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Sma5h.Mods.Music.CskPackBuild
@@ -56,15 +57,55 @@ namespace Sma5h.Mods.Music.CskPackBuild
             MoveIfExists(nus3BankSrc, Path.Combine(destFolder, Path.GetFileName(nus3BankSrc)));
         }
 
+        private void CopyGeneratedBgmFiles(string generatedBgmFolder, string destinationFolder)
+        {
+            if (string.IsNullOrEmpty(generatedBgmFolder) || !Directory.Exists(generatedBgmFolder))
+                return;
+
+            Directory.CreateDirectory(destinationFolder);
+            foreach (var file in Directory.GetFiles(generatedBgmFolder, "bgm_*.nus3*", SearchOption.TopDirectoryOnly))
+                CopyIfExists(file, Path.Combine(destinationFolder, Path.GetFileName(file)));
+        }
+
+        private void CopyCoreVolumeOverrideBankFiles(
+            string seriesName,
+            string seriesFolderName,
+            string outputRoot,
+            string generatedBgmFolder,
+            CskBuildResources buildResources)
+        {
+            if (string.IsNullOrEmpty(generatedBgmFolder) || !Directory.Exists(generatedBgmFolder))
+                return;
+
+            var entries = GetCoreVolumeOverrideEntries(buildResources)
+                .Where(p => string.Equals(p.SeriesName, seriesName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (entries.Count == 0)
+                return;
+
+            var destFolder = Path.Combine(outputRoot, seriesFolderName, "stream;", "sound", "bgm");
+            Directory.CreateDirectory(destFolder);
+            foreach (var entry in entries)
+            {
+                var source = Path.Combine(generatedBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, entry.NameId));
+                //check nus3audio exists before copying (ie replacement song)
+                var audioSource = Path.Combine(generatedBgmFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, entry.NameId));
+                if (!File.Exists(source) || File.Exists(audioSource))
+                    continue;
+
+                CopyIfExists(source, Path.Combine(destFolder, Path.GetFileName(source)));
+            }
+        }
+
         #endregion
 
         #region Series Icons
 
-        private void CopySeriesIcon(JObject series, string packRoot)
+        private bool CopySeriesIcon(JObject series, string packRoot)
         {
             var iconFile = GetSeriesIconPath(series);
             if (string.IsNullOrEmpty(iconFile))
-                return;
+                return false;
 
             var destinationFolder = Path.Combine(packRoot, "ui", "replace", "series", "series_0");
             Directory.CreateDirectory(destinationFolder);
@@ -72,6 +113,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var destination = Path.Combine(destinationFolder, Path.GetFileName(iconFile));
             File.Copy(iconFile, destination, true);
             _logger.LogInformation("[CSK] Copied series icon {IconFile} to {Destination}", iconFile, destination);
+            return true;
         }
 
         private string GetSeriesIconPath(JObject series)
@@ -135,6 +177,19 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     File.Delete(destination);
 
                 File.Move(source, destination);
+            }
+            else
+            {
+                _logger.LogWarning("[CSK] File missing: {Source}", source);
+            }
+        }
+
+        private void CopyIfExists(string source, string destination)
+        {
+            if (File.Exists(source))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destination));
+                File.Copy(source, destination, true);
             }
             else
             {

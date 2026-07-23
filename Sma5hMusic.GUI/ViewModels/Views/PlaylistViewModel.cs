@@ -20,6 +20,7 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Sma5hMusic.GUI.ViewModels
@@ -421,11 +422,21 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public async Task RemoveItem(PlaylistEntryValueViewModel sourceObj)
         {
-            if (await _messageDialog.ShowWarningConfirm($"Delete '{sourceObj.BgmReference?.Title}'?", "Do you really want to remove this song from the playlist? Deleting the song in the playlist does not remove it from the game."))
+            var title = GetPlainTitle(sourceObj.BgmReference?.Title);
+            if (await _messageDialog.ShowWarningConfirm($"Delete '{title}'?", "Do you really want to remove this song from the playlist? Deleting the song in the playlist does not remove it from the game."))
             {
                 sourceObj.Parent.RemoveSong(sourceObj.UiBgmId);
                 _whenNewRequestToUpdatePlaylistsInternal.OnNext(Unit.Default);
             }
+        }
+
+        private static string GetPlainTitle(string title)
+        {
+            if (string.IsNullOrEmpty(title))
+                return title;
+
+            title = title.Replace("{{", string.Empty).Replace("}}", string.Empty);
+            return Regex.Replace(title, @"<[/\\]?color(?:=[^>]+)?>", string.Empty, RegexOptions.IgnoreCase);
         }
 
         public void HideItem(PlaylistEntryValueViewModel sourceObj)

@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        Width="{Binding PickerMinWidth}" Height="720" MinWidth="{Binding PickerMinWidth}" MinHeight="520"
+        x:Class="Sma5hMusic.GUI.Views.CoreSongPickerModalWindow"
+        xmlns:controls="clr-namespace:Sma5hMusic.GUI.Controls"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
+        Title="Select Core Song">
+  <DockPanel Classes="modal" LastChildFill="True" HorizontalAlignment="Stretch">
+    <Border Classes="headerTitle" DockPanel.Dock="Top">
+      <TextBlock>Select Core Song</TextBlock>
+    </Border>
+
+    <StackPanel Classes="modalActions" DockPanel.Dock="Bottom">
+      <Button Content="Select" Command="{Binding ActionOK}" CommandParameter="{Binding $parent[Window]}"></Button>
+      <Button Content="Cancel" Command="{Binding ActionCancel}" CommandParameter="{Binding $parent[Window]}"></Button>
+    </StackPanel>
+
+    <Grid Classes="content" ColumnDefinitions="230,*">
+      <ListBox Grid.Column="0"
+               Items="{Binding Series}"
+               SelectedItem="{Binding SelectedSeries, Mode=TwoWay}"
+               Margin="0,0,12,0">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+              <controls:ColoredLabelTextBlock Grid.Column="0"
+                                              Text="{Binding Title}"
+                                              VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="{Binding SongCount}" Opacity="0.65" Margin="10,0,0,0"/>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <ListBox Grid.Column="1"
+               Items="{Binding FilteredSongs}"
+               SelectedItem="{Binding SelectedSong, Mode=TwoWay}">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch" Margin="0,4">
+              <controls:ColoredLabelTextBlock Grid.Column="0"
+                                              Text="{Binding Title}"
+                                              VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="{Binding ToneId}" Opacity="0.65" Margin="12,0,0,0"/>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+  </DockPanel>
+</Window>

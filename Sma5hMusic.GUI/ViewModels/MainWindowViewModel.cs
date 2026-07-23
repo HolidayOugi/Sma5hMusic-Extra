@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using VGMMusic;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
@@ -28,6 +29,7 @@ namespace Sma5hMusic.GUI.ViewModels
     public partial class MainWindowViewModel : ViewModelBase
     {
         private readonly IDevToolsService _devTools;
+        private readonly IServiceProvider _serviceProvider;
         private readonly IGUIStateManager _guiStateManager;
         private readonly IViewModelManager _viewModelManager;
         private readonly IVGMMusicPlayer _musicPlayer;
@@ -35,6 +37,8 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IFileDialog _fileDialog;
         private readonly IDialogWindow _rootDialog;
         private readonly IBuildDialog _buildDialog;
+        private readonly IMusicModManagerService _musicModManagerService;
+        private readonly IMusicModReverseService _musicModReverseService;
         private readonly ISongSpreadsheetService _songSpreadsheetService;
         private readonly IOptionsMonitor<ApplicationSettings> _appSettings;
         private readonly ILogger _logger;
@@ -93,14 +97,17 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Unit, Unit> ActionSortSongsAlphabeticallyByGame { get; }
         public ReactiveCommand<Unit, Unit> ActionSortSongsAlphabeticallyBySeries { get; }
         public ReactiveCommand<string, Unit> ActionCreateSongSpreadsheet { get; }
+        public ReactiveCommand<Unit, Unit> ActionGenerateModFromBuildFiles { get; }
+        public ReactiveCommand<Unit, Unit> ActionGenerateVictoryThemes { get; }
         public ReactiveCommand<bool, Unit> ActionUpdateBgmSelector { get; }
         public ReactiveCommand<string, Unit> ActionResetModOverrideFile { get; }
         public ReactiveCommand<bool, Unit> ActionBackupProject { get; }
 
 
         public MainWindowViewModel(IServiceProvider serviceProvider, IViewModelManager viewModelManager, IGUIStateManager guiStateManager, IMapper mapper, IVGMMusicPlayer musicPlayer,
-               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
+               IDialogWindow rootDialog, IMessageDialog messageDialog, IFileDialog fileDialog, IAudioImportService audioImportService, INus3AudioBatchNormalizationService nus3AudioBatchNormalizationService, IYoutubeImportService youtubeImportService, IBuildDialog buildDialog, ICskPackBuildService cskPackBuildService, ISongSpreadsheetService songSpreadsheetService, IMusicModManagerService musicModManagerService, IMusicModReverseService musicModReverseService, IOptionsMonitor<ApplicationSettings> appSettings, IDevToolsService devTools, ILogger<MainWindowViewModel> logger)
         {
+            _serviceProvider = serviceProvider;
             _viewModelManager = viewModelManager;
             _guiStateManager = guiStateManager;
             _musicPlayer = musicPlayer;
@@ -111,6 +118,8 @@ namespace Sma5hMusic.GUI.ViewModels
             _buildDialog = buildDialog;
             _songSpreadsheetService = songSpreadsheetService;
             _cskPackBuildService = cskPackBuildService;
+            _musicModManagerService = musicModManagerService;
+            _musicModReverseService = musicModReverseService;
             _messageDialog = messageDialog;
             _rootDialog = rootDialog;
             _logger = logger;
@@ -229,6 +238,8 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionSortSongsAlphabeticallyByGame = ReactiveCommand.CreateFromTask(SortSongsAlphabeticallyByGame);
             ActionSortSongsAlphabeticallyBySeries = ReactiveCommand.CreateFromTask(SortSongsAlphabeticallyBySeries);
             ActionCreateSongSpreadsheet = ReactiveCommand.CreateFromTask<string>(CreateSongSpreadsheet);
+            ActionGenerateModFromBuildFiles = ReactiveCommand.CreateFromTask(GenerateModFromBuildFiles);
+            ActionGenerateVictoryThemes = ReactiveCommand.CreateFromTask(GenerateVictoryThemes);
             ActionUpdateBgmSelector = ReactiveCommand.CreateFromTask<bool>((enabled) => UpdateBgmSelector(enabled));
             ActionResetModOverrideFile = ReactiveCommand.CreateFromTask<string>((file) => ResetModOverrideFile(file));
             ActionBackupProject = ReactiveCommand.CreateFromTask<bool>((fullBackup) => _guiStateManager.BackupProject(fullBackup));
@@ -423,6 +434,13 @@ namespace Sma5hMusic.GUI.ViewModels
                 await OnInitData();
         }
 
+        public async Task GenerateVictoryThemes()
+        {
+            var vm = ActivatorUtilities.CreateInstance<GenerateVictoryThemesModalWindowViewModel>(_serviceProvider);
+            var dialog = new GenerateVictoryThemesModalWindow { DataContext = vm };
+            await dialog.ShowDialog<GenerateVictoryThemesModalWindow>(_rootDialog.Window);
+        }
+
         public async Task SortSongsAlphabeticallyByGame()
         {
             var pickerVm = new GameMultiPickerModalWindowViewModel(
@@ -514,7 +532,8 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             if (vmBgmEntry != null)
             {
-                var result = await _messageDialog.ShowWarningConfirm($"Delete '{vmBgmEntry.Title}'?", "Do you really want to remove this song?\r\nIf it's a Core song, this could cause unknown issues. Prefer hiding the song instead.");
+                var title = GetPlainTitle(vmBgmEntry.Title);
+                var result = await _messageDialog.ShowWarningConfirm($"Delete '{title}'?", "Do you really want to remove this song?\r\nIf it's a Core song, this could cause unknown issues. Prefer hiding the song instead.");
 
                 if (result)
                 {
@@ -527,12 +546,24 @@ namespace Sma5hMusic.GUI.ViewModels
                         //TODO - When supported more complex mods this needs to be updated 
                         //Right now, it is tied to v2 mods
                         var deleteMusicModEntries = new BgmEntryViewModel(vmBgmEntry).GetMusicModDeleteEntries();
-                        await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        if (vmBgmEntry.IsCoreReplacement)
+                            await _guiStateManager.RemoveCoreMusicModReplacement(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        else
+                            await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
 
                         _logger.LogInformation("{ToneId} deleted.", vmBgmEntry.ToneId);
                     }
                 }
             }
+        }
+
+        private static string GetPlainTitle(string title)
+        {
+            if (string.IsNullOrEmpty(title))
+                return title;
+
+            title = title.Replace("{{", string.Empty).Replace("}}", string.Empty);
+            return Regex.Replace(title, @"<[/\\]?color(?:=[^>]+)?>", string.Empty, RegexOptions.IgnoreCase);
         }
 
         public async Task DeleteBgmEntries(List<BgmDbRootEntryViewModel> vmBgmEntries)
@@ -551,7 +582,10 @@ namespace Sma5hMusic.GUI.ViewModels
                         //TODO - When supported more complex mods this needs to be updated 
                         //Right now, it is tied to v2 mods
                         var deleteMusicModEntries = new BgmEntryViewModel(vmBgmEntry).GetMusicModDeleteEntries();
-                        await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        if (vmBgmEntry.IsCoreReplacement)
+                            await _guiStateManager.RemoveCoreMusicModReplacement(deleteMusicModEntries, vmBgmEntry.MusicMod);
+                        else
+                            await _guiStateManager.RemoveMusicModEntries(deleteMusicModEntries, vmBgmEntry.MusicMod);
 
                         _logger.LogInformation("{ToneId} deleted.", vmBgmEntry.ToneId);
                     }

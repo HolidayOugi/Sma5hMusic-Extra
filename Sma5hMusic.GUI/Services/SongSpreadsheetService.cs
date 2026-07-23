@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using Sma5hMusic.GUI.Interfaces;
@@ -14,6 +15,7 @@ namespace Sma5hMusic.GUI.Services
     {
         private const string MainMenuPlaylistId = "bgmsmashmenu";
 
+        //alternating colors
         private static readonly string[][] ColorFamilies =
         {
             new[] { "E8F0FE", "E1F5FE", "ECEFF1", "F5F5F5" },
@@ -74,6 +76,7 @@ namespace Sma5hMusic.GUI.Services
                 if (rows.Count == 0)
                     return false;
 
+                //write xlsx
                 WriteWorkbook(
                     outputPath,
                     "Pinch Song",
@@ -93,6 +96,7 @@ namespace Sma5hMusic.GUI.Services
                 if (rows.Count == 0)
                     return false;
 
+                //write xlsx
                 WriteWorkbook(
                     outputPath,
                     "Song List",
@@ -108,7 +112,7 @@ namespace Sma5hMusic.GUI.Services
         {
             var context = CreateContext();
             return context.Songs
-                .Where(song => IsSongFromMod(song, musicMod) && song.TestDispOrder != -1)
+                .Where(song => IsSongFromMod(song, musicMod) && song.TestDispOrder != -1) //avoid hidden songs
                 .Select(song => CreateSongRow(song, context, locale))
                 .Where(row => row != null)
                 .OrderBy(row => row.Series, StringComparer.OrdinalIgnoreCase)
@@ -147,10 +151,10 @@ namespace Sma5hMusic.GUI.Services
                 if (baseRow == null || string.IsNullOrEmpty(baseRow.Game) || string.IsNullOrEmpty(baseRow.Series))
                     continue;
 
-                var pinchSong = GetValue(songsByInfoId, streamSet.Info1);
+                var pinchSong = GetValue(songsByInfoId, streamSet.Info1); //get pinch song from info1
                 var pinchSongName = pinchSong == null
                     ? string.Empty
-                    : StripSongSuffix(GetTitle(pinchSong.Title, locale), baseRow.Game);
+                    : StripSongSuffix(UnwrapDoubleBraces(GetTitle(pinchSong.Title, locale)), baseRow.Game);
 
                 rows.Add(new PinchSongRow
                 {
@@ -219,7 +223,7 @@ namespace Sma5hMusic.GUI.Services
 
             return new SongRow
             {
-                Song = StripSongSuffix(UnwrapDoubleBraces(songName), gameName),
+                Song = StripSongSuffix(UnwrapDoubleBraces(songName), gameName), //remove any {{}} and color tags
                 Game = gameName ?? string.Empty,
                 Series = seriesName ?? string.Empty,
                 Order = song.TestDispOrder
@@ -244,9 +248,14 @@ namespace Sma5hMusic.GUI.Services
 
         private static string UnwrapDoubleBraces(string value)
         {
-            return string.IsNullOrEmpty(value) ? value : DoubleBracesRegex.Replace(value, "$1");
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            value = DoubleBracesRegex.Replace(value, "$1");
+            return MsbtRichTextColorHelper.ToPlainText(MsbtRichTextColorHelper.Parse(value)); //remove color tags
         }
 
+        //useful for my pack :)
         private static string StripSongSuffix(string songName, string gameName)
         {
             if (string.IsNullOrEmpty(songName) || string.IsNullOrEmpty(gameName))
@@ -318,6 +327,7 @@ namespace Sma5hMusic.GUI.Services
             workbook.SaveAs(outputPath);
         }
 
+        //assign color to series
         private static Dictionary<string, string> CreateSeriesColorMap(IEnumerable<string> rowSeries)
         {
             var result = new Dictionary<string, string>(StringComparer.Ordinal);

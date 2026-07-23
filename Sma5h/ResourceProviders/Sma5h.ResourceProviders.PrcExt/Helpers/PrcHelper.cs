@@ -12,10 +12,12 @@ namespace Sma5h.ResourceProviders.Prc.Helpers
     public class PrcHelper
     {
         private readonly Dictionary<ulong, string> _paramHashes;
+        private readonly bool _ignoreUnknownFilters;
 
-        public PrcHelper(Dictionary<ulong, string> paramHashes)
+        public PrcHelper(Dictionary<ulong, string> paramHashes, bool ignoreUnknownFilters = false)
         {
             _paramHashes = paramHashes;
+            _ignoreUnknownFilters = ignoreUnknownFilters;
         }
 
         public T ReadPrcFile<T>(string inputFile) where T : new()
@@ -69,24 +71,51 @@ namespace Sma5h.ResourceProviders.Prc.Helpers
                 {
                     var filtersRegex = MapOffsetToRegexFilters(objType);
 
-                    if (filtersRegex.Count == 0 || _paramHashes == null || !_paramHashes.ContainsKey(node.Key))
-                        throw new Exception($"Hex 0x{node.Key:X} was not mapped to any property.");
+                    if (filtersRegex.Count == 0 || _paramHashes == null)
+                    {
+                        if (_ignoreUnknownFilters && filtersRegex.Count > 0)
+                            continue;
 
-                    var keyString = _paramHashes[node.Key];
+                        throw new Exception($"Hex 0x{node.Key:X} was not mapped to any property.");
+                    }
+
+                    var hasKnownLabel = _paramHashes.ContainsKey(node.Key);
+                    var keyString = GetStringFromHex(node.Key);
 
                     foreach (var filterRegex in filtersRegex)
                     {
-                        if (Regex.IsMatch(keyString, filterRegex.Value.Regex))
+                        if (hasKnownLabel ? Regex.IsMatch(keyString, filterRegex.Value.Regex) : filterRegex.Value.MatchUnknown)
                         {
-                            var newObjToMap = WriteNewFilterStruct(objToMap, objType, filterRegex.Key, node.Key);
-                            propertyInfo = newObjToMap.GetType().GetProperty("Values");
-                            ReadPrc(node.Value, newObjToMap, propertyInfo);
+                            object newObjToMap = null;
+                            try
+                            {
+                                newObjToMap = WriteNewFilterStruct(objToMap, objType, filterRegex.Key, node.Key);
+                                propertyInfo = newObjToMap.GetType().GetProperty("Values");
+                                ReadPrc(node.Value, newObjToMap, propertyInfo);
+                            }
+                            catch
+                            {
+                                if (_ignoreUnknownFilters && !hasKnownLabel)
+                                {
+                                    RemoveFilterStruct(objToMap, objType, filterRegex.Key, newObjToMap);
+                                    propertyInfo = null;
+                                    continue;
+                                }
+
+                                throw;
+                            }
+
                             break;
                         }
                     }
 
                     if (propertyInfo == null)
+                    {
+                        if (_ignoreUnknownFilters)
+                            continue;
+
                         throw new Exception($"Hex 0x{node.Key:X} was not mapped to any property.");
+                    }
                 }
             }
         }
@@ -185,6 +214,16 @@ namespace Sma5h.ResourceProviders.Prc.Helpers
             filterStructObjType.GetProperty("Id").SetValue(newfilterStructObjInstance, GetStringFromHex(hexKey));
 
             return newfilterStructObjInstance;
+        }
+
+        private static void RemoveFilterStruct(object objToMap, Type objType, string propertyName, object filterStruct)
+        {
+            if (filterStruct == null)
+                return;
+
+            var propertyInfo = objType.GetProperty(propertyName);
+            var filterStructs = propertyInfo?.GetValue(objToMap) as IList;
+            filterStructs?.Remove(filterStruct);
         }
         #endregion
 

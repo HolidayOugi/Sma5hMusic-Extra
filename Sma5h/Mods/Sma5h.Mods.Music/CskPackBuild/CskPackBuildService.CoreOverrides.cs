@@ -1,4 +1,5 @@
 using Newtonsoft.Json.Linq;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Models;
 using System;
 using System.Collections.Generic;
@@ -24,6 +25,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             string seriesFolderName,
             string outputRoot,
             string generatedBgmFolder,
+            HashSet<string> metadataBgmIds,
             bool includeAudio,
             ref int orderCounter)
         {
@@ -36,7 +38,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 msgTitleEntries.Add(MakeEntry($"tit_{GetString(gameMeta, "name_id")}", gameTitle));
 
                 foreach (JObject bgm in GetArray(gameMeta, "bgms"))
-                    orderCounter = ProcessBgm(bgm, songData, playlistOverride, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, orderCounter);
+                    orderCounter = ProcessBgm(bgm, songData, playlistOverride, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, orderCounter);
             }
         }
 
@@ -80,15 +82,45 @@ namespace Sma5h.Mods.Music.CskPackBuild
             Dictionary<string, string> seriesIdToName,
             JObject coreGameOverride)
         {
-            var gameOverride = coreGameOverride != null && !string.IsNullOrEmpty(uiGameTitleId)
-                ? coreGameOverride[uiGameTitleId] as JObject
-                : null;
-            var gameSeriesId = GetString(gameOverride, "ui_series_id");
+            var gameSeriesId = GetCoreBgmUiSeriesId(uiGameTitleId, dbSeriesId, coreGameOverride);
             var gameSeriesName = GetSeriesNameFromUiSeriesId(gameSeriesId, seriesIdToName);
             if (!string.IsNullOrEmpty(gameSeriesName))
                 return gameSeriesName;
 
             return GetSeriesNameFromUiSeriesId(dbSeriesId, seriesIdToName);
+        }
+
+        private static string GetCoreBgmUiSeriesId(JObject db, JObject coreGameOverride)
+        {
+            return GetCoreBgmUiSeriesId(
+                GetString(db, "ui_gametitle_id"),
+                GetString(db, "ui_series_id"),
+                coreGameOverride);
+        }
+
+        private BgmDbRootEntry GetOriginalCoreDbRootByNameId(string nameId)
+        {
+            if (string.IsNullOrEmpty(nameId))
+                return null;
+
+            return _audioStateService.GetOriginalCoreBgmDbRootEntries()
+                .FirstOrDefault(p =>
+                    string.Equals(p.NameId, nameId, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(p.UiBgmId) &&
+                     p.UiBgmId.StartsWith(MusicConstants.InternalIds.UI_BGM_ID_PREFIX, StringComparison.OrdinalIgnoreCase) &&
+                     string.Equals(p.UiBgmId.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length), nameId, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        private static string GetCoreBgmUiSeriesId(string uiGameTitleId, string dbSeriesId, JObject coreGameOverride)
+        {
+            if (!string.IsNullOrEmpty(dbSeriesId))
+                return dbSeriesId;
+
+            var gameOverride = coreGameOverride != null && !string.IsNullOrEmpty(uiGameTitleId)
+                ? coreGameOverride[uiGameTitleId] as JObject
+                : null;
+
+            return GetString(gameOverride, "ui_series_id");
         }
 
         private static string GetSeriesNameFromUiSeriesId(string uiSeriesId, Dictionary<string, string> seriesIdToName)
@@ -102,6 +134,38 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return uiSeriesId.StartsWith("ui_series_", StringComparison.OrdinalIgnoreCase)
                 ? uiSeriesId.Substring("ui_series_".Length)
                 : uiSeriesId;
+        }
+
+        private IEnumerable<CoreBgmVolumeOverrideEntry> GetCoreVolumeOverrideEntries(CskBuildResources buildResources)
+        {
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs != true)
+                yield break;
+
+            var volumeOverrides = buildResources.RawCoreBgmOverride?["CoreBgmVolumeOverrides"] as JObject;
+            if (volumeOverrides == null)
+                yield break;
+
+            foreach (var property in volumeOverrides.Properties())
+            {
+                var db = GetOriginalCoreDbRootByNameId(property.Name);
+                if (db == null)
+                    continue;
+
+                var volumeConfig = property.Value as JObject;
+                var volume = GetFloat(volumeConfig, "volume", 2.7f);
+                var seriesId = GetCoreBgmUiSeriesId(db.UiGameTitleId, null, buildResources.CoreGameOverride);
+                var seriesName = !string.IsNullOrEmpty(seriesId) &&
+                                 buildResources.CoreGameSeriesById.TryGetValue(db.UiGameTitleId, out var gameSeriesName)
+                    ? gameSeriesName
+                    : GetSeriesNameFromUiSeriesId(seriesId, buildResources.CoreGameSeriesById);
+
+                yield return new CoreBgmVolumeOverrideEntry
+                {
+                    NameId = property.Name,
+                    SeriesName = seriesName,
+                    Volume = volume
+                };
+            }
         }
 
         #endregion
@@ -165,19 +229,19 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var streamProperties = EnsureObject(output, "CoreBgmStreamPropertyOverrides");
             var bgmProperties = EnsureObject(output, "CoreBgmPropertyOverrides");
 
-            var dbRootEntries = _audioStateService.GetBgmDbRootEntries()
+            var dbRootEntries = _audioStateService.GetOriginalCoreBgmDbRootEntries()
                 .Where(p => !string.IsNullOrEmpty(p.UiBgmId))
                 .ToDictionary(p => p.UiBgmId, p => p, StringComparer.OrdinalIgnoreCase);
-            var streamSetEntries = _audioStateService.GetBgmStreamSetEntries()
+            var streamSetEntries = _audioStateService.GetOriginalCoreBgmStreamSetEntries()
                 .Where(p => !string.IsNullOrEmpty(p.StreamSetId))
                 .ToDictionary(p => p.StreamSetId, p => p, StringComparer.OrdinalIgnoreCase);
-            var assignedInfoEntries = _audioStateService.GetBgmAssignedInfoEntries()
+            var assignedInfoEntries = _audioStateService.GetOriginalCoreBgmAssignedInfoEntries()
                 .Where(p => !string.IsNullOrEmpty(p.InfoId))
                 .ToDictionary(p => p.InfoId, p => p, StringComparer.OrdinalIgnoreCase);
-            var streamPropertyEntries = _audioStateService.GetBgmStreamPropertyEntries()
+            var streamPropertyEntries = _audioStateService.GetOriginalCoreBgmStreamPropertyEntries()
                 .Where(p => !string.IsNullOrEmpty(p.StreamId))
                 .ToDictionary(p => p.StreamId, p => p, StringComparer.OrdinalIgnoreCase);
-            var bgmPropertyEntries = _audioStateService.GetBgmPropertyEntries()
+            var bgmPropertyEntries = _audioStateService.GetOriginalCoreBgmPropertyEntries()
                 .Where(p => !string.IsNullOrEmpty(p.NameId))
                 .ToDictionary(p => p.NameId, p => p, StringComparer.OrdinalIgnoreCase);
 
@@ -235,13 +299,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private void ProcessCoreBgmOverrides(
             JObject songData,
+            JObject playlistOverride,
             List<string> msgBgmEntries,
             List<string> msgTitleEntries,
             string seriesName,
             Dictionary<string, string> seriesIdToName,
             JObject coreBgmOverride,
             JObject orderOverride,
-            JObject coreGameOverride)
+            JObject coreGameOverride,
+            ref int orderCounter)
         {
             if (coreBgmOverride == null)
                 return;
@@ -250,7 +316,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var dbRoots = coreBgmOverride["CoreBgmDbRootOverrides"] as JObject ?? new JObject();
             var streamSets = coreBgmOverride["CoreBgmStreamSetOverrides"] as JObject ?? new JObject();
             var assignedInfos = coreBgmOverride["CoreBgmAssignedInfoOverrides"] as JObject ?? new JObject();
+            var streamProperties = coreBgmOverride["CoreBgmStreamPropertyOverrides"] as JObject ?? new JObject();
+            var bgmProperties = coreBgmOverride["CoreBgmPropertyOverrides"] as JObject ?? new JObject();
             var addedAssignedInfos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var addedStreamProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var addedBgmProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var dbProperty in dbRoots.Properties())
             {
@@ -260,17 +330,24 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var uiGameTitleId = GetString(db, "ui_gametitle_id");
                 var coreSeries = GetCoreBgmSeriesName(uiGameTitleId, dbSeriesId, seriesIdToName, coreGameOverride);
 
+                //skip if not in this series
                 if (coreSeries != seriesName)
                     continue;
 
                 var streamSetId = GetString(db, "stream_set_id");
                 var streamSetData = streamSets[streamSetId] as JObject ?? new JObject();
                 var testDispOrder = orderOverride != null ? GetInt(orderOverride, uiBgmId, GetInt(db, "test_disp_order", 0)) : 0;
-                var nameId = GetString(db, "name_id", uiBgmId);
+                //get name id from audioservice if available, otherwise use the one from the core override
+                var nameId = _audioStateService.GetBgmDbRootEntries()
+                    .Concat(_audioStateService.GetOriginalCoreBgmDbRootEntries())
+                    .Where(p => string.Equals(p.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(p.NameId))
+                    .Select(p => p.NameId)
+                    .FirstOrDefault();
 
-                if (_unavailableBgmNameIds.Value?.Contains(nameId) == true)
+                if (string.IsNullOrEmpty(nameId) || _unavailableBgmNameIds.Value?.Contains(nameId) == true)
                     continue;
 
+                //skip if already added
                 if (HasBgmDatabaseEntry(songData, uiBgmId))
                     continue;
 
@@ -285,8 +362,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ["record_type"] = GetString(db, "record_type", "record_original")
                 });
 
+                //add to playlists
+                orderCounter = AddToPlaylists(uiBgmId, songData, playlistOverride, seriesName, orderCounter);
+
                 AddUniqueJObjectByKey(songData, "stream_set_entries", "stream_set_id", CreateStreamSetEntry(streamSetData, streamSetId));
 
+                //add metadata
                 for (var i = 0; i < 16; i++)
                 {
                     var infoKey = GetString(streamSetData, $"info{i}");
@@ -296,8 +377,28 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                     if (addedAssignedInfos.Add(infoKey))
                         AddUniqueJObjectByKey(songData, "assigned_info_entries", "info_id", CreateAssignedInfoEntry(assigned));
+
+                    var streamId = GetString(assigned, "stream_id");
+                    if (string.IsNullOrEmpty(streamId))
+                        continue;
+
+                    var streamProperty = streamProperties[streamId] as JObject;
+                    if (streamProperty == null)
+                        continue;
+
+                    if (addedStreamProperties.Add(streamId))
+                        AddUniqueJObjectByKey(songData, "stream_property_entries", "stream_id", (JObject)streamProperty.DeepClone());
+
+                    var streamName = GetString(streamProperty, "data_name0");
+                    if (string.IsNullOrEmpty(streamName))
+                        continue;
+
+                    var bgmProperty = bgmProperties[streamName] as JObject;
+                    if (bgmProperty != null && addedBgmProperties.Add(streamName))
+                        AddUniqueJObjectByKey(songData, "bgm_property_entries", "stream_name", CreateCskBgmPropertyEntry(bgmProperty, streamName));
                 }
 
+                //add messages
                 AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_title_{nameId}", db["msbt_title"]);
                 AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_author_{nameId}", db["msbt_author"]);
                 AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_copyright_{nameId}", db["msbt_copyright"]);
@@ -311,9 +412,24 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var entryId = $"tit_{GetString(game, "name_id")}";
                     if (alreadyAdded.Add(entryId))
+                        //if not present add game entry
                         msgTitleEntries.Add(MakeEntry(entryId, gameTitle));
                 }
             }
+        }
+
+        private static JObject CreateCskBgmPropertyEntry(JObject bgmProperty, string streamName)
+        {
+            return new JObject
+            {
+                ["stream_name"] = string.IsNullOrEmpty(streamName) ? GetString(bgmProperty, "name_id") : streamName,
+                ["loop_start_ms"] = GetInt(bgmProperty, "loop_start_ms", 0),
+                ["loop_start_sample"] = GetInt(bgmProperty, "loop_start_sample", 0),
+                ["loop_end_ms"] = GetInt(bgmProperty, "loop_end_ms", 0),
+                ["loop_end_sample"] = GetInt(bgmProperty, "loop_end_sample", 0),
+                ["duration_ms"] = GetInt(bgmProperty, "duration_ms", GetInt(bgmProperty, "total_time_ms", 0)),
+                ["duration_sample"] = GetInt(bgmProperty, "duration_sample", GetInt(bgmProperty, "total_samples", 0))
+            };
         }
 
         #endregion

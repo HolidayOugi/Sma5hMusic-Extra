@@ -57,6 +57,7 @@ namespace Sma5hMusic.GUI.Interfaces
         void RemoveBgmPropertyView(string nameId);
         void RemovePlaylist(string playlistId);
         void RemoveBgmInAllPlaylists(string uiBgmId);
+        bool RefreshBgmDbRootView(string uiBgmId);
 
         bool AddNewModEntryViewModel(IMusicMod musicMod);
         bool AddNewSeriesEntryViewModel(SeriesEntry seriesEntry);

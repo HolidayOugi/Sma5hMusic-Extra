@@ -397,6 +397,19 @@ namespace Sma5hMusic.GUI.Services
                 playlist.RemoveSong(uiBgmId);
             }
         }
+
+        public bool RefreshBgmDbRootView(string uiBgmId)
+        {
+            if (!_vmDictBgmDbRootEntries.TryGetValue(uiBgmId, out var viewModel))
+                return false;
+
+            var entity = viewModel.GetReferenceEntity();
+            var newViewModel = _mapper.Map(entity, new BgmDbRootEntryViewModel(this, _mapper, entity));
+            newViewModel.LoadLocalized(CurrentLocale);
+            _vmDictBgmDbRootEntries[uiBgmId] = newViewModel;
+            _vmObsvBgmDbRootEntries.AddOrUpdate(newViewModel);
+            return true;
+        }
         #endregion
 
         #region CREATE

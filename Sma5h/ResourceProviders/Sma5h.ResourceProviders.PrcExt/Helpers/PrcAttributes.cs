@@ -26,10 +26,12 @@ namespace Sma5h.ResourceProviders.Prc.Helpers
     public class PrcFilterMatch : Attribute
     {
         public string Regex { get; private set; }
+        public bool MatchUnknown { get; private set; }
 
-        public PrcFilterMatch(string regex)
+        public PrcFilterMatch(string regex, bool matchUnknown = false)
         {
             Regex = regex;
+            MatchUnknown = matchUnknown;
         }
     }
 

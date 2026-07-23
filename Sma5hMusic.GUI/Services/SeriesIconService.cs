@@ -79,8 +79,7 @@ namespace Sma5hMusic.GUI.Services
 
             if (Path.GetExtension(sourceIconPath).Equals(".bntx", StringComparison.OrdinalIgnoreCase))
             {
-                // Normalize every imported BNTX to the app's BC7 template. This avoids preview crashes
-                // from BC1/BC3/BC4/etc. payload sizes and from formats unsupported by the old preview path.
+                //Convert any BNTX to BC7 BNTX using the template
                 rgba = SeriesIconBntxCodec.LoadRgbaFromBntx(sourceIconPath);
             }
             else
@@ -88,8 +87,9 @@ namespace Sma5hMusic.GUI.Services
                 rgba = SeriesIconBntxCodec.LoadResizedRgba(sourceIconPath);
             }
 
+            //save to output
             SeriesIconBntxCodec.WriteBc7BntxFromRgba(rgba, GetTemplatePath(), destinationPath);
-            DeleteLegacyIconPreview(uiSeriesId);
+            //DeleteLegacyIconPreview(uiSeriesId);
             return destinationPath;
         }
 
@@ -113,12 +113,14 @@ namespace Sma5hMusic.GUI.Services
             return Path.Combine(Path.GetTempPath(), "Sm5shMusic", "SeriesIconPreviews");
         }
 
+        /*
         private void DeleteLegacyIconPreview(string uiSeriesId)
         {
             var legacyPreviewPath = Path.Combine(GetIconFolder(), Path.ChangeExtension(GetIconFileName(uiSeriesId), ".png"));
             if (File.Exists(legacyPreviewPath))
                 File.Delete(legacyPreviewPath);
         }
+        */
 
         private static string GetIconFileName(string uiSeriesId)
         {

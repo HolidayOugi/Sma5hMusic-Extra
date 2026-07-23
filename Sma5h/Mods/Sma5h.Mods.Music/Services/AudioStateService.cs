@@ -40,6 +40,11 @@ namespace Sma5h.Mods.Music.Services
         private readonly Dictionary<string, BgmAssignedInfoEntry> _bgmAssignedInfoEntries;
         private readonly Dictionary<string, BgmStreamPropertyEntry> _bgmStreamPropertyEntries;
         private readonly Dictionary<string, BgmPropertyEntry> _bgmPropertyEntries;
+        private readonly Dictionary<string, BgmDbRootEntry> _originalCoreBgmDbRootEntries;
+        private readonly Dictionary<string, BgmStreamSetEntry> _originalCoreBgmStreamSetEntries;
+        private readonly Dictionary<string, BgmAssignedInfoEntry> _originalCoreBgmAssignedInfoEntries;
+        private readonly Dictionary<string, BgmStreamPropertyEntry> _originalCoreBgmStreamPropertyEntries;
+        private readonly Dictionary<string, BgmPropertyEntry> _originalCoreBgmPropertyEntries;
         //private readonly Dictionary<string, BgmDbRootEntry> _deletedBgmEntries; //TODO
         private readonly Dictionary<string, PlaylistEntry> _playlistsEntries;
         private readonly Dictionary<string, StageEntry> _stageEntries;
@@ -62,6 +67,11 @@ namespace Sma5h.Mods.Music.Services
             _bgmAssignedInfoEntries = new Dictionary<string, BgmAssignedInfoEntry>();
             _bgmStreamPropertyEntries = new Dictionary<string, BgmStreamPropertyEntry>();
             _bgmPropertyEntries = new Dictionary<string, BgmPropertyEntry>();
+            _originalCoreBgmDbRootEntries = new Dictionary<string, BgmDbRootEntry>();
+            _originalCoreBgmStreamSetEntries = new Dictionary<string, BgmStreamSetEntry>();
+            _originalCoreBgmAssignedInfoEntries = new Dictionary<string, BgmAssignedInfoEntry>();
+            _originalCoreBgmStreamPropertyEntries = new Dictionary<string, BgmStreamPropertyEntry>();
+            _originalCoreBgmPropertyEntries = new Dictionary<string, BgmPropertyEntry>();
             _playlistsEntries = new Dictionary<string, PlaylistEntry>();
             _stageEntries = new Dictionary<string, StageEntry>();
             _coreVolumes = GetCoreNus3BankVolumes();
@@ -73,9 +83,14 @@ namespace Sma5h.Mods.Music.Services
             return _bgmDbRootEntries.Values;
         }
 
+        public IEnumerable<BgmDbRootEntry> GetOriginalCoreBgmDbRootEntries()
+        {
+            return _originalCoreBgmDbRootEntries.Values;
+        }
+
         public IEnumerable<BgmDbRootEntry> GetModBgmDbRootEntries()
         {
-            return GetBgmDbRootEntries().Where(p => p.Source == EntrySource.Mod);
+            return GetBgmDbRootEntries().Where(p => p.Source == EntrySource.Mod || p.MusicMod != null);
         }
 
         public IEnumerable<BgmStreamSetEntry> GetBgmStreamSetEntries()
@@ -83,9 +98,14 @@ namespace Sma5h.Mods.Music.Services
             return _bgmStreamSetEntries.Values;
         }
 
+        public IEnumerable<BgmStreamSetEntry> GetOriginalCoreBgmStreamSetEntries()
+        {
+            return _originalCoreBgmStreamSetEntries.Values;
+        }
+
         public IEnumerable<BgmStreamSetEntry> GetModBgmStreamSetEntries()
         {
-            return GetBgmStreamSetEntries().Where(p => p.Source == EntrySource.Mod);
+            return GetBgmStreamSetEntries().Where(p => p.Source == EntrySource.Mod || p.MusicMod != null);
         }
 
         public IEnumerable<BgmAssignedInfoEntry> GetBgmAssignedInfoEntries()
@@ -93,9 +113,14 @@ namespace Sma5h.Mods.Music.Services
             return _bgmAssignedInfoEntries.Values;
         }
 
+        public IEnumerable<BgmAssignedInfoEntry> GetOriginalCoreBgmAssignedInfoEntries()
+        {
+            return _originalCoreBgmAssignedInfoEntries.Values;
+        }
+
         public IEnumerable<BgmAssignedInfoEntry> GetModBgmAssignedInfoEntries()
         {
-            return GetBgmAssignedInfoEntries().Where(p => p.Source == EntrySource.Mod);
+            return GetBgmAssignedInfoEntries().Where(p => p.Source == EntrySource.Mod || p.MusicMod != null);
         }
 
         public IEnumerable<BgmStreamPropertyEntry> GetBgmStreamPropertyEntries()
@@ -103,9 +128,14 @@ namespace Sma5h.Mods.Music.Services
             return _bgmStreamPropertyEntries.Values;
         }
 
+        public IEnumerable<BgmStreamPropertyEntry> GetOriginalCoreBgmStreamPropertyEntries()
+        {
+            return _originalCoreBgmStreamPropertyEntries.Values;
+        }
+
         public IEnumerable<BgmStreamPropertyEntry> GetModBgmStreamPropertyEntries()
         {
-            return GetBgmStreamPropertyEntries().Where(p => p.Source == EntrySource.Mod);
+            return GetBgmStreamPropertyEntries().Where(p => p.Source == EntrySource.Mod || p.MusicMod != null);
         }
 
         public IEnumerable<BgmPropertyEntry> GetBgmPropertyEntries()
@@ -113,9 +143,14 @@ namespace Sma5h.Mods.Music.Services
             return _bgmPropertyEntries.Values;
         }
 
+        public IEnumerable<BgmPropertyEntry> GetOriginalCoreBgmPropertyEntries()
+        {
+            return _originalCoreBgmPropertyEntries.Values;
+        }
+
         public IEnumerable<BgmPropertyEntry> GetModBgmPropertyEntries()
         {
-            return GetBgmPropertyEntries().Where(p => p.Source == EntrySource.Mod);
+            return GetBgmPropertyEntries().Where(p => p.Source == EntrySource.Mod || p.MusicMod != null);
         }
 
         public IEnumerable<SeriesEntry> GetSeriesEntries()
@@ -342,6 +377,87 @@ namespace Sma5h.Mods.Music.Services
             else
             {
                 _logger.LogWarning("PlaylistId {PlaylistId} already exist... ", playlistEntry.Id);
+            }
+
+            return true;
+        }
+
+        public bool ApplyCoreMusicModEntries(MusicModEntries musicModEntries)
+        {
+            if (musicModEntries == null)
+                return false;
+
+            foreach (var seriesEntry in musicModEntries.SeriesEntries)
+            {
+                if (_seriesEntries.TryGetValue(seriesEntry.UiSeriesId, out var existingSeries) && existingSeries.Source == EntrySource.Core)
+                {
+                    _mapper.Map(seriesEntry, existingSeries);
+                    existingSeries.MusicMod = seriesEntry.MusicMod;
+                }
+            }
+
+            foreach (var gameTitleEntry in musicModEntries.GameTitleEntries)
+            {
+                if (_gameTitleEntries.TryGetValue(gameTitleEntry.UiGameTitleId, out var existingGameTitle) && existingGameTitle.Source == EntrySource.Core)
+                {
+                    _mapper.Map(gameTitleEntry, existingGameTitle);
+                    existingGameTitle.MusicMod = gameTitleEntry.MusicMod;
+                }
+            }
+
+            foreach (var bgmDbRootEntry in musicModEntries.BgmDbRootEntries)
+            {
+                if (_bgmDbRootEntries.TryGetValue(bgmDbRootEntry.UiBgmId, out var existingDbRoot) && existingDbRoot.Source == EntrySource.Core)
+                {
+                    var nameId = existingDbRoot.NameId;
+                    var testDispOrder = existingDbRoot.TestDispOrder;
+                    var saveNo = existingDbRoot.SaveNo;
+                    var menuValue = existingDbRoot.MenuValue;
+
+                    _mapper.Map(bgmDbRootEntry, existingDbRoot);
+                    existingDbRoot.NameId = string.IsNullOrEmpty(bgmDbRootEntry.NameId) ? nameId : bgmDbRootEntry.NameId;
+                    existingDbRoot.TestDispOrder = testDispOrder;
+                    existingDbRoot.SaveNo = saveNo;
+                    existingDbRoot.MenuValue = menuValue;
+                    existingDbRoot.MusicMod = bgmDbRootEntry.MusicMod;
+                }
+            }
+
+            foreach (var bgmStreamSetEntry in musicModEntries.BgmStreamSetEntries)
+            {
+                if (_bgmStreamSetEntries.TryGetValue(bgmStreamSetEntry.StreamSetId, out var existingStreamSet) && existingStreamSet.Source == EntrySource.Core)
+                {
+                    _mapper.Map(bgmStreamSetEntry, existingStreamSet);
+                    existingStreamSet.MusicMod = bgmStreamSetEntry.MusicMod;
+                }
+            }
+
+            foreach (var bgmAssignedInfoEntry in musicModEntries.BgmAssignedInfoEntries)
+            {
+                if (_bgmAssignedInfoEntries.TryGetValue(bgmAssignedInfoEntry.InfoId, out var existingAssignedInfo) && existingAssignedInfo.Source == EntrySource.Core)
+                {
+                    _mapper.Map(bgmAssignedInfoEntry, existingAssignedInfo);
+                    existingAssignedInfo.MusicMod = bgmAssignedInfoEntry.MusicMod;
+                }
+            }
+
+            foreach (var bgmStreamPropertyEntry in musicModEntries.BgmStreamPropertyEntries)
+            {
+                if (_bgmStreamPropertyEntries.TryGetValue(bgmStreamPropertyEntry.StreamId, out var existingStreamProperty) && existingStreamProperty.Source == EntrySource.Core)
+                {
+                    _mapper.Map(bgmStreamPropertyEntry, existingStreamProperty);
+                    existingStreamProperty.MusicMod = bgmStreamPropertyEntry.MusicMod;
+                }
+            }
+
+            foreach (var bgmPropertyEntry in musicModEntries.BgmPropertyEntries)
+            {
+                if (_bgmPropertyEntries.TryGetValue(bgmPropertyEntry.NameId, out var existingBgmProperty) && existingBgmProperty.Source == EntrySource.Core)
+                {
+                    _mapper.Map(bgmPropertyEntry, existingBgmProperty);
+                    existingBgmProperty.ChangeFilename(bgmPropertyEntry.Filename);
+                    existingBgmProperty.MusicMod = bgmPropertyEntry.MusicMod;
+                }
             }
 
             return true;
@@ -653,6 +769,11 @@ namespace Sma5h.Mods.Music.Services
             _bgmAssignedInfoEntries.Clear();
             _bgmStreamPropertyEntries.Clear();
             _bgmPropertyEntries.Clear();
+            _originalCoreBgmDbRootEntries.Clear();
+            _originalCoreBgmStreamSetEntries.Clear();
+            _originalCoreBgmAssignedInfoEntries.Clear();
+            _originalCoreBgmStreamPropertyEntries.Clear();
+            _originalCoreBgmPropertyEntries.Clear();
             //_deletedBgmEntries.Clear();
             _gameTitleEntries.Clear();
             _seriesEntries.Clear();
@@ -784,6 +905,30 @@ namespace Sma5h.Mods.Music.Services
             foreach (var stage in paramStageDbRoot)
             {
                 _stageEntries.Add(stage.Key, _mapper.Map<StageEntry>(stage.Value));
+            }
+
+            SnapshotOriginalCoreBgmEntries();
+        }
+
+        private void SnapshotOriginalCoreBgmEntries()
+        {
+            foreach (var entry in _bgmDbRootEntries.Values)
+                _originalCoreBgmDbRootEntries[entry.UiBgmId] = _mapper.Map(entry, new BgmDbRootEntry(entry.UiBgmId));
+
+            foreach (var entry in _bgmStreamSetEntries.Values)
+                _originalCoreBgmStreamSetEntries[entry.StreamSetId] = _mapper.Map(entry, new BgmStreamSetEntry(entry.StreamSetId));
+
+            foreach (var entry in _bgmAssignedInfoEntries.Values)
+                _originalCoreBgmAssignedInfoEntries[entry.InfoId] = _mapper.Map(entry, new BgmAssignedInfoEntry(entry.InfoId));
+
+            foreach (var entry in _bgmStreamPropertyEntries.Values)
+                _originalCoreBgmStreamPropertyEntries[entry.StreamId] = _mapper.Map(entry, new BgmStreamPropertyEntry(entry.StreamId));
+
+            foreach (var entry in _bgmPropertyEntries.Values)
+            {
+                var copy = _mapper.Map(entry, new BgmPropertyEntry(entry.NameId, entry.Filename));
+                copy.ChangeFilename(entry.Filename);
+                _originalCoreBgmPropertyEntries[entry.NameId] = copy;
             }
         }
 

@@ -45,7 +45,7 @@ namespace Sma5h.CLI
 
             services.AddLogging();
             services.AddOptions();
-            services.AddSingleton(configuration);
+            services.AddSingleton<IConfiguration>(configuration);
             services.AddSingleton(loggerFactory);
 
             //Sma5h Core

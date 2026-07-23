@@ -11,6 +11,7 @@ namespace Sma5hMusic.GUI.Interfaces
     {
         #region Music Mod Entries (Hackish)
         Task<string> CreateNewMusicModFromToneId(string toneId, string filename, IMusicMod musicMod);
+        Task<string> CreateCoreMusicModFromToneId(CoreSongReplacementOption coreSong, string filename, IMusicMod musicMod);
         Task<bool> RenameMusicModToneId(MusicModEntries musicModEntries, IMusicMod musicMod, string newToneId);
         Task<bool> MoveMusicModEntrySetToAnotherMod(MusicModEntries musicModEntries, IMusicMod fromMusicMod, IMusicMod toMusicMod);
         #endregion
@@ -35,6 +36,7 @@ namespace Sma5hMusic.GUI.Interfaces
         Task<bool> CanAddMusicModEntries(MusicModEntries musicModEntries);
         Task<bool> PersistMusicModEntryChanges(MusicModEntries musicModEntries, IMusicMod musicMod = null);
         Task<bool> RemoveMusicModEntries(MusicModDeleteEntries musicModDeleteEntries, IMusicMod musicMod = null);
+        Task<bool> RemoveCoreMusicModReplacement(MusicModDeleteEntries musicModDeleteEntries, IMusicMod musicMod);
 
         Task<string> CreateNewSeriesEntry(SeriesEntry seriesEntry);
         Task<bool> PersistSeriesEntryChange(SeriesEntry seriesEntry);

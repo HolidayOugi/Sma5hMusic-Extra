@@ -18,24 +18,30 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public string NameId { get; set; }
             public float AudioVolume { get; set; }
             public string Filename { get; set; }
+            public bool BankOnly { get; set; }
         }
 
         #endregion
 
         #region BGM Files
 
-        private string GenerateBgmFiles(IEnumerable<CskModContext> contexts, string tempRoot, HashSet<string> selectedSeriesKeys, JObject coreGameOverride)
+        private string GenerateBgmFiles(IEnumerable<CskModContext> contexts, string tempRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources)
         {
             ClearDirectory(tempRoot);
 
             var outputBgmFolder = Path.Combine(tempRoot, "stream;", "sound", "bgm");
             Directory.CreateDirectory(outputBgmFolder);
 
+            //reset nus3bank ids to fix bug with high id numbers
             _nus3AudioService.ResetGeneratedNus3BankIds();
 
-            var bgmEntries = contexts
-                .SelectMany(context => GetSelectedBgmBuildEntries(context, selectedSeriesKeys, coreGameOverride))
-                .Where(p => !string.IsNullOrEmpty(p.NameId) && !string.IsNullOrEmpty(p.Filename))
+            var contextList = contexts.ToList();
+            var selectedSeriesNames = GetSelectedSeriesNames(contextList, selectedSeriesKeys);
+            //get all bgm entries for the selected series plus volume overrides for core songs
+            var bgmEntries = contextList
+                .SelectMany(context => GetSelectedBgmBuildEntries(context, selectedSeriesKeys, buildResources.CoreGameOverride))
+                .Concat(GetSelectedCoreVolumeOverrideBuildEntries(selectedSeriesNames, buildResources))
+                .Where(p => !string.IsNullOrEmpty(p.NameId) && (p.BankOnly || !string.IsNullOrEmpty(p.Filename)))
                 .GroupBy(p => p.NameId, StringComparer.OrdinalIgnoreCase)
                 .Select(p => p.First())
                 .ToList();
@@ -47,7 +53,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var nusBankOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, bgmPropertyEntry.NameId));
                 var nusAudioOutputFile = Path.Combine(outputBgmFolder, string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, bgmPropertyEntry.NameId));
 
-                if (!File.Exists(bgmPropertyEntry.Filename))
+                //skip is song not found 
+                if (!bgmPropertyEntry.BankOnly && !File.Exists(bgmPropertyEntry.Filename))
                 {
                     _unavailableBgmNameIds.Value?.Add(bgmPropertyEntry.NameId);
                     _logger.LogWarning(
@@ -59,6 +66,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                 _logger.LogInformation("Generating Nus3Bank for {NameId} with volume {Volume}", bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume);
                 _nus3AudioService.GenerateNus3Bank(bgmPropertyEntry.NameId, bgmPropertyEntry.AudioVolume, nusBankOutputFile);
+
+                if (bgmPropertyEntry.BankOnly)
+                    continue;
 
                 if (File.Exists(nusAudioOutputFile))
                     File.Delete(nusAudioOutputFile);
@@ -102,6 +112,39 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         yield return CreateBgmBuildEntry(context.Mod.ModPath, bgm);
                 }
             }
+        }
+
+        private HashSet<string> GetSelectedSeriesNames(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
+        {
+            return contexts
+                .SelectMany(context => context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
+                .Select(series => GetString(series, "name_id"))
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private IEnumerable<BgmBuildEntry> GetSelectedCoreVolumeOverrideBuildEntries(HashSet<string> selectedSeriesNames, CskBuildResources buildResources)
+        {
+            if (!ShouldBuildCoreNus3Banks())
+                yield break;
+
+            foreach (var entry in GetCoreVolumeOverrideEntries(buildResources))
+            {
+                if (!string.IsNullOrEmpty(entry.SeriesName) && !selectedSeriesNames.Contains(entry.SeriesName))
+                    continue;
+
+                yield return new BgmBuildEntry
+                {
+                    NameId = entry.NameId,
+                    AudioVolume = entry.Volume,
+                    BankOnly = true
+                };
+            }
+        }
+
+        private bool ShouldBuildCoreNus3Banks()
+        {
+            return _config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs == true;
         }
 
         private BgmBuildEntry CreateBgmBuildEntry(string modPath, JObject bgm)

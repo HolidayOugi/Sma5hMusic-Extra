@@ -14,14 +14,17 @@ namespace Sma5h.Mods.Music.CskPackBuild
     {
         #region Pack Generation
 
+        //generation of multiple packs for each series
         private void GenerateCskPacks(IEnumerable<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources, bool includeAudio)
         {
             var contextList = contexts.ToList();
             var allSeries = contextList.SelectMany(context => context.SeriesList).ToList();
+            //build sound order for music select menu
             var seriesSoundOrder = BuildSeriesSoundOrder(
                 allSeries,
                 buildResources.OrderOverride);
             var seriesDatabaseFileCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var copiedSeriesIconKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var context in contextList)
             {
@@ -31,6 +34,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var seriesName = GetString(series, "name_id");
                     var databaseFileBaseName = SanitizePathSegment(seriesName, "series", "series database file name");
+                    //if multiple packs for same series, append a number to the file name
                     seriesDatabaseFileCounts.TryGetValue(databaseFileBaseName, out var databaseFileCount);
                     databaseFileCount++;
                     seriesDatabaseFileCounts[databaseFileBaseName] = databaseFileCount;
@@ -38,6 +42,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         ? $"{databaseFileBaseName}.json"
                         : $"{databaseFileBaseName}{databaseFileCount}.json";
 
+                    //process individual series
                     var savedPath = ProcessSeries(
                         series,
                         context.SafePackName,
@@ -55,20 +60,33 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         buildResources.CoreSeriesOverride,
                         context.Metadata,
                         buildResources.CoreBgmIds,
-                        includeAudio);
+                        includeAudio,
+                        buildResources,
+                        copiedSeriesIconKeys);
 
                     _logger.LogInformation("[CSK] Saved {SeriesName}: {SavedPath}", GetString(series, "name_id", "<unknown>"), savedPath);
                 }
             }
 
+            //generates series order pack for vanilla series not included
             GenerateSeriesOrderPack(
                 contextList,
                 outputRoot,
                 selectedSeriesKeys,
                 seriesSoundOrder,
                 buildResources.CoreSeriesOverride);
+
+            //generates pack with vanilla song changes for non-selected series
+            GenerateVanillaSongsChangesPack(
+                contextList,
+                outputRoot,
+                selectedSeriesKeys,
+                generatedBgmFolder,
+                buildResources,
+                includeAudio);
         }
 
+        //generation of a single pack for all series
         private void GenerateSingleCskPack(IEnumerable<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources, bool includeAudio)
         {
             var contextList = contexts.ToList();
@@ -89,7 +107,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .ToDictionary(p => p.Key, p => p.First().Value, StringComparer.OrdinalIgnoreCase);
 
             var singlePackFolderName = GetSingleCskPackFolderName(contextList);
-            var packRoot = Path.Combine(outputRoot, singlePackFolderName);
+            var packFolderName = GetSingleCskPackOutputFolderName(contextList);
+            var packRoot = GetSingleCskPackRoot(outputRoot, contextList);
             var databaseFolder = Path.Combine(packRoot, "database");
             var uiFolder = Path.Combine(packRoot, "ui", "message");
             Directory.CreateDirectory(databaseFolder);
@@ -98,7 +117,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var songData = CreateSongData();
             var msgBgmEntries = new List<string>();
             var msgTitleEntries = new List<string>();
+            var metadataBgmIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            //build the data for each series
             foreach (var item in selectedSeries)
             {
                 var seriesName = GetString(item.Series, "name_id", "<unknown>");
@@ -109,7 +130,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     songData,
                     msgBgmEntries,
                     msgTitleEntries,
-                    singlePackFolderName,
+                    packFolderName,
                     outputRoot,
                     generatedBgmFolder,
                     buildResources.PlaylistData,
@@ -123,17 +144,28 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     buildResources.CoreSeriesOverride,
                     item.Context.Metadata,
                     buildResources.CoreBgmIds,
+                    metadataBgmIds,
                     includeAudio);
+
+                if (includeAudio)
+                    //copy nus3bank files for core volume overrides for this series
+                    CopyCoreVolumeOverrideBankFiles(seriesName, packFolderName, outputRoot, generatedBgmFolder, buildResources);
             }
 
-            var coreOnlyVanillaSeriesOrderEntries = CreateCoreOnlyVanillaSeriesOrderEntries(
+            //adds vanilla series entries for sound order
+            var VanillaSeriesOrderEntries = CreateVanillaSeriesOrderEntries(
                 contextList,
                 selectedSeriesKeys,
                 seriesSoundOrder,
                 buildResources.CoreSeriesOverride);
-            AddSeriesOrderEntries(songData, coreOnlyVanillaSeriesOrderEntries);
+            AddSeriesOrderEntries(songData, VanillaSeriesOrderEntries);
 
+            //adds vanilla song changes for non-selected series
+            AddVanillaSongsChanges(contextList, selectedSeriesKeys, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio);
+
+            //remove duplicates
             NormalizeCombinedSongData(songData);
+            
             WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
             WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_title.xmsbt"), msgTitleEntries);
 
@@ -148,6 +180,21 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 return contexts[0].SafePackName;
 
             return SinglePackFolderName;
+        }
+
+        private string GetSingleCskPackOutputFolderName(IReadOnlyList<CskModContext> contexts)
+        {
+            return _config.CurrentValue.Sma5hMusicGUI?.SaveOutputToSubfolder == false
+                ? string.Empty
+                : GetSingleCskPackFolderName(contexts);
+        }
+
+        private string GetSingleCskPackRoot(string outputRoot, IReadOnlyList<CskModContext> contexts)
+        {
+            var folderName = GetSingleCskPackOutputFolderName(contexts);
+            return string.IsNullOrEmpty(folderName)
+                ? outputRoot
+                : Path.Combine(outputRoot, folderName);
         }
 
         #endregion
@@ -176,6 +223,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return !string.Equals(coreGameSeriesById[uiGameTitleId], seriesName, StringComparison.OrdinalIgnoreCase);
         }
 
+        private static string GetSeriesIconCopyKey(JObject series)
+        {
+            return GetString(series, "ui_series_id", GetString(series, "name_id", string.Empty));
+        }
+
         #endregion
 
         #region Series Processing
@@ -197,8 +249,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             JObject coreSeriesOverride,
             JObject metadata,
             HashSet<string> coreBgmIds,
-            bool includeAudio)
+            bool includeAudio,
+            CskBuildResources buildResources,
+            HashSet<string> copiedSeriesIconKeys)
         {
+            //get series name and folder name
             var seriesName = GetString(series, "name_id");
             var realName = GetSeriesDisplayName(series);
             var safeSeriesName = SanitizePathSegment(realName, seriesName, "series folder name");
@@ -208,12 +263,21 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var seriesUiFolder = Path.Combine(outputRoot, seriesFolderName, "ui", "message");
             Directory.CreateDirectory(seriesDbFolder);
             Directory.CreateDirectory(seriesUiFolder);
-            CopySeriesIcon(series, Path.Combine(outputRoot, seriesFolderName));
+
+            //copy icon is not already copied
+            var seriesIconKey = GetSeriesIconCopyKey(series);
+            if (!copiedSeriesIconKeys.Contains(seriesIconKey) &&
+                CopySeriesIcon(series, Path.Combine(outputRoot, seriesFolderName)))
+            {
+                copiedSeriesIconKeys.Add(seriesIconKey);
+            }
 
             var songData = CreateSongData();
             var msgBgmEntries = new List<string>();
             var msgTitleEntries = new List<string>();
+            var metadataBgmIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            //get data for series
             PopulateSeriesPackData(
                 series,
                 songData,
@@ -233,10 +297,17 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 coreSeriesOverride,
                 metadata,
                 coreBgmIds,
+                metadataBgmIds,
                 includeAudio);
 
+            //copy nus3bank for core songs
+            if (includeAudio)
+                CopyCoreVolumeOverrideBankFiles(seriesName, seriesFolderName, outputRoot, generatedBgmFolder, buildResources);
+
+            //write json
             var outputJsonPath = Path.Combine(seriesDbFolder, databaseFileName);
             File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
+            //write xmsbts
             WriteXmsbt(Path.Combine(seriesUiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
             WriteXmsbt(Path.Combine(seriesUiFolder, "msg_title.xmsbt"), msgTitleEntries);
             return outputJsonPath;
@@ -261,12 +332,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
             JObject coreSeriesOverride,
             JObject metadata,
             HashSet<string> coreBgmIds,
+            HashSet<string> metadataBgmIds,
             bool includeAudio)
         {
             var seriesName = GetString(series, "name_id");
             var orderCounter = GetNextPlaylistOrder(seriesName, playlistData);
             var seriesTitle = GetLocalizedString(series["msbt_title"], seriesName);
 
+            //get series title from override if changed
             if (coreSeriesOverride != null)
             {
                 var overrideEntry = coreSeriesOverride[GetString(series, "ui_series_id")] as JObject;
@@ -274,9 +347,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     seriesTitle = GetLocalizedString(overrideEntry["msbt_title"], seriesTitle);
             }
 
+            //get sound order
             if (orderOverride != null || !VanillaSeries.Contains(seriesName) || seriesName.StartsWith("etc", StringComparison.OrdinalIgnoreCase))
             {
                 var dispOrderSound = GetSeriesSoundOrder(seriesSoundOrder, series);
+                //clamp to 127, more is unsupported
                 if (dispOrderSound > 127)
                     dispOrderSound = 127;
 
@@ -286,8 +361,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
             msgTitleEntries.Add(MakeEntry($"tit_series_snd_{seriesName}", seriesTitle));
             msgTitleEntries.Add(MakeEntry($"tit_series_{seriesName}", seriesTitle));
 
+            //game processing
             foreach (JObject game in GetArray(series, "games"))
             {
+                //skip game for this series if series was changed
                 if (coreGameOverride != null)
                 {
                     var gameOverride = coreGameOverride[GetString(game, "ui_gametitle_id")] as JObject;
@@ -295,6 +372,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         continue;
                 }
 
+                //get game data
                 var effectiveGame = GetEffectiveOverrideObject(game, coreGameOverride, "ui_gametitle_id");
                 var gameName = GetString(effectiveGame, "name_id", GetString(game, "name_id"));
                 if (ShouldAddGameTitleEntry(effectiveGame, seriesName, coreGameSeriesById))
@@ -303,14 +381,20 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var gameTitle = GetLocalizedString(effectiveGame["msbt_title"], gameName);
                 msgTitleEntries.Add(MakeEntry($"tit_{gameName}", gameTitle));
 
+                //process bgms for this game
                 foreach (JObject bgm in GetArray(game, "bgms"))
-                    orderCounter = ProcessBgm(bgm, songData, playlistData, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, orderCounter);
+                    orderCounter = ProcessBgm(bgm, songData, playlistData, msgBgmEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, orderCounter);
             }
 
-            ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, includeAudio, ref orderCounter);
+            //process bgms from core games that have been moved to this series
+            ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, ref orderCounter);
+            //save vanilla playlists data
             PopulateVanillaPlaylists(songData, seriesName, playlistData, coreBgmIds, coreBgmOverride, orderOverride);
+            //add stage entries
             PopulateStageDatabaseEntries(songData, seriesName, stageOverride, playlistData);
-            ProcessCoreBgmOverrides(songData, msgBgmEntries, msgTitleEntries, seriesName, seriesIdToName, coreBgmOverride, orderOverride, coreGameOverride);
+            //process overrides for core bgms
+            ProcessCoreBgmOverrides(songData, playlistData, msgBgmEntries, msgTitleEntries, seriesName, seriesIdToName, coreBgmOverride, orderOverride, coreGameOverride, ref orderCounter);
+            //process overrides for core games moved to new series
             AddCoreGameOverridesForNewSeries(songData, series, seriesName, coreGameOverride);
         }
 

@@ -45,7 +45,15 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel x:Name="ModalContent" Classes="content" MaxWidth="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
         <fields:PropertyTextField Classes="jpnSupport" Label="Filename" Text="{Binding Filename, Mode=OneWay}" ToolTip="The source of the song" IsReadOnly="True" IsVisible="{Binding !IsLoopPreviewOnly}" />
-        <fields:PropertyTextField x:Name="ToneId" Label="Tone ID" Text="{Binding ToneId, Mode=TwoWay}" ToolTip="Choose a ToneId for this new song." IsVisible="{Binding !IsLoopPreviewOnly}" />
+        <fields:PropertyTextField x:Name="ToneId"
+                                  Label="Tone ID"
+                                  Text="{Binding ToneId, Mode=TwoWay}"
+                                  ToolTip="Choose a ToneId for this new song."
+                                  IsVisible="{Binding !IsLoopPreviewOnly}"
+                                  ButtonContent="Replace Core Song"
+                                  ButtonCommand="{Binding ActionReplaceCoreSong}"
+                                  ButtonCommandParameter="{Binding $parent[Window]}"
+                                  IsButtonVisible="{Binding CanReplaceCoreSong}" />
 
         <StackPanel IsVisible="{Binding IsAudioImport}">
           <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">

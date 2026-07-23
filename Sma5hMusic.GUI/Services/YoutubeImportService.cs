@@ -16,6 +16,8 @@ namespace Sma5hMusic.GUI.Services
 {
     public class YoutubeImportService : IYoutubeImportService
     {
+        private const int DownloadAttemptCount = 3;
+
         private readonly IOptionsMonitor<ApplicationSettings> _config;
         private readonly ILogger _logger;
 
@@ -66,28 +68,42 @@ namespace Sma5hMusic.GUI.Services
 
                 try
                 {
+                    //get id so that it's always there if song has only non unicode charachters in title
                     var outputTemplate = Path.Combine(tempDirectory, "%(title)s [%(id)s].%(ext)s");
 
-                    var runResult = RunYtDlp(
-                        ytexecutable,
-                        playlistTotal,
-                        onProgress,
-                        cancellationToken,
-                        allowPlaylist ? "--yes-playlist" : "--no-playlist",
-                        "--ignore-errors",
-                        "--no-progress",
-                        "--format", "bestaudio/best",
-                        "--extract-audio",
-                        "--ffmpeg-location", ffmpegExecutable,
-                        "--audio-format", "wav",
-                        "--audio-quality", "0",
-                        "--restrict-filenames",
-                        "--print", "after_move:filepath",
-                        "--output", outputTemplate,
-                        url
-                    );
+                    YtDlpRunResult runResult = null;
+                    for (var attempt = 1; attempt <= DownloadAttemptCount; attempt++)
+                    {
+                        runResult = RunYtDlp(
+                            ytexecutable,
+                            playlistTotal,
+                            onProgress,
+                            cancellationToken,
+                            allowPlaylist ? "--yes-playlist" : "--no-playlist",
+                            "--ignore-errors",
+                            "--no-progress",
+                            "--format", "bestaudio/best",
+                            "--extract-audio",
+                            "--ffmpeg-location", ffmpegExecutable,
+                            "--audio-format", "wav", //wav for faster segment creation
+                            "--audio-quality", "0",
+                            "--restrict-filenames",
+                            "--print", "after_move:filepath",
+                            "--output", outputTemplate,
+                            url
+                        );
 
-                    cancellationToken.ThrowIfCancellationRequested();
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        if (runResult.ExitCode == 0 || attempt == DownloadAttemptCount)
+                            break;
+
+                        _logger.LogWarning(
+                            "yt-dlp download attempt {Attempt}/{MaxAttempts} failed. Retrying...",
+                            attempt,
+                            DownloadAttemptCount
+                        );
+                    }
 
                     var filenames = runResult.Output
                         .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
@@ -340,6 +356,7 @@ namespace Sma5hMusic.GUI.Services
             });
         }
 
+        //get number of songs in playlist for UI
         public Task<int> GetPlaylistItemCount(string url, CancellationToken cancellationToken = default)
         {
             return Task.Run(() =>

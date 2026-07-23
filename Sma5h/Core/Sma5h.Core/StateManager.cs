@@ -84,13 +84,25 @@ namespace Sma5h
 
         public bool WriteChanges()
         {
+            return WriteChanges(_ => true);
+        }
+
+        public bool WriteChanges(Func<string, bool> shouldWriteResource)
+        {
             var outputPath = _config.CurrentValue.OutputPath;
             var gameResourcesPath = _config.CurrentValue.GameResourcesPath;
+            shouldWriteResource ??= _ => true;
 
             _logger.LogDebug("Write State Changes to {OutputPath}", _config.CurrentValue.OutputPath);
 
             foreach (var resource in _resources)
             {
+                if (!shouldWriteResource(resource.Key))
+                {
+                    _logger.LogDebug("Skip State Changes for Resource {GameResource}", resource.Key);
+                    continue;
+                }
+
                 var outputResourceFile = Path.Combine(outputPath, resource.Key);
                 var inputResourceFile = Path.Combine(gameResourcesPath, resource.Key);
                 Directory.CreateDirectory(Path.GetDirectoryName(outputResourceFile));

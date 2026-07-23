@@ -1,0 +1,121 @@
+using Microsoft.Extensions.Logging;
+using Sma5h.Mods.Music.Helpers;
+using Sma5h.Mods.Music.MusicOverride.MusicOverrideConfigModels;
+using Sma5h.Mods.Music.Models;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+namespace Sma5h.Mods.Music.ReverseBuild
+{
+    public partial class MusicModReverseService
+    {
+        private void GeneratePlaylistOverride(ResourceSnapshot core, ResourceSnapshot output, string overrideOutputPath)
+        {
+            var path = Path.Combine(overrideOutputPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_PLAYLIST_JSON_FILE);
+            var existingValues = LoadDictionary<PlaylistConfig>(path);
+            var newValues = output.PlaylistEntries
+                .ToDictionary(
+                    p => p.Key,
+                    p => CreatePlaylistConfig(p.Value, existingValues.GetValueOrDefault(p.Key)?.Title));
+
+            //merge new values into existing override
+            var merged = MergePlaylistOverrides(existingValues, newValues);
+            WriteJson(path, merged);
+
+            if (newValues.Count > 0)
+                _logger.LogInformation("Reverse MusicMod: wrote {OverridePath}.", path);
+        }
+
+        private PlaylistConfig CreatePlaylistConfig(PlaylistEntry playlistEntry, string existingTitle)
+        {
+            var playlistConfig = _mapper.Map<PlaylistConfig>(playlistEntry);
+            if (string.IsNullOrWhiteSpace(playlistConfig.Title))
+                //get title from music constants if available
+                playlistConfig.Title = MusicConstants.CONVERTER_CORE_PLAYLISTS.TryGetValue(playlistEntry.Id, out var title)
+                    ? title
+                    : string.IsNullOrWhiteSpace(existingTitle) ? playlistEntry.Id : existingTitle;
+
+            return playlistConfig;
+        }
+
+        private static Dictionary<string, PlaylistConfig> MergePlaylistOverrides(Dictionary<string, PlaylistConfig> existingValues, Dictionary<string, PlaylistConfig> newValues)
+        {
+            var merged = new Dictionary<string, PlaylistConfig>(existingValues);
+            foreach (var newValue in newValues)
+            {
+                if (existingValues.TryGetValue(newValue.Key, out var existingValue))
+                    merged[newValue.Key] = MergePlaylistOverride(existingValue, newValue.Value);
+                else
+                    merged[newValue.Key] = newValue.Value;
+            }
+
+            return merged;
+        }
+
+        private static PlaylistConfig MergePlaylistOverride(PlaylistConfig existingValue, PlaylistConfig newValue)
+        {
+            newValue.Tracks ??= new List<PlaylistValueConfig>();
+            if (existingValue?.Tracks == null || existingValue.Tracks.Count == 0)
+                return newValue;
+
+            var newTrackIds = new HashSet<string>(
+                newValue.Tracks
+                    .Select(p => p.UiBgmId)
+                    .Where(p => !string.IsNullOrEmpty(p)),
+                StringComparer.OrdinalIgnoreCase);
+
+            var existingOnlyTracks = existingValue.Tracks
+                .Where(p => !string.IsNullOrEmpty(p.UiBgmId) && !newTrackIds.Contains(p.UiBgmId))
+                .ToList();
+
+            if (existingOnlyTracks.Count == 0)
+                return newValue;
+
+            newValue.Tracks.AddRange(existingOnlyTracks);
+            MoveExistingPlaylistOrder(newValue.Tracks, existingOnlyTracks);
+            return newValue;
+        }
+
+        //Order from reverse mod is preserved, the songs already present are pushed to the end of the list
+        private static void MoveExistingPlaylistOrder(List<PlaylistValueConfig> mergedTracks, List<PlaylistValueConfig> existingOnlyTracks)
+        {
+            var orderAccessors = new (Func<PlaylistValueConfig, short> Get, Action<PlaylistValueConfig, short> Set)[]
+            {
+                (p => p.Order0, (p, value) => p.Order0 = value),
+                (p => p.Order1, (p, value) => p.Order1 = value),
+                (p => p.Order2, (p, value) => p.Order2 = value),
+                (p => p.Order3, (p, value) => p.Order3 = value),
+                (p => p.Order4, (p, value) => p.Order4 = value),
+                (p => p.Order5, (p, value) => p.Order5 = value),
+                (p => p.Order6, (p, value) => p.Order6 = value),
+                (p => p.Order7, (p, value) => p.Order7 = value),
+                (p => p.Order8, (p, value) => p.Order8 = value),
+                (p => p.Order9, (p, value) => p.Order9 = value),
+                (p => p.Order10, (p, value) => p.Order10 = value),
+                (p => p.Order11, (p, value) => p.Order11 = value),
+                (p => p.Order12, (p, value) => p.Order12 = value),
+                (p => p.Order13, (p, value) => p.Order13 = value),
+                (p => p.Order14, (p, value) => p.Order14 = value),
+                (p => p.Order15, (p, value) => p.Order15 = value)
+            };
+
+            foreach (var orderAccessor in orderAccessors)
+            {
+                var newOrders = mergedTracks
+                    .Except(existingOnlyTracks)
+                    .Select(orderAccessor.Get)
+                    .Where(p => p >= 0)
+                    .ToList();
+
+                var nextOrder = newOrders.Count == 0 ? 0 : newOrders.Max() + 1;
+                foreach (var track in existingOnlyTracks.Where(p => orderAccessor.Get(p) >= 0).OrderBy(orderAccessor.Get))
+                {
+                    orderAccessor.Set(track, (short)nextOrder);
+                    nextOrder++;
+                }
+            }
+        }
+    }
+}

@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        Height="760" MinHeight="760"
+        Height="840" MinHeight="840"
         x:Class="Sma5hMusic.GUI.Views.GlobalSettingsModalWindow"
         xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
         Classes="globalSettings" ShowInTaskbar="False" Title="Global Settings">
@@ -127,6 +127,13 @@
               </fields:PropertyField.FieldContent>
             </fields:PropertyField>
           </Grid>
+          <Grid ColumnDefinitions="*,*">
+            <fields:PropertyField Grid.Column="0" Label="Starting Order for Series" ToolTip="Starting disp_order_sound value used when building series order.">
+              <fields:PropertyField.FieldContent>
+                <NumericUpDown Value="{Binding SelectedItem.StartingOrderForSeries, Mode=TwoWay}" Minimum="0" Maximum="39" Increment="1"/>
+              </fields:PropertyField.FieldContent>
+            </fields:PropertyField>
+          </Grid>
           <Border Classes="contentTitle" DockPanel.Dock="Top">
             <TextBlock>Audio Conversion</TextBlock>
           </Border>
@@ -144,7 +151,7 @@
           </Grid>
           <Grid ColumnDefinitions="*,*">
             <fields:PropertyBooleanField Grid.Column="0" Label="[EXP.] In-Game Volume" IsChecked="{Binding SelectedItem.InGameVolume}" ToolTip="If turned on, the volume parameter of each song will be used to try to get an accurate playback of how loud a song will be in-game. Typically used to normalize songs from within the GUI." />
-            <Button Grid.Column="1" Margin="10,10,0,0" Content="Wipe Audio Cache" Command="{Binding ActionWipeAudioCache}"/>
+            <fields:PropertyBooleanField Grid.Column="1" Label="Build Nus3bank for core songs" IsChecked="{Binding SelectedItem.BuildNus3bankForCoreSongs}" ToolTip="If turned on, core songs with changed volume will generate a replacement nus3bank at build time." />
           </Grid>
           <Grid ColumnDefinitions="*,*">
             <fields:PropertyField Grid.Column="0" Label="Default Song Volume" ToolTip="Volume when adding a new song.">
@@ -152,6 +159,7 @@
                 <NumericUpDown Value="{Binding SelectedItem.DefaultSongVolume, Mode=TwoWay}" Minimum="-20" Maximum="20" Increment="0.1" FormatString="0.0"/>
               </fields:PropertyField.FieldContent>
             </fields:PropertyField>
+            <Button Grid.Column="1" Margin="10,10,0,0" Content="Wipe Audio Cache" Command="{Binding ActionWipeAudioCache}"/>
           </Grid>
           <Grid ColumnDefinitions="*,*">
             <fields:PropertyField Grid.Column="0" Label="Normalization LUFS" ToolTip="Target LUFS value used when applying audio normalization before importing. Default is 14.">
@@ -171,6 +179,7 @@
           <Border Classes="contentTitle" DockPanel.Dock="Top">
             <TextBlock>Program Paths</TextBlock>
           </Border>
+          <fields:PropertyBooleanField Label="Save Output to subfolder" IsChecked="{Binding SelectedItem.SaveOutputToSubfolder}" ToolTip="If turned on, standard and single CSK builds create a pack folder inside the output directory. If turned off, files are written directly to the output directory." />
           <fields:PropertyFolderPickupField x:Name="OutputPath" Label="Output Directory" ToolTip="Path where your generated mod will go." Text="{Binding SelectedItem.OutputPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="OutputPath"/>
           <fields:PropertyFolderPickupField x:Name="ModPath" Label="Mod Directory" ToolTip="Path where your shareable music mods will go." Text="{Binding SelectedItem.ModPath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="ModPath"/>
           <fields:PropertyFolderPickupField x:Name="ModOverridePath" Label="Override Mod Directory" ToolTip="Path where settings such as playlist or sound test order will go." Text="{Binding SelectedItem.ModOverridePath}" Command="{Binding ActionOpenFileDialog}" CommandParameter="ModOverridePath"/>

@@ -4,6 +4,7 @@ using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.CskPackBuild;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models.AutoMapper;
+using Sma5h.Mods.Music.ReverseBuild;
 using Sma5h.Mods.Music.Services;
 using Sma5h.ResourceProviders;
 using VGMMusic;
@@ -26,8 +27,9 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IAudioMetadataService, VGMStreamAudioMetadataService>();
             services.AddSingleton<IVGMMusicPlayer, VGMMusicPlayer>();
             services.AddSingleton<INus3AudioService, Nus3AudioService>();
+            services.AddSingleton<IMusicModReverseService, MusicModReverseService>();
             services.AddSingleton<ICskPackBuildService, CskPackBuildService>();
-            services.AddAutoMapper(typeof(MappingDb), typeof(MappingMusicModConfig));
+            services.AddAutoMapper(_ => { }, typeof(MappingDb).Assembly, typeof(MappingMusicModConfig).Assembly);
             return services;
         }
 
@@ -38,7 +40,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<ISma5hMod, Sma5hMusicOverride>((o) => o.GetRequiredService<ISma5hMusicOverride>() as Sma5hMusicOverride);
             services.AddSingleton<IResourceProvider, PrcResourceProvider>();
             services.AddSingleton<IAudioStateService, AudioStateService>();
-            services.AddAutoMapper(typeof(MappingDb), typeof(MappingOverrideConfig));
+            services.AddAutoMapper(_ => { }, typeof(MappingDb).Assembly, typeof(MappingOverrideConfig).Assembly);
             return services;
         }
     }

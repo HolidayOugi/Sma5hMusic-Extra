@@ -45,8 +45,11 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                     SkipWarningGameVersion = p.SkipWarningGameVersion,
                     AutoBackupAtStart = p.AutoBackupAtStart,
                     InGameVolume = p.InGameVolume,
+                    BuildNus3bankForCoreSongs = p.BuildNus3bankForCoreSongs,
+                    SaveOutputToSubfolder = p.SaveOutputToSubfolder,
                     AudioNormalizationTargetLufs = p.AudioNormalizationTargetLufs,
                     LoopPreviewSeconds = p.LoopPreviewSeconds,
+                    StartingOrderForSeries = p.StartingOrderForSeries,
                     HideIndexColumn = p.HideIndexColumn,
                     HideModColumn = p.HideModColumn,
                     HideRecordColumn = p.HideRecordColumn,
@@ -87,8 +90,11 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.SkipWarningGameVersion, me => me.MapFrom(p => p.Sma5hMusicGUI.SkipWarningGameVersion))
                 .ForMember(i => i.AutoBackupAtStart, me => me.MapFrom(p => p.Sma5hMusicGUI.AutoBackupAtStart))
                 .ForMember(i => i.InGameVolume, me => me.MapFrom(p => p.Sma5hMusicGUI.InGameVolume))
+                .ForMember(i => i.BuildNus3bankForCoreSongs, me => me.MapFrom(p => p.Sma5hMusicGUI.BuildNus3bankForCoreSongs))
+                .ForMember(i => i.SaveOutputToSubfolder, me => me.MapFrom(p => p.Sma5hMusicGUI.SaveOutputToSubfolder))
                 .ForMember(i => i.AudioNormalizationTargetLufs, me => me.MapFrom(p => p.Sma5hMusicGUI.AudioNormalizationTargetLufs))
                 .ForMember(i => i.LoopPreviewSeconds, me => me.MapFrom(p => p.Sma5hMusicGUI.LoopPreviewSeconds))
+                .ForMember(i => i.StartingOrderForSeries, me => me.MapFrom(p => p.Sma5hMusicGUI.StartingOrderForSeries))
                 .ForMember(i => i.HideIndexColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideIndexColumn))
                 .ForMember(i => i.HideModColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideModColumn))
                 .ForMember(i => i.HideRecordColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideRecordColumn))

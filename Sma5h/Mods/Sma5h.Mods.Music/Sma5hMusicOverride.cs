@@ -9,6 +9,7 @@ using Sma5h.Mods.Music.Models;
 using Sma5h.Mods.Music.MusicMods.MusicModModels;
 using Sma5h.Mods.Music.MusicOverride;
 using Sma5h.Mods.Music.MusicOverride.MusicOverrideConfigModels;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -22,6 +23,8 @@ namespace Sma5h.Mods.Music
         private readonly IOptionsMonitor<Sma5hMusicOverrideOptions> _config;
         private readonly IAudioStateService _audioStateService;
         private const Formatting _defaultFormatting = Formatting.Indented;
+        private const string GameTextTagOpenJson = "\\u000e\\u0000\\u0002\\u0002P";
+        private const string GameTextTagCloseJson = "\\u000e\\u0000\\u0002\\u0002d";
         private MusicOverrideConfig _musicOverrideConfig;
 
         public override string ModName => "Sma5hMusicOverride";
@@ -93,7 +96,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmDbRootEntry in _audioStateService.GetBgmDbRootEntries())
                     {
-                        if (bgmDbRootEntry.Source == EntrySource.Core && coreDbRootOverrides.ContainsKey(bgmDbRootEntry.UiBgmId))
+                        if (bgmDbRootEntry.Source == EntrySource.Core &&
+                            bgmDbRootEntry.MusicMod == null &&
+                            coreDbRootOverrides.ContainsKey(bgmDbRootEntry.UiBgmId))
                         {
                             _mapper.Map(coreDbRootOverrides[bgmDbRootEntry.UiBgmId], bgmDbRootEntry);
                         }
@@ -105,7 +110,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmStreamSetEntry in _audioStateService.GetBgmStreamSetEntries())
                     {
-                        if (bgmStreamSetEntry.Source == EntrySource.Core && coreStreamSetOverrides.ContainsKey(bgmStreamSetEntry.StreamSetId))
+                        if (bgmStreamSetEntry.Source == EntrySource.Core &&
+                            bgmStreamSetEntry.MusicMod == null &&
+                            coreStreamSetOverrides.ContainsKey(bgmStreamSetEntry.StreamSetId))
                         {
                             var streamSetObj = GetUpdatedStreamSetConfig(coreStreamSetOverrides[bgmStreamSetEntry.StreamSetId]);
                             _mapper.Map(streamSetObj, bgmStreamSetEntry);
@@ -118,7 +125,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmAssignedInfoEntry in _audioStateService.GetBgmAssignedInfoEntries())
                     {
-                        if (bgmAssignedInfoEntry.Source == EntrySource.Core && coreAssignedInfoOverrides.ContainsKey(bgmAssignedInfoEntry.InfoId))
+                        if (bgmAssignedInfoEntry.Source == EntrySource.Core &&
+                            bgmAssignedInfoEntry.MusicMod == null &&
+                            coreAssignedInfoOverrides.ContainsKey(bgmAssignedInfoEntry.InfoId))
                         {
                             var assignedInfoObj = GetUpdatedBgmAssignedInfoConfig(coreAssignedInfoOverrides[bgmAssignedInfoEntry.InfoId]);
                             _mapper.Map(assignedInfoObj, bgmAssignedInfoEntry);
@@ -131,7 +140,9 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmStreamPropertyEntry in _audioStateService.GetBgmStreamPropertyEntries())
                     {
-                        if (bgmStreamPropertyEntry.Source == EntrySource.Core && coreStreamPropertyOverrides.ContainsKey(bgmStreamPropertyEntry.StreamId))
+                        if (bgmStreamPropertyEntry.Source == EntrySource.Core &&
+                            bgmStreamPropertyEntry.MusicMod == null &&
+                            coreStreamPropertyOverrides.ContainsKey(bgmStreamPropertyEntry.StreamId))
                         {
                             _mapper.Map(coreStreamPropertyOverrides[bgmStreamPropertyEntry.StreamId], bgmStreamPropertyEntry);
                         }
@@ -143,9 +154,25 @@ namespace Sma5h.Mods.Music
                 {
                     foreach (var bgmPropertyEntry in _audioStateService.GetBgmPropertyEntries())
                     {
-                        if (bgmPropertyEntry.Source == EntrySource.Core && coreBgmPropertyOverrides.ContainsKey(bgmPropertyEntry.NameId))
+                        if (bgmPropertyEntry.Source == EntrySource.Core &&
+                            bgmPropertyEntry.MusicMod == null &&
+                            coreBgmPropertyOverrides.ContainsKey(bgmPropertyEntry.NameId))
                         {
                             _mapper.Map(coreBgmPropertyOverrides[bgmPropertyEntry.NameId], bgmPropertyEntry);
+                        }
+                    }
+                }
+                //Volume
+                var coreBgmVolumeOverrides = _musicOverrideConfig.CoreBgmOverrides.CoreBgmVolumeOverrides;
+                if (coreBgmVolumeOverrides != null)
+                {
+                    foreach (var bgmPropertyEntry in _audioStateService.GetBgmPropertyEntries())
+                    {
+                        if (bgmPropertyEntry.Source == EntrySource.Core &&
+                            bgmPropertyEntry.MusicMod == null &&
+                            coreBgmVolumeOverrides.TryGetValue(bgmPropertyEntry.NameId, out var volumeOverride))
+                        {
+                            bgmPropertyEntry.AudioVolume = volumeOverride.Volume;
                         }
                     }
                 }
@@ -258,6 +285,13 @@ namespace Sma5h.Mods.Music
             if (File.Exists(overrideCoreJsonFile))
             {
                 var file = File.ReadAllText(overrideCoreJsonFile);
+                //check if old bytes for small text are present and replace them with markers
+                var normalizedFile = NormalizeCoreBgmOverrideTextTags(file);
+                if (file != normalizedFile)
+                {
+                    file = normalizedFile;
+                    File.WriteAllText(overrideCoreJsonFile, file);
+                }
                 _logger.LogDebug("Parsing {MusicOverrideFile} Json File", overrideCoreJsonFile);
                 var outputCoreBgm = JsonConvert.DeserializeObject<CoreBgmOverrides>(file);
                 _logger.LogDebug("Parsed {MusicOverrideFile} Json File", overrideCoreJsonFile);
@@ -265,6 +299,7 @@ namespace Sma5h.Mods.Music
             }
             else
                 _logger.LogInformation("File {MusicOverrideFile} does not exist.", overrideCoreJsonFile);
+            EnsureCoreBgmOverrideCollections();
             CheckToUpdateOldFormat(_musicOverrideConfig.CoreBgmOverrides.CoreBgmDbRootOverrides);
 
             //Override Core Game
@@ -307,6 +342,8 @@ namespace Sma5h.Mods.Music
 
         public bool UpdateCoreBgmEntries(MusicModEntries musicModEntries)
         {
+            EnsureCoreBgmOverrideCollections();
+
             if (musicModEntries == null)
                 return true;
 
@@ -324,11 +361,91 @@ namespace Sma5h.Mods.Music
                     _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamPropertyOverrides[bgmStreamPropertyEntry.StreamId] = _mapper.Map<BgmStreamPropertyConfig>(bgmStreamPropertyEntry);
             if (musicModEntries.BgmPropertyEntries != null)
                 foreach (var bgmPropertyEntry in musicModEntries.BgmPropertyEntries)
+                {
                     _musicOverrideConfig.CoreBgmOverrides.CoreBgmPropertyOverrides[bgmPropertyEntry.NameId] = _mapper.Map<BgmPropertyEntryConfig>(bgmPropertyEntry);
+                    UpdateCoreBgmVolumeOverride(bgmPropertyEntry);
+                }
 
             var overrideJsonFile = Path.Combine(_config.CurrentValue.Sma5hMusicOverride.ModPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_CORE_BGM_JSON_FILE);
             File.WriteAllText(overrideJsonFile, JsonConvert.SerializeObject(_musicOverrideConfig.CoreBgmOverrides, _defaultFormatting));
             return true;
+        }
+
+        public bool DeleteCoreBgmEntries(MusicModDeleteEntries musicModDeleteEntries)
+        {
+            EnsureCoreBgmOverrideCollections();
+
+            if (musicModDeleteEntries == null)
+                return true;
+
+            foreach (var bgmDbRootEntry in musicModDeleteEntries.BgmDbRootEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmDbRootOverrides.Remove(bgmDbRootEntry);
+            foreach (var bgmStreamSetEntry in musicModDeleteEntries.BgmStreamSetEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamSetOverrides.Remove(bgmStreamSetEntry);
+            foreach (var bgmAssignedInfoEntry in musicModDeleteEntries.BgmAssignedInfoEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmAssignedInfoOverrides.Remove(bgmAssignedInfoEntry);
+            foreach (var bgmStreamPropertyEntry in musicModDeleteEntries.BgmStreamPropertyEntries)
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamPropertyOverrides.Remove(bgmStreamPropertyEntry);
+            foreach (var bgmPropertyEntry in musicModDeleteEntries.BgmPropertyEntries)
+            {
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmPropertyOverrides.Remove(bgmPropertyEntry);
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmVolumeOverrides.Remove(bgmPropertyEntry);
+            }
+
+            var overrideJsonFile = Path.Combine(_config.CurrentValue.Sma5hMusicOverride.ModPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_CORE_BGM_JSON_FILE);
+            File.WriteAllText(overrideJsonFile, JsonConvert.SerializeObject(_musicOverrideConfig.CoreBgmOverrides, _defaultFormatting));
+            return true;
+        }
+
+        private void EnsureCoreBgmOverrideCollections()
+        {
+            _musicOverrideConfig.CoreBgmOverrides ??= new CoreBgmOverrides();
+            _musicOverrideConfig.CoreBgmOverrides.CoreBgmDbRootOverrides ??= new Dictionary<string, BgmDbRootConfig>();
+            _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamSetOverrides ??= new Dictionary<string, BgmStreamSetConfig>();
+            _musicOverrideConfig.CoreBgmOverrides.CoreBgmAssignedInfoOverrides ??= new Dictionary<string, BgmAssignedInfoConfig>();
+            _musicOverrideConfig.CoreBgmOverrides.CoreBgmStreamPropertyOverrides ??= new Dictionary<string, BgmStreamPropertyConfig>();
+            _musicOverrideConfig.CoreBgmOverrides.CoreBgmPropertyOverrides ??= new Dictionary<string, BgmPropertyEntryConfig>();
+            _musicOverrideConfig.CoreBgmOverrides.CoreBgmVolumeOverrides ??= new Dictionary<string, CoreBgmVolumeConfig>();
+        }
+
+        private static string NormalizeCoreBgmOverrideTextTags(string file)
+        {
+            return file?
+                .Replace(GameTextTagOpenJson, "{{")
+                .Replace(GameTextTagCloseJson, "}}");
+        }
+
+        private void UpdateCoreBgmVolumeOverride(BgmPropertyEntry bgmPropertyEntry)
+        {
+            if (bgmPropertyEntry == null ||
+                bgmPropertyEntry.Source != EntrySource.Core ||
+                bgmPropertyEntry.MusicMod != null)
+                return;
+
+            var originalEntry = _audioStateService.GetOriginalCoreBgmPropertyEntries()
+                .FirstOrDefault(p => string.Equals(p.NameId, bgmPropertyEntry.NameId, StringComparison.OrdinalIgnoreCase));
+            if (originalEntry == null)
+                return;
+
+            var originalVolume = RoundVolume(originalEntry.AudioVolume);
+            var currentVolume = RoundVolume(bgmPropertyEntry.AudioVolume);
+            if (Math.Abs(originalVolume - currentVolume) < 0.0001f)
+            {
+                _musicOverrideConfig.CoreBgmOverrides.CoreBgmVolumeOverrides.Remove(bgmPropertyEntry.NameId);
+                return;
+            }
+
+            _musicOverrideConfig.CoreBgmOverrides.CoreBgmVolumeOverrides[bgmPropertyEntry.NameId] = new CoreBgmVolumeConfig
+            {
+                NameId = bgmPropertyEntry.NameId,
+                OriginalVolume = originalVolume,
+                Volume = currentVolume
+            };
+        }
+
+        private static float RoundVolume(float value)
+        {
+            return (float)Math.Round(value, 1, MidpointRounding.AwayFromZero);
         }
 
         public bool UpdateGameTitleEntry(Models.GameTitleEntry gameTitleEntry)

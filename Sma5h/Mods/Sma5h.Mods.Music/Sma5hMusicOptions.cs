@@ -7,6 +7,7 @@ namespace Sma5h.Mods.Music
     public class Sma5hMusicOptions : Sma5hOptions
     {
         public Sma5hMusicOptionsSection Sma5hMusic { get; set; }
+        public Sma5hMusicGuiOptionsSection Sma5hMusicGUI { get; set; }
 
         public class Sma5hMusicOptionsSection
         {
@@ -25,6 +26,13 @@ namespace Sma5h.Mods.Music
             public PlaylistGeneration GenerationMode { get; set; }
             public ushort AutoMappingIncidence { get; set; }
             public Dictionary<string, string> AutoMapping { get; set; }
+        }
+
+        public class Sma5hMusicGuiOptionsSection
+        {
+            public bool BuildNus3bankForCoreSongs { get; set; }
+            public bool SaveOutputToSubfolder { get; set; }
+            public int StartingOrderForSeries { get; set; }
         }
 
         public enum PlaylistGeneration

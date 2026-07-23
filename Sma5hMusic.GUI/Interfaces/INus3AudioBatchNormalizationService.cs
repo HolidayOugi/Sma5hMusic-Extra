@@ -8,7 +8,7 @@ namespace Sma5hMusic.GUI.Interfaces
 {
     public interface INus3AudioBatchNormalizationService
     {
-        IReadOnlyList<string> GetNus3AudioFiles(string musicModsPath);
+        IReadOnlyList<string> GetNormalizableAudioFiles(string musicModsPath);
 
         Task<Nus3AudioBatchNormalizationResult> NormalizeFiles(
             IReadOnlyList<string> files,

@@ -66,6 +66,8 @@ namespace Sma5hMusic.GUI.ViewModels
 
             var observableBgmEntries = viewModelManager.ObservableDbRootEntries.Connect()
                 .DeferUntilLoaded()
+                .AutoRefresh(p => p.UiGameTitleId, TimeSpan.FromMilliseconds(50))
+                .AutoRefresh(p => p.GameTitleViewModel.UiSeriesId, TimeSpan.FromMilliseconds(50))
                 .Filter(p => p.UiBgmId != MusicConstants.InternalIds.BGM_ID_RANDOM);
 
             var whenAnyPropertyChanged = this.WhenAnyPropertyChanged("SelectedSeries", "SelectedGame",
@@ -77,8 +79,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 .Filter(p =>
                     (SelectedShowHiddenSongs || (!SelectedShowHiddenSongs && !p.HiddenInSoundTest)) &&
                     (SelectedShowInSoundTest || (!SelectedShowInSoundTest && p.HiddenInSoundTest)) &&
-                    (SelectedModSongs || (!SelectedModSongs && p.Source == EntrySource.Core)) &&
-                    (SelectedCoreSongs || (!SelectedCoreSongs && p.Source == EntrySource.Mod)) &&
+                    MatchesSongSourceFilter(p) &&
                     (SelectedMod == null || SelectedMod.DefaultFlag || p.ModId == SelectedMod.Id) &&
                     (SelectedRecordType == null || SelectedRecordType.DefaultFlag || p.RecordType == SelectedRecordType.Id) &&
                     (SelectedSeries == null || SelectedSeries.AllFlag || p.SeriesId == SelectedSeries.UiSeriesId) &&
@@ -134,6 +135,22 @@ namespace Sma5hMusic.GUI.ViewModels
             SelectedCoreSongs = false;
             SelectedRecordType = _recordTypes[0];
             this.WhenAnyValue(p => p.SelectedSeries).Subscribe((o) => SelectedGame = _allGameTitleChangeSet.First().Current);
+        }
+
+        private static bool IsModFilterSong(BgmDbRootEntryViewModel bgmEntry)
+        {
+            return bgmEntry.Source == EntrySource.Mod || bgmEntry.IsCoreReplacement;
+        }
+
+        private static bool IsCoreFilterSong(BgmDbRootEntryViewModel bgmEntry)
+        {
+            return bgmEntry.Source == EntrySource.Core;
+        }
+
+        private bool MatchesSongSourceFilter(BgmDbRootEntryViewModel bgmEntry)
+        {
+            return (SelectedModSongs && IsModFilterSong(bgmEntry)) ||
+                   (SelectedCoreSongs && IsCoreFilterSong(bgmEntry));
         }
 
         private IChangeSet<SeriesEntryViewModel, string> GetAllSeriesChangeSet()

@@ -7,6 +7,7 @@ using Sma5h.Interfaces;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
+using Sma5h.Mods.Music.Models;
 using Sma5hMusic.GUI.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -24,12 +25,14 @@ namespace Sma5hMusic.GUI.Dialogs
         private readonly IMusicModManagerService _musicModManagerService;
         private readonly IOptionsMonitor<Sma5hMusicOptions> _musicConfig;
         private readonly IOptionsMonitor<Sma5hMusicOverrideOptions> _musicOverrideConfig;
+        private readonly IAudioStateService _audioStateService;
         private readonly IStateManager _stateManager;
         private readonly IOptionsMonitor<Sma5hOptions> _config;
 
         public BuildDialog(IOptionsMonitor<Sma5hOptions> config, IServiceProvider serviceProvider,
             IStateManager stateManager, IMessageDialog messageDialog, IMusicModManagerService musicModManagerService,
             IOptionsMonitor<Sma5hMusicOptions> musicConfig, IOptionsMonitor<Sma5hMusicOverrideOptions> musicOverrideConfig,
+            IAudioStateService audioStateService,
             ILogger<BuildDialog> logger)
         {
             _logger = logger;
@@ -40,6 +43,7 @@ namespace Sma5hMusic.GUI.Dialogs
             _musicModManagerService = musicModManagerService;
             _musicConfig = musicConfig;
             _musicOverrideConfig = musicOverrideConfig;
+            _audioStateService = audioStateService;
         }
 
         public async Task Init(Func<bool, Task> callbackSuccess = null, Func<Exception, Task> callbackError = null)
@@ -123,9 +127,9 @@ namespace Sma5hMusic.GUI.Dialogs
             var originalOutputPath = _config.CurrentValue.OutputPath;
             var originalMusicOutputPath = _musicConfig.CurrentValue.OutputPath;
             var originalMusicOverrideOutputPath = _musicOverrideConfig.CurrentValue.OutputPath;
-            var musicPackOutputPath = Path.Combine(originalOutputPath, GetMusicPackFolderName());
-            Directory.CreateDirectory(musicPackOutputPath);
-            SetBuildOutputPath(musicPackOutputPath);
+            var buildOutputPath = GetBuildOutputPath(originalOutputPath);
+            Directory.CreateDirectory(buildOutputPath);
+            SetBuildOutputPath(buildOutputPath);
 
             _ = Init(async (o) =>
             {
@@ -168,12 +172,15 @@ namespace Sma5hMusic.GUI.Dialogs
                             }
                         }
 
-                        if (!_stateManager.WriteChanges())
+                        var writeChangesSucceeded = _stateManager.WriteChanges();
+
+                        if (!writeChangesSucceeded)
                         {
                             await ShowBuildFailedError();
                             await callbackError?.Invoke(new Exception("StateManager Exception"));
                             return;
                         }
+
                         _logger.LogInformation("Build Complete");
                     }
                     catch (Exception e)
@@ -258,6 +265,13 @@ namespace Sma5hMusic.GUI.Dialogs
             _config.CurrentValue.OutputPath = outputPath;
             _musicConfig.CurrentValue.OutputPath = musicOutputPath;
             _musicOverrideConfig.CurrentValue.OutputPath = musicOverrideOutputPath;
+        }
+
+        private string GetBuildOutputPath(string outputPath)
+        {
+            return _musicConfig.CurrentValue.Sma5hMusicGUI?.SaveOutputToSubfolder == false
+                ? outputPath
+                : Path.Combine(outputPath, GetMusicPackFolderName());
         }
 
         private string GetMusicPackFolderName()

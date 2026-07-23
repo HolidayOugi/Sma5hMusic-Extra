@@ -1,0 +1,115 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Sma5hMusic.GUI.Views;
+using Microsoft.Extensions.Logging;
+
+namespace Sma5hMusic.GUI.ViewModels
+{
+    public partial class MainWindowViewModel
+    {
+        private async Task GenerateModFromBuildFiles()
+        {
+            var reloadStarted = false;
+            try
+            {
+                _logger.LogInformation("Generate Mod from build files requested.");
+
+                var confirm = await _messageDialog.ShowWarningConfirm(
+                    "Generate Mod from build files",
+                    "This will change your songs order and song playlists. Continue?");
+                if (!confirm)
+                {
+                    _logger.LogInformation("Generate Mod from build files cancelled: warning confirmation rejected.");
+                    return;
+                }
+
+                var buildFolder = await _fileDialog.OpenFolderDialog(_rootDialog.Window);
+                if (string.IsNullOrWhiteSpace(buildFolder))
+                {
+                    _logger.LogInformation("Generate Mod from build files cancelled: no build folder selected.");
+                    return;
+                }
+
+                _logger.LogInformation("Generate Mod from build files selected folder: {BuildFolder}", buildFolder);
+
+                if (!IsValidMusicBuildFolder(buildFolder))
+                {
+                    _logger.LogWarning("Generate Mod from build files rejected invalid folder: {BuildFolder}", buildFolder);
+                    await _messageDialog.ShowError(
+                        "Generate Mod from build files",
+                        $"The selected folder does not look like a Sma5hMusic build output.\r\nIt must contain a stream; folder:\r\n{buildFolder}");
+                    return;
+                }
+
+                IsLoading = true;
+                IsShowingDebug = true;
+
+                var modInfoVm = new GenerateModFromBuildFilesModalWindowViewModel(_appSettings);
+                var modInfoWindow = new GenerateModFromBuildFilesModalWindow { DataContext = modInfoVm };
+                var modInfoResult = await modInfoWindow.ShowDialog<GenerateModFromBuildFilesModalWindow>(_rootDialog.Window);
+                if (modInfoResult == null)
+                {
+                    _logger.LogInformation("Generate Mod from build files cancelled: no mod information entered.");
+                    return;
+                }
+
+                var modInformation = modInfoVm.GetMusicModInformation();
+                var modOutputPath = Path.Combine(_appSettings.CurrentValue.Sma5hMusic.ModPath, modInfoVm.ModPath);
+                _logger.LogInformation("Generate Mod from build files target mod: {ModName} at {ModOutputPath}", modInformation.Name, modOutputPath);
+
+                IsLoading = true;
+                IsShowingDebug = true;
+                _logger.LogInformation("Generating music mod {ModName} from build folder {BuildFolder}", modInformation.Name, buildFolder);
+
+                var metadata = await Task.Run(() => _musicModReverseService.Reverse(
+                    _appSettings.CurrentValue.GameResourcesPath,
+                    buildFolder,
+                    modOutputPath,
+                    _appSettings.CurrentValue.Sma5hMusicOverride.ModPath,
+                    modInformation.Name,
+                    modInformation));
+
+                var songCount = CountSongs(metadata);
+                _logger.LogInformation("Generate Mod from build files completed: {ModName} with {SongCount} song(s).", modInformation.Name, songCount);
+                await _messageDialog.ShowInformation(
+                    "Generate Mod from build files",
+                    $"Created mod '{modInformation.Name}' with {songCount} song(s).\r\n\r\n{modOutputPath}");
+                IsShowingDebug = false;
+                _musicModManagerService.RefreshMusicMods();
+                reloadStarted = true;
+                await OnInitData();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Generate Mod from build files failed.");
+                await _messageDialog.ShowError(
+                    "Generate Mod from build files",
+                    "There was an error while generating the mod from the selected build files. Please check the logs.",
+                    e);
+            }
+            finally
+            {
+                if (!reloadStarted)
+                {
+                    IsLoading = false;
+                    IsShowingDebug = false;
+                }
+            }
+        }
+
+        private static bool IsValidMusicBuildFolder(string buildFolder)
+        {
+            return Directory.Exists(Path.Combine(buildFolder, "stream;"));
+        }
+
+        private static int CountSongs(Sma5h.Mods.Music.MusicMods.MusicModModels.MusicModConfig metadata)
+        {
+            return metadata.Series?
+                .SelectMany(p => p.Games ?? Enumerable.Empty<Sma5h.Mods.Music.MusicMods.MusicModModels.GameConfig>())
+                .SelectMany(p => p.Bgms ?? Enumerable.Empty<Sma5h.Mods.Music.MusicMods.MusicModModels.BgmConfig>())
+                .Count() ?? 0;
+        }
+    }
+}

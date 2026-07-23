@@ -1,6 +1,7 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using System.Windows.Input;
 
 namespace Sma5hMusic.GUI.Views.Fields
 {
@@ -13,6 +14,10 @@ namespace Sma5hMusic.GUI.Views.Fields
         public static readonly StyledProperty<bool> IsRequiredProperty = AvaloniaProperty.Register<PropertyField, bool>(nameof(IsRequired), inherits: true, defaultBindingMode: Avalonia.Data.BindingMode.OneWay);
         public static readonly StyledProperty<bool> AcceptsReturnProperty = AvaloniaProperty.Register<PropertyTextField, bool>(nameof(AcceptsReturn), inherits: true, defaultBindingMode: Avalonia.Data.BindingMode.OneWay);
         public static readonly StyledProperty<string> ValidationErrorProperty = AvaloniaProperty.Register<PropertyTextField, string>(nameof(ValidationError), inherits: true, defaultBindingMode: Avalonia.Data.BindingMode.OneWay);
+        public static readonly StyledProperty<string> ButtonContentProperty = AvaloniaProperty.Register<PropertyTextField, string>(nameof(ButtonContent), inherits: true, defaultBindingMode: Avalonia.Data.BindingMode.OneWay);
+        public static readonly StyledProperty<ICommand> ButtonCommandProperty = AvaloniaProperty.Register<PropertyTextField, ICommand>(nameof(ButtonCommand), inherits: true, defaultBindingMode: Avalonia.Data.BindingMode.OneWay);
+        public static readonly StyledProperty<object> ButtonCommandParameterProperty = AvaloniaProperty.Register<PropertyTextField, object>(nameof(ButtonCommandParameter), inherits: true, defaultBindingMode: Avalonia.Data.BindingMode.OneWay);
+        public static readonly StyledProperty<bool> IsButtonVisibleProperty = AvaloniaProperty.Register<PropertyTextField, bool>(nameof(IsButtonVisible), inherits: true, defaultBindingMode: Avalonia.Data.BindingMode.OneWay);
 
         public string ValidationError
         {
@@ -54,6 +59,30 @@ namespace Sma5hMusic.GUI.Views.Fields
         {
             get { return GetValue(AcceptsReturnProperty); }
             set { SetValue(AcceptsReturnProperty, value); }
+        }
+
+        public string ButtonContent
+        {
+            get { return GetValue(ButtonContentProperty); }
+            set { SetValue(ButtonContentProperty, value); }
+        }
+
+        public ICommand ButtonCommand
+        {
+            get { return GetValue(ButtonCommandProperty); }
+            set { SetValue(ButtonCommandProperty, value); }
+        }
+
+        public object ButtonCommandParameter
+        {
+            get { return GetValue(ButtonCommandParameterProperty); }
+            set { SetValue(ButtonCommandParameterProperty, value); }
+        }
+
+        public bool IsButtonVisible
+        {
+            get { return GetValue(IsButtonVisibleProperty); }
+            set { SetValue(IsButtonVisibleProperty, value); }
         }
 
         public PropertyTextField()

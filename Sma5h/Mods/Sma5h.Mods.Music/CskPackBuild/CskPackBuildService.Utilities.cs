@@ -61,7 +61,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private static string MakeEntry(string label, string text)
         {
-            if (ContainsGameTextTagMarker(text))
+            //convert to base64 if contains game text tag or color markup
+            if (ContainsGameTextTagMarker(text) || MsbtRichTextColorHelper.ContainsColorMarkup(text))
                 return $"<entry label=\"{label}\" base64=\"true\">\r\n<text><![CDATA[{EncodeGameTextAsBase64(text)}]]></text>\r\n</entry>";
 
             return $"<entry label=\"{label}\">\r\n<text>{EscapeXml(text)}</text>\r\n</entry>";
@@ -81,6 +82,16 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (string.IsNullOrEmpty(text) || HasMessageEntry(entries, label))
                 return;
 
+            entries.Add(MakeEntry(label, text));
+        }
+
+        private static void AddOrReplaceMessage(List<string> entries, string label, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(label))
+                return;
+
+            var pattern = $"<entry label=\"{label}\"";
+            entries.RemoveAll(p => p.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0);
             entries.Add(MakeEntry(label, text));
         }
 
@@ -121,10 +132,86 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private static string EncodeGameTextAsBase64(string text)
         {
-            var gameText = text
-                .Replace(GameTextTagOpenMarker, GameTextTagOpen)
-                .Replace(GameTextTagCloseMarker, GameTextTagClose);
-            return Convert.ToBase64String(Encoding.Unicode.GetBytes(gameText));
+            return Convert.ToBase64String(EncodeGameTextBytes(text));
+        }
+
+        private static byte[] EncodeGameTextBytes(string text)
+        {
+            var bytes = new List<byte>();
+            for (var index = 0; index < text.Length;)
+            {
+                //opening brackets for small font
+                if (text.IndexOf(GameTextTagOpenMarker, index, StringComparison.Ordinal) == index)
+                {
+                    bytes.AddRange(Encoding.Unicode.GetBytes(GameTextTagOpen));
+                    index += GameTextTagOpenMarker.Length;
+                    continue;
+                }
+
+                //closing brackets for small font
+                if (text.IndexOf(GameTextTagCloseMarker, index, StringComparison.Ordinal) == index)
+                {
+                    bytes.AddRange(Encoding.Unicode.GetBytes(GameTextTagClose));
+                    index += GameTextTagCloseMarker.Length;
+                    continue;
+                }
+
+                //color closing tag
+                if (text.IndexOf(MsbtRichTextColorHelper.ColorCloseTag, index, StringComparison.OrdinalIgnoreCase) == index)
+                {
+                    AddDefaultColorMarkerBytes(bytes);
+                    index += MsbtRichTextColorHelper.ColorCloseTag.Length;
+                    continue;
+                }
+
+                if (text.IndexOf(MsbtRichTextColorHelper.ColorCloseTagAlt, index, StringComparison.OrdinalIgnoreCase) == index)
+                {
+                    AddDefaultColorMarkerBytes(bytes);
+                    index += MsbtRichTextColorHelper.ColorCloseTagAlt.Length;
+                    continue;
+                }
+
+                //color opening tag
+                if (text.IndexOf(MsbtRichTextColorHelper.ColorOpenPrefix, index, StringComparison.OrdinalIgnoreCase) == index)
+                {
+                    var tagEnd = text.IndexOf('>', index);
+                    if (tagEnd > index)
+                    {
+                        var colorId = text.Substring(index + MsbtRichTextColorHelper.ColorOpenPrefix.Length, tagEnd - index - MsbtRichTextColorHelper.ColorOpenPrefix.Length).Trim();
+                        var color = MsbtRichTextColorHelper.GetColor(colorId);
+                        if (color != null)
+                        {
+                            if (color.IsDefault)
+                                AddDefaultColorMarkerBytes(bytes);
+                            else
+                                AddColorMarkerBytes(bytes, color);
+                            index = tagEnd + 1;
+                            continue;
+                        }
+                    }
+                }
+
+                bytes.AddRange(Encoding.Unicode.GetBytes(text[index].ToString()));
+                index++;
+            }
+
+            return bytes.ToArray();
+        }
+
+        private static void AddColorMarkerBytes(List<byte> bytes, MsbtTextColor color)
+        {
+            bytes.AddRange(new byte[] { 0x0E, 0x00, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00 });
+            bytes.Add(color.Red);
+            bytes.Add(color.Green);
+            bytes.Add(color.Blue);
+            bytes.Add(0xFF); //alpha not read
+        }
+
+        private static void AddDefaultColorMarkerBytes(List<byte> bytes)
+        {
+            //black bytes for default text
+            //a closing tag is not available
+            bytes.AddRange(new byte[] { 0x0E, 0x00, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0xFF });
         }
 
         #endregion
@@ -157,6 +244,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private IEnumerable<string> GetCskTextLocales()
         {
+            //priority GUI -> default -> us_en -> eu_en
             var configuredLocales = new[]
             {
                 _currentBuildLocale.Value,

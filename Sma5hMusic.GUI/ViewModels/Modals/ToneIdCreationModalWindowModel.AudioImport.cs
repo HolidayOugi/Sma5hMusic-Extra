@@ -24,6 +24,11 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public string ResetLoopButtonText => IsLoopPreviewOnly ? "Reset Changes" : "Reset to Defaults";
 
+        public bool CanReplaceCoreSong => !IsLoopPreviewOnly && IsImportingSong;
+
+        [Reactive]
+        public bool IsImportingSong { get; set; }
+
         [Reactive]
         public bool CanApplyNormalization { get; set; }
 
@@ -82,6 +87,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             IsAudioImport = true;
             IsLoopPreviewOnly = false;
+            IsImportingSong = true;
             ApplyNormalization = false;
             CanApplyNormalization = true;
 
@@ -100,6 +106,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             IsAudioImport = false;
             IsLoopPreviewOnly = false;
+            IsImportingSong = true;
             ApplyNormalization = false;
             CanApplyNormalization = true;
 
@@ -122,6 +129,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             IsAudioImport = false;
             IsLoopPreviewOnly = false;
+            IsImportingSong = false;
             ApplyNormalization = false;
             CanApplyNormalization = false;
 
@@ -150,6 +158,7 @@ namespace Sma5hMusic.GUI.ViewModels
             LoadAudioImportInfo(sampleRate, totalSamples);
 
             IsLoopPreviewOnly = true;
+            IsImportingSong = false;
             Filename = filename;
             ToneId = Guid.NewGuid().ToString("N");
             ApplyNormalization = false;

@@ -29,6 +29,7 @@ namespace Sma5hMusic.GUI.Views
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
+            FitToWorkingArea();
             this.WhenActivated(disposables =>
             {
                 this.BindValidation(ViewModel, vm => vm.SelectedGameTitleViewModel, view => view.GameIdValidation.ValidationError)
@@ -50,6 +51,14 @@ namespace Sma5hMusic.GUI.Views
                 this.BindValidation(ViewModel, vm => vm.StreamPropertyViewModel.StartPointSuddenDeath, view => view.StartPointSuddenDeathValidation.ValidationError)
                 .DisposeWith(disposables);
             });
+        }
+
+        //reduce height for low resolution
+        private void FitToWorkingArea()
+        {
+            var newWidth = Screens.Primary.WorkingArea.Width;
+            if (Width > newWidth)
+                Width = newWidth - 100;
         }
     }
 }
