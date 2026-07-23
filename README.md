@@ -1,21 +1,21 @@
 # Sma5hMusic Extra
 
-This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original executable.
+This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software.
 
 > [!WARNING]
 > This tool is experimental, please make a backup of your music files and jsons before using it.
 
-Like the original release, a dump of the following files from data.arc is needed:
+Like the original release, a dump of the following files from `data.arc` is needed:
 
-* bgm_property.bin
-* msg_bgm+[region].bin
-* msg_title+[region].bin
-* ui_bgm_db.prc
-* ui_gametitle_db.prc
-* ui_series_db.prc
-* ui_stage_db.prc
+* `bgm_property.bin`
+* `msg_bgm+[region].bin`
+* `msg_title+[region].bin`
+* `ui_bgm_db.prc`
+* `ui_gametitle_db.prc`
+* `ui_series_db.prc`
+* `ui_stage_db.prc`
 
-After extraction, the files are to be copied (with their directories) in the Resources/Game directory.
+After extraction, the files are to be copied (with their directories) in the `Resources/Game` directory.
 
 A full tutorial on how to use Sma5hMusic can be found [here](https://gamebanana.com/tuts/13677).
 
@@ -30,15 +30,15 @@ Here's a rundown of the added features.
 **CSK-compatible Music Packs** can be now be built. The software offers two options:
 
 * **Single Pack**: A single Music Pack comprised of all the Mods and Series currently loaded.
-* **Modular Packs**: Multiple Modular Music Packs for each Series and Mod. The user can choose which Series to generate. 
+* **Modular Packs**: Multiple Modular Music Packs for each Series and Mod. An option is given to select which Series to generate. 
 
 ![Series Selection](https://elixi.re/i/bfyok.png)
 
 > [!TIP]
-> When using the Modular Packs option, if one or more Vanilla Series did not contain any songs during the generation, an optional Series Order pack is generated. If loaded, it ensures that each Series is in its correct order in the Music Select / Sound Test screen.
+> When using the Modular Packs option, if one or more Vanilla Series were not selected during the generation, an optional Series Order pack is generated. If loaded, it ensures that each Series is in its correct order in the Music Select / Sound Test screen.
 
 > [!TIP]
-> When using the Modular Packs option, if one or more Core songs had their values changed and they weren't already included in a generated Series, an optional Vanilla Song Changes pack is generated. If loaded, it will apply the changes made to the edited Core Songs.
+> When using the Modular Packs option, if one or more Core songs had their values changed and they weren't from a Series already selected during the generation, an optional Vanilla Song Changes pack is generated. If loaded, it will apply the changes made to the edited Core Songs.
 
 ## Icon Selection and Conversion
 
@@ -53,7 +53,7 @@ Here's a rundown of the added features.
 
 **Standard Audio files** (.mp3, .flac, .wav, .ogg, .m4a) can now be loaded directly into the software without prior conversion.
 
-When loaded, the user is prompted to input the loop points for the given song. They can then be previewed by playing the track itself slightly before and after each loop point. The audio file is finally converted using the chosen loop points.
+When loaded, the loop points for the given song can be selected. They can then be previewed by playing the track itself slightly before and after each loop point. The audio file is finally converted using the chosen loop points.
 
 ![Loop Point Selection](https://elixi.re/i/qj2ap.png)
 
@@ -88,6 +88,9 @@ Songs can now be **normalized** to a certain LUFS normalization level. This can 
 > [!TIP]
 > The LUFS Normalization value can be set in the Global Settings.
 
+> [!TIP]
+> After normalization, the songs will be converted to NUS3Audio if they were in a different format.
+
 ## Direct YouTube Download support
 
 > [!NOTE]
@@ -100,11 +103,11 @@ The songs can be imported either from their URL or from a text file containing a
 ![YouTube](https://elixi.re/i/ygkah.png)
 
 > [!TIP]
-> Playlists are also supported. The software notifies the user that all the songs from a given playlist will be downloaded.
+> Playlists are also supported. The software will notify that all the songs from a given playlist will be downloaded.
 
 ## Colored Text
 
-Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors or by inputting the hex value of a custom color. If you highlight part of the title before selecting a color, the highlighted text will be recolored.
+Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors or by inputting the hex value of a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
 
 ![Colored](https://elixi.re/i/t07dd.png)
 
@@ -117,16 +120,19 @@ The chosen colors will display in-game in the Music Select screen.
 
 ## Replace Core Songs
 
-Core Songs can now be replaced in order to generate wifi-safe music packs. When importing a song, either from a nus3audio or audio file, there'll be an option to choose a core song to replace.
+Core Songs can now be replaced in order to generate WiFi-Safe music packs. When importing a song, either from a NUS3AUDIO or an audio file, there'll be an option to choose a core song to replace.
 
 ![Core Songs](https://elixi.re/i/bia5p.png)
 
-After importing, replaced songs will be denoted in the GUI with gold text, to differentiate them from added songs.
+After importing, replaced songs will be denoted in the main window with gold text, to differentiate them from added songs.
 
 ![Gold](https://elixi.re/i/5svqc.png)
 
 > [!WARNING]
 > To keep the pack wifi-safe, refrain from editing playlist/stage data. Keep the edits only to song names and audio.
+
+> [!TIP]
+> If no changes to the song order and playlist data were made, the `sound` and `ui/param` folders (when building with the standard Build) or the `database` folder (when building with the CSK build) can be safely deleted.
 
 ## Generate Victory Themes
 
@@ -135,7 +141,7 @@ After importing, replaced songs will be denoted in the GUI with gold text, to di
 
 Custom Victory Themes can now be generated from an option in the Extra submenu.
 
-Victory themes can be generated for both base-game and custom characters. When generating one for a base-game character, the user can either replace the default victory theme or assign a custom Tone ID, allowing characters that normally share a victory theme to use separate ones.
+Victory themes can be generated for both base-game and custom characters. When generating a theme for a base-game character, there's the option to either replace the default victory theme or assign a custom Tone ID to it, allowing characters that normally share a victory theme to use separate ones.
 
 ![Victory](https://elixi.re/i/o3oru.png)
 
@@ -166,7 +172,11 @@ Victory themes can be generated for both base-game and custom characters. When g
 
 ### What are CSK Packs and how are they different from normal music packs?
 
-Compared to a normal build, the CSK Music Packs have the following advantages:
+The Standard legacy build option included in the original version of Sma5hMusic rebuilds the databases and message files from the ground up, appending the new additions to them.
+
+By contrast, the CSK build option generates a JSON file containing all of the changes which are then to be patched in real-time while the game is booting up.
+
+Compared to a standard build, the CSK Music Packs have the following advantages:
 
 * Compatible with other CSK Music Packs or mods that edit the prc database files.
 * Better load times with bigger music packs.
@@ -175,7 +185,7 @@ Compared to a normal build, the CSK Music Packs have the following advantages:
 
 ### I have an old Sma5hMusic setup on my PC, how do I convert my mods to the CSK Format?
 
-Just load the Mods in Sma5hMusic Extra and build a CSK Pack(s) from the Project submenu.
+Just load the Mods in Sma5hMusic Extra and build a CSK Pack(s) from the Project submenu. If Sma5hMusic Extra was extracted to a new folder, just copy the Mods folder over from the old setup.
 
 ### Where can I find yt-dlp and ffmpeg?
 
@@ -183,7 +193,7 @@ Just load the Mods in Sma5hMusic Extra and build a CSK Pack(s) from the Project 
 
 ### How do I install Pymusiclooper?
 
-Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/PyMusicLooper), it should then be recognized automatically.
+Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/PyMusicLooper), it should then be recognized automatically. To make sure it was installed correctly, typing `pymusiclooper` into a terminal window should show all of the software options.
 
 ## Generate a Release build
 
@@ -198,10 +208,12 @@ If you encounter any problems using the software, submit an issue here on GitHub
 ## To-Do List
 
 - [ ] Update vgmstream library and main executable to x64
-- [ ] Decouple CSK Build service from JSONs
+- [ ] Decouple CSK Build service from JSONs loading
 - [ ] Allow editing of Color Picker color list
 - [ ] Add Trim function when importing from audio
 - [ ] Add Filter to MainWindow for songs not in a playlist
+- [ ] Allow reverse importing of CSK Packs and/or XMSBT files
+- [ ] One Slot Victory Themes support
 
 ## Thanks & Repos of the different tools
 1.  Original Code and Author: Deinonychus71
