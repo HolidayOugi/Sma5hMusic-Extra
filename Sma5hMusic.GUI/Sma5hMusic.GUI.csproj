@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>Sma5hMusic.GUI</AssemblyName>
-    <ApplicationIcon>Sma5hmusic-logo.ico</ApplicationIcon>
+    <ApplicationIcon Condition="$([MSBuild]::IsOSPlatform('Windows'))">Assets\sma5hmusic-logo.ico</ApplicationIcon>
     <PlatformTarget>x64</PlatformTarget>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
