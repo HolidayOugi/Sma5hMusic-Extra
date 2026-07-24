@@ -198,7 +198,7 @@ Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/
 ## Generate a Release build
 
 ```
-dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true
+dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
 ## Issues
@@ -207,7 +207,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 
 ## To-Do List
 
-- [ ] Update vgmstream library and main executable to x64
+- [x] Update vgmstream library and main executable to x64
 - [ ] Decouple CSK Build service from JSONs loading
 - [ ] Allow editing of Color Picker color list
 - [ ] Add Trim function when importing from audio

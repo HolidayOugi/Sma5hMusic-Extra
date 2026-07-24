@@ -12,18 +12,18 @@ namespace VGMMusic
     public sealed class VGMStreamReader : WaveStream, IDisposable
     {
         private readonly WaveFormat _waveFormat;
-        private readonly IntPtr _vgmstream;
+        private IntPtr _vgmstream;
 
-        private readonly int _totalSamplesToPlay;           // Total samples to play
+        private readonly int _totalSamplesToPlay; // Total samples to play
         private readonly int _channels;      // Number of channels this VGMSTREAM uses.
         private readonly int _sampleRate;    // Sample rate of this VGMSTREAM.
         private readonly int _bytesPerSampleFrame;
-        private readonly int loopCount = 1; // Number of times to loop. // TODO: Make configurable.
         private readonly int _loopStartSample;
         private readonly int _loopEndSample;
         private readonly int _totalSamples;
         private readonly bool _fileLoaded = false;
         private int _totalPlayed = 0;
+        private bool _disposed;
 
         public int TotalPlayed { get { return _totalPlayed / _sampleRate; } }
         public int TotalPlayedSamples { get { return _totalPlayed; } }
@@ -38,10 +38,6 @@ namespace VGMMusic
         public int TotalMilliseconds { get { return (int)(_totalSamples / (_sampleRate / 1000.00)); } }
         public bool FileLoaded { get { return _fileLoaded; } }
 
-        /// <summary>
-        /// Constructor.
-        /// </summary>
-        /// <param name="filename">File to open in VGMStream.</param>
         public VGMStreamReader(string filename)
         {
             _vgmstream = VGMStreamNative.InitVGMStream(filename);
@@ -55,29 +51,34 @@ namespace VGMMusic
             _sampleRate = VGMStreamNative.GetVGMStreamSampleRate(_vgmstream);
             _channels = VGMStreamNative.GetVGMStreamChannelCount(_vgmstream);
             _bytesPerSampleFrame = _channels * sizeof(short);
-            _totalSamplesToPlay = VGMStreamNative.GetVGMStreamPlaySamples(loopCount, 0, 0, _vgmstream);
+            _totalSamplesToPlay = ToInt32Sample(VGMStreamNative.GetVGMStreamPlaySamples(_vgmstream));
 
-            _loopStartSample = VGMStreamNative.GetVGMStreamLoopStartSample(_vgmstream);
-            _loopEndSample = VGMStreamNative.GetVGMStreamLoopEndSample(_vgmstream) - 1; //Smash values always seem to be 1 less.
-            _totalSamples = VGMStreamNative.GetVGMStreamTotalSamples(_vgmstream);
+            _loopStartSample = ToInt32Sample(VGMStreamNative.GetVGMStreamLoopStartSample(_vgmstream));
+            var loopEndSample = ToInt32Sample(VGMStreamNative.GetVGMStreamLoopEndSample(_vgmstream));
+            _loopEndSample = loopEndSample > 0 ? loopEndSample - 1 : 0; // Smash values are inclusive.
+            _totalSamples = ToInt32Sample(VGMStreamNative.GetVGMStreamTotalSamples(_vgmstream));
 
             _waveFormat = new WaveFormat(_sampleRate, 16, _channels);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            short[] sBuffer = new short[count / 2];
+            if (!_fileLoaded || _disposed || count <= 0)
+                return 0;
 
-            // Generate samples.
-            VGMStreamNative.RenderVGMStream(sBuffer, sBuffer.Length / _channels, _vgmstream);
+            var requestedSamples = count / _bytesPerSampleFrame;
+            if (requestedSamples <= 0)
+                return 0;
 
-            // Convert the short samples to byte samples and place them
-            // in the NAudio byte sample buffer.
-            Buffer.BlockCopy(sBuffer, 0, buffer, 0, buffer.Length);
+            var sampleBuffer = new short[requestedSamples * _channels];
+            var samplesRead = VGMStreamNative.FillVGMStream(sampleBuffer, requestedSamples, _vgmstream);
+            var bytesRead = samplesRead * _bytesPerSampleFrame;
 
-            _totalPlayed += sBuffer.Length / _channels;
+            if (bytesRead > 0)
+                Buffer.BlockCopy(sampleBuffer, 0, buffer, offset, bytesRead);
 
-            return buffer.Length;
+            _totalPlayed += samplesRead;
+            return bytesRead;
         }
 
         public override WaveFormat WaveFormat
@@ -89,8 +90,7 @@ namespace VGMMusic
         {
             get
             {
-                int lengthInMs = VGMStreamNative.GetVGMStreamPlaySamples(0, 0, 0, _vgmstream) * 1000 / _sampleRate;
-                return lengthInMs; // TODO: This should actually be in samples or bytes.
+                return (long)_totalSamplesToPlay * _bytesPerSampleFrame;
             }
         }
 
@@ -128,21 +128,24 @@ namespace VGMMusic
             _totalPlayed = sample;
         }
 
-        #region IDisposable Methods
-
-        public new void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            base.Dispose();
-
-            try
+            if (!_disposed)
             {
+                _disposed = true;
                 VGMStreamNative.CloseVGMStream(_vgmstream);
+                _vgmstream = IntPtr.Zero;
             }
-            catch
-            {
-            }
+
+            base.Dispose(disposing);
         }
 
-        #endregion
+        private static int ToInt32Sample(long sample)
+        {
+            if (sample <= 0)
+                return 0;
+
+            return sample >= int.MaxValue ? int.MaxValue : (int)sample;
+        }
     }
 }

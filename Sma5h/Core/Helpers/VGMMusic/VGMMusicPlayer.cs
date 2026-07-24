@@ -53,7 +53,12 @@ namespace VGMMusic
 
             if (!_reader.FileLoaded)
             {
-                _logger.LogError("Error while loading {FileName}. VGMStreamReader could not load the file. If this file plays on foobar make sure that libvgmstream is properly installed.", filename);
+                _logger.LogError(
+                    "Error while loading {FileName}. VGMStreamReader could not load the file. libvgmstream error: {VGMStreamError}",
+                    filename,
+                    Native.VGMStreamNative.LastError);
+                _reader.Dispose();
+                _reader = null;
                 return false;
             }
 
@@ -66,7 +71,9 @@ namespace VGMMusic
 
         public async Task<VGMAudioCuePoints> GetAudioCuePoints(string filename)
         {
-            await LoadFile(filename);
+            if (!await LoadFile(filename))
+                return new VGMAudioCuePoints();
+
             var audioCuePoints = new VGMAudioCuePoints()
             {
                 LoopEndMs = _reader.LoopEndMilliseconds,
