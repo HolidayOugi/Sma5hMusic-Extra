@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.9" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
   </ItemGroup>
 
@@ -23,10 +24,10 @@
 
   <ItemGroup>
     <Reference Include="paracobNET">
-      <HintPath>..\..\..\Tools\paracobNET.dll</HintPath>
+      <HintPath>..\..\..\Tools\Windows\paracobNET.dll</HintPath>
     </Reference>
     <Reference Include="VGAudioCli">
-      <HintPath>..\..\..\Tools\VGAudioCli.exe</HintPath>
+      <HintPath>..\..\..\Tools\Windows\VGAudioCli.exe</HintPath>
     </Reference>
   </ItemGroup>
 

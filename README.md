@@ -1,9 +1,12 @@
 # Sma5hMusic Extra
 
-This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software.
+This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software. The software is available both for Windows and Linux operating systems.
 
 > [!WARNING]
-> This tool is experimental, please make a backup of your music files and jsons before using it.
+> This tool is experimental, please make a backup of your music files and JSONs before using it.
+
+> [!NOTE]
+> The Linux version is currently secondary to the main Windows version and has not been extensively tested. Support may or may be not be interrupted at any point.
 
 Like the original release, a dump of the following files from `data.arc` is needed:
 
@@ -197,8 +200,16 @@ Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/
 
 ## Generate a Release build
 
+### Windows
+
 ```
 dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+```
+
+### Linux
+
+```
+dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
 ## Issues

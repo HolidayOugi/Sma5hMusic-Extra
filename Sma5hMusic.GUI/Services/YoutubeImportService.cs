@@ -57,10 +57,10 @@ namespace Sma5hMusic.GUI.Services
                 var ffmpegExecutable = _config.CurrentValue.FfmpegPath;
 
                 if (string.IsNullOrWhiteSpace(ytexecutable) || !File.Exists(ytexecutable))
-                    throw new FileNotFoundException("yt-dlp.exe is not configured. Set its path in Global Settings.", ytexecutable);
+                    throw new FileNotFoundException("The yt-dlp executable is not configured. Set its path in Global Settings.", ytexecutable);
 
                 if (string.IsNullOrWhiteSpace(ffmpegExecutable) || !File.Exists(ffmpegExecutable))
-                    throw new FileNotFoundException("ffmpeg.exe is not configured. Set its path in Global Settings.", ffmpegExecutable);
+                    throw new FileNotFoundException("The ffmpeg executable is not configured. Set its path in Global Settings.", ffmpegExecutable);
 
                 var tempRoot = GetTempRoot();
                 var tempDirectory = Path.Combine(tempRoot, Guid.NewGuid().ToString("N"));

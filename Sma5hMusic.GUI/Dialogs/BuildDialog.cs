@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sma5h;
+using Sma5h.Helpers;
 using Sma5h.Interfaces;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
@@ -328,12 +329,15 @@ namespace Sma5hMusic.GUI.Dialogs
                 Path.Combine(config.GameResourcesPath, "ui", "param", "database", "ui_bgm_db.prc"),
                 Path.Combine(config.GameResourcesPath, "ui", "param", "database", "ui_gametitle_db.prc"),
                 Path.Combine(config.GameResourcesPath, "ui", "param", "database", "ui_stage_db.prc"),
-                Path.Combine(config.ToolsPath, "VGAudioCli.exe"),
+                ToolPathResolver.Resolve(config.ToolsPath, "VGAudioCli.exe", "VGAudioCli"),
                 Path.Combine(config.ToolsPath, "paracobNET.dll"),
                 Path.Combine(config.ToolsPath, "MsbtEditor.dll"),
                 Path.Combine(config.ToolsPath, "BgmProperty", "bgm_hashes.txt"),
-                Path.Combine(config.ToolsPath, "BgmProperty", "bgm-property.exe"),
-                Path.Combine(config.ToolsPath, "Nus3Audio", "nus3audio.exe"),
+                ToolPathResolver.Resolve(config.ToolsPath, "BgmProperty/bgm-property.exe", "BgmProperty/bgm-property"),
+                ToolPathResolver.Resolve(
+                    config.ToolsPath,
+                    "Nus3Audio/nus3audio.exe",
+                    "Nus3Audio/nus3audio"),
             };
 
             return requiredFiles;

@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace VGMMusic.Native
@@ -13,10 +14,34 @@ namespace VGMMusic.Native
         private const uint MinimumApiVersion = 0x01010000;
 
         private static bool _vgmStreamLoaded;
+        private static string _libraryPath;
 
         public static bool VGMStreamLoaded => _vgmStreamLoaded;
 
         public static string LastError { get; private set; }
+
+        static VGMStreamNative()
+        {
+            NativeLibrary.SetDllImportResolver(typeof(VGMStreamNative).Assembly, ResolveLibrary);
+        }
+
+        public static void SetLibraryPath(string libraryPath)
+        {
+            _libraryPath = libraryPath;
+        }
+
+        private static IntPtr ResolveLibrary(
+            string libraryName,
+            Assembly assembly,
+            DllImportSearchPath? searchPath)
+        {
+            if (libraryName == DllName &&
+                !string.IsNullOrWhiteSpace(_libraryPath) &&
+                NativeLibrary.TryLoad(_libraryPath, out var handle))
+                return handle;
+
+            return IntPtr.Zero;
+        }
 
         public static IntPtr InitVGMStream(string filename)
         {

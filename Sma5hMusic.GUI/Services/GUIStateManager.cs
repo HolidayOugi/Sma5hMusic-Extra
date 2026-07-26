@@ -1808,7 +1808,8 @@ namespace Sma5hMusic.GUI.Services
             try
             {
                 var settings = JsonConvert.SerializeObject(appSettings, Formatting.Indented);
-                File.WriteAllText("appsettings.json", settings);
+                var settingsPath = Path.Combine(Program.GetBasePath(), "appsettings.json");
+                File.WriteAllText(settingsPath, settings);
                 result = true;
             }
             catch (Exception e)

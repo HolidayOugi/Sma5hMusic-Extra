@@ -156,13 +156,39 @@ namespace Sma5hMusic.GUI.Services
 
         private string RunPymusiclooper(params string[] arguments)
         {
-            try
+            if (OperatingSystem.IsLinux())
             {
-                return RunCommand("pymusiclooper", arguments);
-            }
-            catch (Win32Exception e)
-            {
-                _logger.LogWarning(e, "Could not launch pymusiclooper directly. Trying pymusiclooper.exe.");
+                //linux path if installed with pipx
+                var localExecutable = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".local",
+                    "bin",
+                    "pymusiclooper");
+
+                try
+                {
+                    return RunCommand(
+                        File.Exists(localExecutable) ? localExecutable : "pymusiclooper",
+                        arguments);
+                }
+                catch (Win32Exception e)
+                {
+                    _logger.LogWarning(e, "Could not launch pymusiclooper. Trying python3 -m pymusiclooper.");
+                }
+
+                try
+                {
+                    //try running with python3 -m pymusiclooper if pymusiclooper is not in PATH
+                    return RunCommand("python3", new[] { "-m", "pymusiclooper" }.Concat(arguments).ToArray());
+                }
+                catch (Exception e) when (e is Win32Exception || IsPymusiclooperMissingError(e.Message))
+                {
+                    _logger.LogError(e, "pymusiclooper could not be launched.");
+                    throw new FileNotFoundException(
+                        "pymusiclooper was not found. Install it with pipx and restart the application.",
+                        "pymusiclooper",
+                        e);
+                }
             }
 
             try
@@ -216,6 +242,14 @@ namespace Sma5hMusic.GUI.Services
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
+
+            if (OperatingSystem.IsLinux())
+            {
+                //create numba cache directory in temp to avoid permission issues
+                var numbaCache = Path.Combine(Path.GetTempPath(), "Sma5hMusic", "NumbaCache");
+                Directory.CreateDirectory(numbaCache);
+                startInfo.Environment["NUMBA_CACHE_DIR"] = numbaCache;
+            }
 
             foreach (var argument in arguments)
                 startInfo.ArgumentList.Add(argument);
