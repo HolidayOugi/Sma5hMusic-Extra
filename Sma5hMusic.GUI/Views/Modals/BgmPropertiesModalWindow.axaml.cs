@@ -32,7 +32,12 @@ namespace Sma5hMusic.GUI.Views
         //reduce height for low resolution
         private void FitToWorkingArea()
         {
-            var newWidth = Screens.Primary.WorkingArea.Width;
+            var primaryScreen = Screens.Primary;
+            //fix a crash on WSL2
+            if (primaryScreen == null)
+                return;
+
+            var newWidth = primaryScreen.WorkingArea.Width;
             if (Width > newWidth)
                 Width = newWidth - 100;
         }

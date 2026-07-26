@@ -326,9 +326,11 @@ namespace Sma5hMusic.GUI.Dialogs
                 var startInfo = new ProcessStartInfo
                 {
                     Arguments = folderPath,
-                    FileName = "explorer.exe"
+                    FileName = OperatingSystem.IsWindows()
+                        ? "explorer.exe"
+                        : "xdg-open"
                 };
-
+                
                 Process.Start(startInfo);
             }
         }

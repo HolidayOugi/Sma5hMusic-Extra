@@ -448,7 +448,7 @@ namespace Sma5hMusic.GUI.Services
             var executable = _config.CurrentValue.FfmpegPath;
 
             if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
-                throw new FileNotFoundException("ffmpeg.exe is not configured. Set its path in Global Settings.", executable);
+                throw new FileNotFoundException("The ffmpeg executable is not configured. Set its path in Global Settings.", executable);
 
             _logger.LogInformation(
                 "Running ffmpeg: {Executable} {Arguments}",
