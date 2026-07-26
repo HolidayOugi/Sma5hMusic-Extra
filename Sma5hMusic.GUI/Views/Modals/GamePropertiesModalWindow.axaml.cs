@@ -14,6 +14,7 @@ namespace Sma5hMusic.GUI.Views
         private PropertyTextField GameIdValidation => this.FindControl<PropertyTextField>("GameId");
         private PropertyField SeriesValidation => this.FindControl<PropertyField>("Series");
         private PropertyField TitleValidation => this.FindControl<PropertyField>("Title");
+        private ComboBox SeriesPicker => this.FindControl<ComboBox>("SeriesPicker");
 
         public GamePropertiesModalWindow()
         {
@@ -25,6 +26,8 @@ namespace Sma5hMusic.GUI.Views
             AvaloniaXamlLoader.Load(this);
             this.WhenActivated(disposables =>
             {
+                this.Bind(ViewModel, vm => vm.SelectedSeries, view => view.SeriesPicker.SelectedItem)
+                .DisposeWith(disposables);
                 this.BindValidation(ViewModel, vm => vm.SelectedSeries, view => view.SeriesValidation.ValidationError)
                 .DisposeWith(disposables);
                 this.BindValidation(ViewModel, vm => vm.UiGameTitleId, view => view.GameIdValidation.ValidationError)

@@ -12,6 +12,7 @@ namespace Sma5hMusic.GUI.Views
     public class BgmAdvancedPropertiesModalWindow : ReactiveWindow<BgmPropertiesModalWindowViewModel>
     {
         private PropertyField GameIdValidation => this.FindControl<PropertyField>("GameId");
+        private AutoCompleteBox GamePicker => this.FindControl<AutoCompleteBox>("GamePicker");
         private PropertyTextField StartPoint0Validation => this.FindControl<PropertyTextField>("StartPoint0");
         private PropertyTextField StartPoint1Validation => this.FindControl<PropertyTextField>("StartPoint1");
         private PropertyTextField StartPoint2Validation => this.FindControl<PropertyTextField>("StartPoint2");
@@ -32,6 +33,8 @@ namespace Sma5hMusic.GUI.Views
             FitToWorkingArea();
             this.WhenActivated(disposables =>
             {
+                this.Bind(ViewModel, vm => vm.SelectedGameTitleViewModel, view => view.GamePicker.SelectedItem)
+                .DisposeWith(disposables);
                 this.BindValidation(ViewModel, vm => vm.SelectedGameTitleViewModel, view => view.GameIdValidation.ValidationError)
                 .DisposeWith(disposables);
                 this.BindValidation(ViewModel, vm => vm.StreamPropertyViewModel.StartPoint0, view => view.StartPoint0Validation.ValidationError)

@@ -28,7 +28,7 @@ namespace Sma5hMusic.GUI.Controls
         private readonly IDisposable _dropDownOpenSubscription;
         private const double PreviewFontSize = 13;
         private const double SmallTextFontScale = 0.8;
-        private static readonly FontFamily PreviewFontFamily = new FontFamily("Segoe UI,Microsoft YaHei,Simsun,苹方-简,宋体-简");
+        private static readonly FontFamily PreviewFontFamily = FontFamily.Default;
         private INotifyPropertyChanged _viewModelNotifier;
         private object _dataContext;
         private List<MsbtRichTextSpan> _spans = new List<MsbtRichTextSpan>();

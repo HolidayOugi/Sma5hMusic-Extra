@@ -122,12 +122,16 @@
       <MenuItem Header="Settings">
         <MenuItem Header="Show Advanced BGM Options" Command="{Binding ActionToggleAdvanced}">
           <MenuItem.Icon>
-            <CheckBox IsEnabled="False" IsChecked="{Binding IsAdvanced, Mode=OneWay}"/>
+            <CheckBox Width="20" Margin="0,0,-4,0"
+                      BorderThickness="0" IsHitTestVisible="False"
+                      IsChecked="{Binding IsAdvanced, Mode=OneWay}"/>
           </MenuItem.Icon>
         </MenuItem>
         <MenuItem Header="Show Console" Command="{Binding ActionToggleConsole}">
           <MenuItem.Icon>
-            <CheckBox IsEnabled="False" IsChecked="{Binding IsShowingDebug, Mode=OneWay}"/>
+            <CheckBox Width="20" Margin="0,0,-4,0"
+                      BorderThickness="0" IsHitTestVisible="False"
+                      IsChecked="{Binding IsShowingDebug, Mode=OneWay}"/>
           </MenuItem.Icon>
         </MenuItem>
         <Separator></Separator>

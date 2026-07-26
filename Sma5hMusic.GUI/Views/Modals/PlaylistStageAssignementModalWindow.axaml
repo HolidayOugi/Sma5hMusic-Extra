@@ -7,6 +7,7 @@
         x:Class="Sma5hMusic.GUI.Views.PlaylistStageAssignementModalWindow"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
         xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
+        xmlns:controls="clr-namespace:Sma5hMusic.GUI.Controls"
         Title="Playlist Stage Assignment">
   <DockPanel Classes="modal" LastChildFill="True">
     <Border Classes="headerTitle" DockPanel.Dock="Top">
@@ -63,7 +64,17 @@
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
             <DataGridTextColumn Width="2*" Header="Game" Binding="{Binding BgmReference.GameTitleViewModel.Title, Mode=OneWay}" />
-            <DataGridTextColumn Width="3*" Header="Title" Binding="{Binding BgmReference.Title, Mode=OneWay}" />
+            <DataGridTemplateColumn Width="3*" Header="Title">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <controls:ColoredLabelTextBlock
+                      Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}"
+                      VerticalAlignment="Center"
+                      ClipToBounds="True"
+                      Text="{Binding BgmReference.Title, Mode=OneWay}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
             <DataGridTextColumn Width="100" Header="Incidence" Binding="{Binding IncidencePercentage, Mode=OneWay}" />
           </DataGrid.Columns>
         </DataGrid>
