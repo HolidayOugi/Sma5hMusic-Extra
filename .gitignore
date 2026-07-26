@@ -358,4 +358,4 @@ Temp/
 *.brstm
 *.idsp
 *.lopus
-ReverseTest/
+!Resources/template.nus3bank
