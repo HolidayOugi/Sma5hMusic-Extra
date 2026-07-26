@@ -339,7 +339,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 "https://github.com/Deinonychus71/Sma5hMusic \r\n\r\n" +
                 "Research: soneek\r\n" +
                 "Testing: Demonslayerx8, Segtendo\r\n" +
-                "Original Icon: Segtendo\r\n\r\n" +
+                "Original Icon: Segtendo\r\n" +
                 "Testing (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char\r\n\r\n" +
                 "prcEditor: https://github.com/BenHall-7/paracobNET \r\nBenHall-7\r\n\r\n" +
                 "paramLabels: https://github.com/ultimate-research/param-labels \r\nBenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8\r\n\r\n" +
