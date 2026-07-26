@@ -24,10 +24,10 @@
 
   <ItemGroup>
     <Reference Include="paracobNET">
-      <HintPath>..\..\..\Tools\paracobNET.dll</HintPath>
+      <HintPath>..\..\..\Tools\Windows\paracobNET.dll</HintPath>
     </Reference>
     <Reference Include="VGAudioCli">
-      <HintPath>..\..\..\Tools\VGAudioCli.exe</HintPath>
+      <HintPath>..\..\..\Tools\Windows\VGAudioCli.exe</HintPath>
     </Reference>
   </ItemGroup>
 
