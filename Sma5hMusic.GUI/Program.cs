@@ -17,7 +17,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using VGMMusic;
+using VGMMusic.Native;
 
 namespace Sma5hMusic.GUI
 {
@@ -53,6 +55,8 @@ namespace Sma5hMusic.GUI
                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
             if (!configurationBuilder.Build().GetSection("Sma5hMusic:PlaylistMapping:AutoMapping").Exists())
                 configurationBuilder.AddInMemoryCollection(GetPlaylistMappingConfig());
+
+            NormalizeConfiguredPaths(configurationBuilder);
 
             var configuration = configurationBuilder.Build();
             Configuration = configuration;
@@ -106,6 +110,25 @@ namespace Sma5hMusic.GUI
             services.UseMicrosoftDependencyResolver();
         }
 
+        private static void NormalizeConfiguredPaths(IConfigurationBuilder configurationBuilder)
+        {
+            if (OperatingSystem.IsWindows())
+                return;
+
+            //normalize path if on linux
+            var configuration = configurationBuilder.Build();
+            var normalizedPaths = configuration
+                .AsEnumerable()
+                .Where(entry =>
+                    entry.Key.EndsWith("Path", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(entry.Value))
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => entry.Value.Replace('\\', Path.DirectorySeparatorChar));
+
+            configurationBuilder.AddInMemoryCollection(normalizedPaths);
+        }
+
         private static void ConfigureNativeLibraryPaths(IConfiguration configuration)
         {
             var toolsPath = configuration["ToolsPath"];
@@ -121,9 +144,16 @@ namespace Sma5hMusic.GUI
 
             NativeLibraryPathHelper.AddDirectoryToProcessPath(
                 Path.Combine(fullToolsPath, "vgmstream"));
+
+            if (OperatingSystem.IsLinux())
+            {
+                //set vgmstream library path for Linux
+                VGMStreamNative.SetLibraryPath(
+                    Path.Combine(fullToolsPath, "vgmstream", "libvgmstream.so"));
+            }
         }
 
-        private static string GetBasePath()
+        internal static string GetBasePath()
         {
             using var processModule = Process.GetCurrentProcess().MainModule;
             return Path.GetDirectoryName(processModule?.FileName);

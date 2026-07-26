@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sma5h.Helpers;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.Helpers;
@@ -391,30 +392,29 @@ namespace Sma5hMusic.GUI.Services
 
         private string GetSoxExe()
         {
-            return Path.Combine(_config.CurrentValue.ToolsPath, "sox", "sox.exe");
+            return ToolPathResolver.Resolve(_config.CurrentValue.ToolsPath, "sox/sox.exe", "sox/sox");
         }
 
         private string GetNus3AudioExe()
         {
-            return Path.Combine(_config.CurrentValue.ToolsPath, "Nus3Audio", "nus3audio.exe");
+            return ToolPathResolver.Resolve(
+                _config.CurrentValue.ToolsPath,
+                "Nus3Audio/nus3audio.exe",
+                "Nus3Audio/nus3audio");
         }
 
         private string GetVGAudioCliExe()
         {
-            return Path.Combine(_config.CurrentValue.ToolsPath, "VGAudioCli.exe");
+            return ToolPathResolver.Resolve(_config.CurrentValue.ToolsPath, "VGAudioCli.exe", "VGAudioCli");
         }
 
         private string GetVgmStreamExe()
         {
-            var vgmStreamPath = Path.Combine(_config.CurrentValue.ToolsPath, "vgmstream");
-            var candidates = new[]
-            {
-                Path.Combine(vgmStreamPath, "test.exe"),
-                Path.Combine(vgmStreamPath, "vgmstream-cli.exe"),
-                Path.Combine(vgmStreamPath, "vgmstream.exe")
-            };
-
-            return candidates.FirstOrDefault(File.Exists) ?? candidates[0];
+            return ToolPathResolver.Resolve(
+                _config.CurrentValue.ToolsPath,
+                "vgmstream/vgmstream-cli.exe",
+                "vgmstream/vgmstream-cli",
+                "vgmstream/vgmstream");
         }
 
         private string GetTempPath()

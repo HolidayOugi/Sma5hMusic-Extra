@@ -361,11 +361,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public async Task OnGlobalSettingsOpen()
         {
-            var vmGlobalSettings = new GlobalConfigurationViewModel(_mapper, _appSettings.CurrentValue);
             var result = await _dialogGlobalSettingsEditor.ShowDialog(_rootDialog.Window, new GlobalConfigurationViewModel(_mapper, _appSettings.CurrentValue));
             if (result != null)
             {
-                await _guiStateManager.UpdateGlobalSettings(vmGlobalSettings.GetReference());
                 IsAdvanced = result.Advanced;
             }
         }
