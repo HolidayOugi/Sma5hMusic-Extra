@@ -203,13 +203,13 @@ Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/
 ### Windows
 
 ```
-dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet build Sma5hMusic.Build.proj -p:TargetOS=windows
 ```
 
 ### Linux
 
 ```
-dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true
+dotnet build Sma5hMusic.Build.proj -p:TargetOS=linux
 ```
 
 ## Issues
