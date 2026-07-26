@@ -6,7 +6,7 @@ This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/
 > This tool is experimental, please make a backup of your music files and JSONs before using it.
 
 > [!NOTE]
-> The Linux version is currently secondary to the main Windows version and has not been extensively tested. Support may or may not be interrupted at any point.
+> The Linux version is currently secondary to the main Windows version and has not been extensively tested. Support may or may not be interrupted at any point. Requires PulseAudio / PipeWire to be installed (many distributions have it installed by default). Tested on Ubuntu 26.04, Ubuntu 24.04.1 under WSL2 and SteamOS 3.8.
 
 Like the original release, a dump of the following files from `data.arc` is needed:
 
