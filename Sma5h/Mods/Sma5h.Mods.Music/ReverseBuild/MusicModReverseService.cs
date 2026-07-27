@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sma5h;
 using Sma5h.Interfaces;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using Sma5h.Mods.Music.MusicMods;
@@ -58,8 +59,11 @@ namespace Sma5h.Mods.Music.ReverseBuild
             EnsureResourceProviders();
             //read vanilla files
             var core = LoadSnapshot(coreResourcesPath);
+            var replacementToneIds = GetReplacementCoreBgmIds(core, outputPath)
+                .Select(p => p.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             //read the build output files to find the diff
-            var output = LoadSnapshot(outputPath, coreResourcesPath);
+            var output = LoadSnapshot(outputPath, coreResourcesPath, replacementToneIds);
 
             Directory.CreateDirectory(modOutputPath);
             Directory.CreateDirectory(overrideOutputPath);
