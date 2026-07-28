@@ -113,8 +113,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var buildResources = LoadBuildResources();
 
                 var contexts = LoadModContexts(mods);
-                var hasCoreBgmOverride = HasJsonValues(buildResources.RawCoreBgmOverride);
-                if (contexts.Count == 0 && !hasCoreBgmOverride)
+                var hasVanillaChanges = HasJsonValues(buildResources.RawCoreBgmOverride) || HasJsonValues(buildResources.RawPlaylistOverride);
+                if (contexts.Count == 0 && !hasVanillaChanges)
                 {
                     if (mods.Count == 0)
                         throw new InvalidOperationException("No music mods were found.");

@@ -31,9 +31,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public Dictionary<string, string> CoreGameSeriesById { get; set; }
             public HashSet<string> CoreBgmIds { get; set; }
             public JObject PlaylistData { get; set; }
+            public JObject VanillaPlaylistDiff { get; set; }
             public bool HasCoreOverrides { get; set; }
             public JObject OrderOverride { get; set; }
             //raw override files, read from musicoverrides
+            public JObject RawPlaylistOverride { get; set; }
             public JObject RawCoreBgmOverride { get; set; }
             public JObject RawCoreGameOverride { get; set; }
             public JObject RawCoreSeriesOverride { get; set; }
@@ -258,6 +260,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             "splatoon", "castlevania", "smashbros", "arms", "persona",
             "dragonquest", "banjokazooie", "fatalfury", "minecraft",
             "tekken", "kingdomhearts", "etc"
+        }, StringComparer.OrdinalIgnoreCase);
+
+        private static readonly HashSet<string> VanillaNonSeriesPlaylists = new HashSet<string>(new[]
+        {
+            "bgmsmashmenu", "bgmplaylist", "bgmboss", "bgmsmashmode", "bgmadventure", "bgmstageedit"
         }, StringComparer.OrdinalIgnoreCase);
 
         private static readonly Dictionary<string, List<string>> SeriesToPlaylist = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)

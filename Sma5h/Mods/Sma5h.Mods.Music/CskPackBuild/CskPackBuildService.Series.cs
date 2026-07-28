@@ -105,17 +105,30 @@ namespace Sma5h.Mods.Music.CskPackBuild
             CskBuildResources buildResources,
             bool includeAudio)
         {
-            if (buildResources.CoreBgmOverride == null)
-                return false;
-
             var bgmCount = GetArray(songData, "bgm_database_entries").Count;
+            var stageCount = GetArray(songData, "stage_database_entries").Count;
             var msgBgmCount = msgBgmEntries.Count;
             var msgTitleCount = msgTitleEntries.Count;
             var copiedAudio = false;
+            var selectedSeriesNames = GetSelectedSeriesNames(contexts, selectedSeriesKeys);
+            foreach (var seriesName in VanillaSeries.Where(p => !selectedSeriesNames.Contains(p)))
+            {
+                //populate playlists both vanilla and custom
+                PopulateVanillaPlaylists(songData, seriesName, buildResources.VanillaPlaylistDiff, buildResources.CoreBgmIds, buildResources.CoreBgmOverride, buildResources.OrderOverride);
+                PopulateCustomPlaylists(songData, seriesName, buildResources.PlaylistData, buildResources.CoreBgmOverride, buildResources.OrderOverride, buildResources.CoreGameSeriesById);
+            }
+
+            var selectedSeriesIds = contexts
+                .SelectMany(context => context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
+                .Select(series => GetString(series, "ui_series_id"))
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            PopulateCustomStageDatabaseEntries(songData, buildResources.StageOverride, selectedSeriesIds);
+
             //get all games already covered by the selected series
             var selectedGameTitleIds = GetSelectedGameTitleIds(contexts, selectedSeriesKeys ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
-            var dbRoots = buildResources.CoreBgmOverride["CoreBgmDbRootOverrides"] as JObject ?? new JObject();
+            var dbRoots = buildResources.CoreBgmOverride?["CoreBgmDbRootOverrides"] as JObject ?? new JObject();
 
             foreach (var dbProperty in dbRoots.Properties())
             {
@@ -187,6 +200,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
 
             return GetArray(songData, "bgm_database_entries").Count > bgmCount ||
+                   GetArray(songData, "stage_database_entries").Count > stageCount ||
                    msgBgmEntries.Count > msgBgmCount ||
                    msgTitleEntries.Count > msgTitleCount ||
                    copiedAudio;

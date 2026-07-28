@@ -32,7 +32,7 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 var currentLocale = _viewModelManager.CurrentLocale;
                 var availableSeries = await _cskPackBuildService.GetAvailableSeries(currentLocale);
-                if (availableSeries.Count == 0 && !HasCoreBgmOverride())
+                if (availableSeries.Count == 0 && !HasCskOverride())
                 {
                     await _messageDialog.ShowError("CSK pack build failed", "No changes were found.");
                     return;
@@ -112,7 +112,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 var availableSeries = await _cskPackBuildService.GetAvailableSeries(currentLocale);
                 if (availableSeries.Count == 0)
                 {
-                    if (!HasCoreBgmOverride())
+                    if (!HasCskOverride())
                     {
                         await _messageDialog.ShowError("CSK pack build failed", "No changes were found.");
                         return;
@@ -176,10 +176,17 @@ namespace Sma5hMusic.GUI.ViewModels
             }
         }
 
-        private bool HasCoreBgmOverride()
+        private bool HasCskOverride()
         {
-            var path = Path.Combine(_appSettings.CurrentValue.Sma5hMusicOverride.ModPath, MusicConstants.MusicModFiles.MUSIC_OVERRIDE_CORE_BGM_JSON_FILE);
-            return File.Exists(path) && JObject.Parse(File.ReadAllText(path)).HasValues;
+            return new[]
+            {
+                MusicConstants.MusicModFiles.MUSIC_OVERRIDE_CORE_BGM_JSON_FILE,
+                MusicConstants.MusicModFiles.MUSIC_OVERRIDE_PLAYLIST_JSON_FILE
+            }.Any(file =>
+            {
+                var path = Path.Combine(_appSettings.CurrentValue.Sma5hMusicOverride.ModPath, file);
+                return File.Exists(path) && JObject.Parse(File.ReadAllText(path)).HasValues;
+            });
         }
     }
 }
