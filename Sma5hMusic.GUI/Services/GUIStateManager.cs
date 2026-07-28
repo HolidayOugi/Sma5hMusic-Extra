@@ -735,7 +735,9 @@ namespace Sma5hMusic.GUI.Services
                     return false;
 
                 var existing = viewModel.GetReferenceEntity();
+                var testDispOrder = existing.TestDispOrder;
                 _mapper.Map(original, existing);
+                existing.TestDispOrder = testDispOrder;
                 existing.MusicMod = null;
             }
 
