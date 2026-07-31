@@ -60,8 +60,8 @@ namespace Sma5hMusic.GUI.Services
                 WriteWorkbook(
                     outputPath,
                     "Song List",
-                    new[] { "Song", "Game", "Series" },
-                    rows.Select(row => new[] { row.Song, row.Game, row.Series }).ToList(),
+                    new[] { "Song", "Type", "Game", "Series" },
+                    rows.Select(row => new[] { row.Song, row.RecordType, row.Game, row.Series }).ToList(),
                     rows.Select(row => row.Series).ToList());
 
                 return true;
@@ -224,10 +224,26 @@ namespace Sma5hMusic.GUI.Services
             return new SongRow
             {
                 Song = StripSongSuffix(UnwrapDoubleBraces(songName), gameName), //remove any {{}} and color tags
+                RecordType = GetSpreadsheetRecordType(song.RecordType),
                 Game = gameName ?? string.Empty,
                 Series = seriesName ?? string.Empty,
                 Order = song.TestDispOrder
             };
+        }
+
+        private static string GetSpreadsheetRecordType(string recordType)
+        {
+            switch (recordType)
+            {
+                case "record_none":
+                case "record_original":
+                    return "Original";
+                case "record_arrange":
+                case "record_new_arrange":
+                    return "Remix";
+                default:
+                    return string.Empty;
+            }
         }
 
         private static string GetTitle(Dictionary<string, string> titles, string locale)
@@ -356,6 +372,7 @@ namespace Sma5hMusic.GUI.Services
         private class SongRow
         {
             public string Song { get; set; }
+            public string RecordType { get; set; }
             public string Game { get; set; }
             public string Series { get; set; }
             public int Order { get; set; }
