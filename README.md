@@ -232,7 +232,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 2.  Research: soneek
 3.  Testing: Demonslayerx8, Segtendo
 4.  Original Icon: Segtendo
-5.  Testing and Support (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char, shun_one, liebedi
+5.  Testing and Support (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char, shun_one, liebidi
 6.  prcEditor: https://github.com/BenHall-7/paracobNET - BenHall-7
 7.  paramLabels: https://github.com/ultimate-research/param-labels - BenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8
 8.  msbtEditor: https://github.com/IcySon55/3DLandMSBTeditor - IcySon55, exelix11
