@@ -83,7 +83,7 @@
                   ToolTip.Tip="Builds modular CSK pack metadata for all series without any BGM files."
                   Command="{Binding ActionBuildCskMetadataOnly}"></MenuItem>
         <Separator></Separator>
-        <MenuItem Header="[EXP.] Generate Mod from Build"
+        <MenuItem Header="Generate Mod from Build"
                   ToolTip.Tip="Creates a new music mod from an already built output folder."
                   Command="{Binding ActionGenerateModFromBuildFiles}"></MenuItem>
         <Separator></Separator>
@@ -102,22 +102,26 @@
                     CommandParameter="MainMenu"></MenuItem>
         </MenuItem>
         <Separator></Separator>
-        <MenuItem Header="Normalize Songs in all Mods"
-                  ToolTip.Tip="Normalizes every song in every mod."
-                  Command="{Binding ActionNormalizeNus3AudioFiles}"></MenuItem>
-        <MenuItem Header="Increase / Decrease Volume for all Songs"
-                  ToolTip.Tip="Increases or decreases the volume of every song in every mod by the selected value."
-                  Command="{Binding ActionAdjustModSongVolumes}"></MenuItem>
-        <MenuItem Header="Set Volume for all Songs"
-                  ToolTip.Tip="Sets every song volume in every mod to the same value."
-                  Command="{Binding ActionSetModSongVolumes}"></MenuItem>
+        <MenuItem Header="Volume Options">
+          <MenuItem Header="Normalize Songs in all Mods"
+                    ToolTip.Tip="Normalizes every song in every mod."
+                    Command="{Binding ActionNormalizeNus3AudioFiles}"></MenuItem>
+          <MenuItem Header="Increase / Decrease Volume for all Songs"
+                    ToolTip.Tip="Increases or decreases the volume of every song in every mod by the selected value."
+                    Command="{Binding ActionAdjustModSongVolumes}"></MenuItem>
+          <MenuItem Header="Set Volume for all Songs"
+                    ToolTip.Tip="Sets every song volume in every mod to the same value."
+                    Command="{Binding ActionSetModSongVolumes}"></MenuItem>
+        </MenuItem>
         <Separator></Separator>
-        <MenuItem Header="Sort Songs Alphabetically by Game"
-                  ToolTip.Tip="Sorts selected games alphabetically."
-                  Command="{Binding ActionSortSongsAlphabeticallyByGame}"></MenuItem>
-        <MenuItem Header="Sort Songs Alphabetically by Series"
-                  ToolTip.Tip="Sorts selected series alphabetically, ignoring games."
-                  Command="{Binding ActionSortSongsAlphabeticallyBySeries}"></MenuItem>
+        <MenuItem Header="Sort Songs Alphabetically">
+          <MenuItem Header="By Game"
+                    ToolTip.Tip="Sorts selected games alphabetically."
+                    Command="{Binding ActionSortSongsAlphabeticallyByGame}"></MenuItem>
+          <MenuItem Header="By Series"
+                    ToolTip.Tip="Sorts selected series alphabetically, ignoring games."
+                    Command="{Binding ActionSortSongsAlphabeticallyBySeries}"></MenuItem>
+        </MenuItem>
       </MenuItem>
       <MenuItem Header="Settings">
         <MenuItem Header="Show Advanced BGM Options" Command="{Binding ActionToggleAdvanced}">

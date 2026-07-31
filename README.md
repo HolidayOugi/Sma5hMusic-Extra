@@ -155,7 +155,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * The default volume for a new song can now be set in Global Settings.
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
 * The Song List can now be exported to a spreadsheet.
-* [Experimental] Added option to generate a Sma5hMusic Mod from an already generated build.
+* Added option to generate a Sma5hMusic Mod from an already generated build.
 * Small text is now shown directly in the GUI.
 * A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
 * A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
@@ -219,6 +219,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 ## To-Do List
 
 - [x] Update vgmstream library and main executable to x64
+- [x] Linux Support
 - [ ] Decouple CSK Build service from JSONs loading
 - [ ] Allow editing of Color Picker color list
 - [ ] Add Trim function when importing from audio
@@ -231,7 +232,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 2.  Research: soneek
 3.  Testing: Demonslayerx8, Segtendo
 4.  Original Icon: Segtendo
-5.  Testing and Support (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char
+5.  Testing and Support (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char, shun_one, liebedi
 6.  prcEditor: https://github.com/BenHall-7/paracobNET - BenHall-7
 7.  paramLabels: https://github.com/ultimate-research/param-labels - BenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8
 8.  msbtEditor: https://github.com/IcySon55/3DLandMSBTeditor - IcySon55, exelix11
