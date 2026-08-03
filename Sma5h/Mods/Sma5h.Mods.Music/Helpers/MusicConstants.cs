@@ -4,8 +4,8 @@ namespace Sma5h.Mods.Music.Helpers
 {
     public class MusicConstants
     {
-        public const double VersionSma5hMusic = 1.62;
-        public const double VersionSma5hMusicOverride = 1.62;
+        public const double VersionSma5hMusic = 2.0;
+        public const double VersionSma5hMusicOverride = 2.0;
 
         public class MusicModFiles
         {

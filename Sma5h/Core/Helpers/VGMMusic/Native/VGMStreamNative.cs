@@ -1,257 +1,313 @@
-﻿using System;
+using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace VGMMusic.Native
 {
     /// <summary>
-    /// Class for VGMStream native calls.
+    /// Managed bindings for libvgmstream's public API.
     /// </summary>
     public static class VGMStreamNative
     {
         private const string DllName = "libvgmstream";
-        private static bool _vgmStreamLoaded = false;
-        public static bool VGMStreamLoaded { get { return _vgmStreamLoaded; } }
+        private const uint SupportedApiMajor = 1;
+        private const uint MinimumApiVersion = 0x01010000;
 
-        #region Interface methods
+        private static bool _vgmStreamLoaded;
+        private static string _libraryPath;
 
-        /// <summary>
-        /// Initialize VGMStream.
-        /// </summary>
-        /// <param name="filename">The file to open in VGMStream.</param>
-        /// <returns>An IntPtr to a usable VGMSTREAM or NULL upon failure.</returns>
-        public static IntPtr InitVGMStream(string filename)
+        public static bool VGMStreamLoaded => _vgmStreamLoaded;
+
+        public static string LastError { get; private set; }
+
+        static VGMStreamNative()
         {
-            try
-            {
-                _vgmStreamLoaded = true;
-                return init_vgmstream(filename);
-            }
-            catch
-            {
-                _vgmStreamLoaded = false;
-            }
+            NativeLibrary.SetDllImportResolver(typeof(VGMStreamNative).Assembly, ResolveLibrary);
+        }
+
+        public static void SetLibraryPath(string libraryPath)
+        {
+            _libraryPath = libraryPath;
+        }
+
+        private static IntPtr ResolveLibrary(
+            string libraryName,
+            Assembly assembly,
+            DllImportSearchPath? searchPath)
+        {
+            if (libraryName == DllName &&
+                !string.IsNullOrWhiteSpace(_libraryPath) &&
+                NativeLibrary.TryLoad(_libraryPath, out var handle))
+                return handle;
+
             return IntPtr.Zero;
         }
 
-        /// <summary>
-        /// Resets a given VGMSTREAM to the beginning of its stream.
-        /// </summary>
-        /// <param name="vgmstream">The VGMSTREAM to reset.</param>
+        public static IntPtr InitVGMStream(string filename)
+        {
+            IntPtr streamFile = IntPtr.Zero;
+            IntPtr utf8Filename = IntPtr.Zero;
+
+            try
+            {   
+                //check if version is supported
+                var version = libvgmstream_get_version();
+                var major = version >> 24;
+                if (major != SupportedApiMajor || version < MinimumApiVersion)
+                {
+                    LastError = $"Unsupported libvgmstream API version 0x{version:X8}. Expected version 0x{MinimumApiVersion:X8} or a compatible newer version.";
+                    _vgmStreamLoaded = false;
+                    return IntPtr.Zero;
+                }
+
+                //utf-8 filename to support non-unicode paths
+                utf8Filename = Marshal.StringToCoTaskMemUTF8(filename);
+                //create streamfile from input
+                streamFile = libstreamfile_open_from_stdio(utf8Filename);
+                if (streamFile == IntPtr.Zero)
+                {
+                    LastError = $"libvgmstream could not open '{filename}'.";
+                    _vgmStreamLoaded = true;
+                    return IntPtr.Zero;
+                }
+
+                var config = new LibVGMStreamConfig
+                {
+                    LoopCount = 1,
+                    ForceSampleFormat = LibVGMStreamSampleFormat.Pcm16
+                };
+
+                //create stream
+                var vgmstream = libvgmstream_create(streamFile, 0, ref config);
+                _vgmStreamLoaded = true;
+
+                if (vgmstream == IntPtr.Zero)
+                    LastError = $"libvgmstream does not recognize or could not decode '{filename}'.";
+                else
+                    LastError = null;
+
+                return vgmstream;
+            }
+            catch (Exception exception) when (
+                exception is DllNotFoundException ||
+                exception is BadImageFormatException ||
+                exception is EntryPointNotFoundException)
+            {
+                _vgmStreamLoaded = false;
+                LastError = exception.Message;
+                return IntPtr.Zero;
+            }
+            finally
+            {
+                if (streamFile != IntPtr.Zero)
+                    libstreamfile_close(streamFile);
+                if (utf8Filename != IntPtr.Zero)
+                    Marshal.FreeCoTaskMem(utf8Filename);
+            }
+        }
+
         public static void ResetVGMStream(IntPtr vgmstream)
         {
-            reset_vgmstream(vgmstream);
+            libvgmstream_reset(vgmstream);
         }
 
-        /// <summary>
-        /// Seeks a given VGMSTREAM to an absolute sample position.
-        /// </summary>
-        /// <param name="vgmstream">The VGMSTREAM to seek.</param>
-        /// <param name="sample">The absolute sample to seek to.</param>
-        public static void SeekVGMStream(IntPtr vgmstream, int sample)
+        public static void SeekVGMStream(IntPtr vgmstream, long sample)
         {
-            seek_vgmstream(vgmstream, sample);
+            libvgmstream_seek(vgmstream, sample);
         }
 
-        /// <summary>
-        /// Allocate a VGMSTREAM and channel stuff.
-        /// </summary>
-        /// <param name="channelCount">Number of channels.</param>
-        /// <param name="looped">Whether or not it's looped.</param>
-        /// <returns>An IntPtr to a usable VGMSTREAM, or null upon failure.</returns>
-        public static IntPtr AllocateVGMStream(int channelCount, bool looped)
-        {
-            return allocate_vgmstream(channelCount, looped ? 1 : 0);
-        }
-
-        /// <summary>
-        /// Deallocates and closes a VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">The VGMSTREAM to close.</param>
         public static void CloseVGMStream(IntPtr vgmstream)
         {
-            close_vgmstream(vgmstream);
+            if (vgmstream != IntPtr.Zero)
+                libvgmstream_free(vgmstream);
         }
 
-        /// <summary>
-        /// Calculate the number of samples to be played based on looping parameters.
-        /// </summary>
-        /// <param name="loopTimes">Number of times to loop.</param>
-        /// <param name="fadeSeconds">Number of seconds the fade will start at.</param>
-        /// <param name="fadeDelaySeconds">Number of seconds until the fade finished.</param>
-        /// <param name="vgmstream">VGMSTREAM to calculate all of this for.</param>
-        /// <returns>The number of samples to be played based on looping parameter.</returns>
-        public static int GetVGMStreamPlaySamples(double loopTimes, double fadeSeconds, double fadeDelaySeconds, IntPtr vgmstream)
+        public static int FillVGMStream(short[] buffer, int sampleCount, IntPtr vgmstream)
         {
-            return get_vgmstream_play_samples(loopTimes, fadeSeconds, fadeDelaySeconds, vgmstream);
+            var result = libvgmstream_fill(vgmstream, buffer, sampleCount);
+            if (result < 0)
+                return 0;
+
+            var decoder = GetNativeHandle(vgmstream).Decoder;
+            if (decoder == IntPtr.Zero)
+                return 0;
+
+            return Marshal.PtrToStructure<LibVGMStreamDecoder>(decoder).BufferSamples;
         }
 
-        /// <summary>
-        /// Generates sampleCount number of samples into the given buffer.
-        /// </summary>
-        /// <param name="buffer">The buffer to hold all of the samples.</param>
-        /// <param name="sampleCount">The number of samples to generate into the buffer.</param>
-        /// <param name="vgmstream">The VGMSTREAM to render samples of.</param>
-        public static void RenderVGMStream(short[] buffer, int sampleCount, IntPtr vgmstream)
-        {
-            render_vgmstream(buffer, sampleCount, vgmstream);
-        }
-
-        /// <summary>
-        /// Get the samples per frame for the given VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">The VGMSTREAM to get the samples per frame of.</param>
-        /// <returns>The samples per frame for the given VGMSTREAM.</returns>
-        public static int GetVGMStreamSamplesPerFrame(IntPtr vgmstream)
-        {
-            return get_vgmstream_samples_per_frame(vgmstream);
-        }
-
-        /// <summary>
-        /// Gets the number of bytes per frame for the given VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">The VGMSTREAM to get the number of bytes per frame of.</param>
-        /// <returns>The number of bytes per frame for the given VGMSTREAM.</returns>
-        public static int GetVGMStreamFrameSize(IntPtr vgmstream)
-        {
-            return get_vgmstream_frame_size(vgmstream);
-        }
-
-        /// <summary>
-        /// Gets the number of channels used by a given VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">VGMSTREAM to get the channel count of.</param>
-        /// <returns>The number of channels used by this vgmstream.</returns>
         public static int GetVGMStreamChannelCount(IntPtr vgmstream)
         {
-            return get_vgmstream_channel_number(vgmstream);
+            return GetFormat(vgmstream).Channels;
         }
 
-        /// <summary>
-        /// Gets the sample rate used by a given VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">The VGMSTREAM to get the sample rate of.</param>
-        /// <returns>The sample rate used by a given VGMSTREAM.</returns>
         public static int GetVGMStreamSampleRate(IntPtr vgmstream)
         {
-            return get_vgmstream_samplerate(vgmstream);
+            return GetFormat(vgmstream).SampleRate;
         }
 
-        /// <summary>
-        /// Checks whether or not the given VGMSTREAM should be looped or not.
-        /// </summary>
-        /// <param name="vgmstream">The VGMSTREAM to check</param>
-        /// <returns>1 if the VGMSTREAM should be looped. 0 if the VGMSTREAM doesn't loop.</returns>
-        public static int GetVGMStreamIsLooped(IntPtr vgmstream)
+        public static long GetVGMStreamPlaySamples(IntPtr vgmstream)
         {
-            return get_vgmstream_is_looped(vgmstream);
+            return GetFormat(vgmstream).PlaySamples;
+        }
+
+        public static long GetVGMStreamLoopStartSample(IntPtr vgmstream)
+        {
+            return GetFormat(vgmstream).LoopStart;
+        }
+
+        public static long GetVGMStreamLoopEndSample(IntPtr vgmstream)
+        {
+            return GetFormat(vgmstream).LoopEnd;
+        }
+
+        public static long GetVGMStreamTotalSamples(IntPtr vgmstream)
+        {
+            return GetFormat(vgmstream).StreamSamples;
         }
 
         public static string[] GetVGMStreamInfo(IntPtr vgmstream)
         {
-            byte[] array = new byte[400];
-            char[] split = new char[] { '\n' };
-            describe_vgmstream(vgmstream, array, 400);
-            string info = System.Text.Encoding.ASCII.GetString(array).TrimEnd('\0');
-            return info.Split(split, StringSplitOptions.RemoveEmptyEntries);
+            var description = new byte[4096];
+            libvgmstream_format_describe(vgmstream, description, description.Length);
+            var info = System.Text.Encoding.UTF8.GetString(description).TrimEnd('\0');
+            return info.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
         }
 
-        /// <summary>
-        /// Gets the loop start sample used by a given VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">VGMSTREAM to get the channel count of.</param>
-        /// <returns>The loop start sample used by this vgmstream.</returns>
-        public static int GetVGMStreamLoopStartSample(IntPtr vgmstream)
+        private static LibVGMStream GetNativeHandle(IntPtr vgmstream)
         {
-            return get_vgmstream_loop_startsample(vgmstream);
+            if (vgmstream == IntPtr.Zero)
+                throw new ArgumentException("The libvgmstream handle is null.", nameof(vgmstream));
+
+            return Marshal.PtrToStructure<LibVGMStream>(vgmstream);
         }
 
-        /// <summary>
-        /// Gets the loop end sample used by a given VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">VGMSTREAM to get the channel count of.</param>
-        /// <returns>The loop end sample used by this vgmstream.</returns>
-        public static int GetVGMStreamLoopEndSample(IntPtr vgmstream)
+        private static LibVGMStreamFormat GetFormat(IntPtr vgmstream)
         {
-            return get_vgmstream_loop_endsample(vgmstream);
+            var format = GetNativeHandle(vgmstream).Format;
+            if (format == IntPtr.Zero)
+                throw new InvalidOperationException("libvgmstream did not expose format information.");
+
+            return Marshal.PtrToStructure<LibVGMStreamFormat>(format);
         }
 
-        /// <summary>
-        /// Gets the total samples used by a given VGMSTREAM.
-        /// </summary>
-        /// <param name="vgmstream">VGMSTREAM to get the channel count of.</param>
-        /// <returns>The total samples used by this vgmstream.</returns>
-        public static int GetVGMStreamTotalSamples(IntPtr vgmstream)
+        private enum LibVGMStreamSampleFormat
         {
-            return get_vgmstream_totalsamples(vgmstream);
+            Pcm16 = 1,
+            Pcm24 = 2,
+            Pcm32 = 3,
+            Float = 4
         }
-        #endregion
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LibVGMStream
+        {
+            public IntPtr Private;
+            public IntPtr Format;
+            public IntPtr Decoder;
+        }
 
-        #region P/Invoke Methods
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LibVGMStreamDecoder
+        {
+            public IntPtr Buffer;
+            public int BufferSamples;
+            public int BufferBytes;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool Done;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LibVGMStreamFormat
+        {
+            public int Channels;
+            public int SampleRate;
+            public LibVGMStreamSampleFormat SampleFormat;
+            public int SampleSize;
+            public uint ChannelLayout;
+            public int SubsongIndex;
+            public int SubsongCount;
+            public int InputChannels;
+            public long StreamSamples;
+            public long LoopStart;
+            public long LoopEnd;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool LoopFlag;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool PlayForever;
+
+            public long PlaySamples;
+            public int StreamBitrate;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LibVGMStreamConfig
+        {
+            [MarshalAs(UnmanagedType.I1)]
+            public bool DisableConfigOverride;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool AllowPlayForever;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool PlayForever;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool IgnoreLoop;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool ForceLoop;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool ReallyForceLoop;
+
+            [MarshalAs(UnmanagedType.I1)]
+            public bool IgnoreFade;
+
+            public double LoopCount;
+            public double FadeTime;
+            public double FadeDelay;
+            public int StereoTrack;
+            public int AutoDownmixChannels;
+            public LibVGMStreamSampleFormat ForceSampleFormat;
+        }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr init_vgmstream(string filename);
+        private static extern uint libvgmstream_get_version();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void reset_vgmstream(IntPtr vgmstream);
+        private static extern IntPtr libstreamfile_open_from_stdio(IntPtr filename);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void seek_vgmstream(IntPtr vgmstream, int sample);
+        private static extern void libstreamfile_close(IntPtr streamFile);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr allocate_vgmstream(int channel_count, int looped);
+        private static extern IntPtr libvgmstream_create(
+            IntPtr streamFile,
+            int subsong,
+            ref LibVGMStreamConfig config);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void close_vgmstream(IntPtr vgmstream);
+        private static extern void libvgmstream_free(IntPtr vgmstream);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_play_samples(double looptimes, double fadeseconds, double fadedelayseconds, IntPtr vgmstream);
+        private static extern int libvgmstream_fill(
+            IntPtr vgmstream,
+            [Out] short[] buffer,
+            int sampleCount);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void render_vgmstream([In, Out] short[] buffer, int sample_count, IntPtr vgmstream);
+        private static extern void libvgmstream_seek(IntPtr vgmstream, long sample);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_samples_per_frame(IntPtr vgmstream);
+        private static extern void libvgmstream_reset(IntPtr vgmstream);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_frame_size(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_samples_per_shortframe(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_shortframe_size(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_channel_number(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_samplerate(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-
-        private static extern int get_vgmstream_loop_startsample(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_loop_endsample(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_totalsamples(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int get_vgmstream_is_looped(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void decode_vgmstream(IntPtr vgmstream, int samples_written, int samples_to_do, [In, Out] short[] buffer);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int vgmstream_samples_to_do(int samples_this_block, int samples_per_frame, IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int vgmstream_do_loop(IntPtr vgmstream);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int describe_vgmstream(IntPtr vgmstream, [In, Out] byte[] desc, int length);
-        #endregion
+        private static extern int libvgmstream_format_describe(
+            IntPtr vgmstream,
+            [Out] byte[] description,
+            int descriptionLength);
     }
 }

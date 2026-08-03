@@ -735,7 +735,9 @@ namespace Sma5hMusic.GUI.Services
                     return false;
 
                 var existing = viewModel.GetReferenceEntity();
+                var testDispOrder = existing.TestDispOrder;
                 _mapper.Map(original, existing);
+                existing.TestDispOrder = testDispOrder;
                 existing.MusicMod = null;
             }
 
@@ -1808,7 +1810,8 @@ namespace Sma5hMusic.GUI.Services
             try
             {
                 var settings = JsonConvert.SerializeObject(appSettings, Formatting.Indented);
-                File.WriteAllText("appsettings.json", settings);
+                var settingsPath = Path.Combine(Program.GetBasePath(), "appsettings.json");
+                File.WriteAllText(settingsPath, settings);
                 result = true;
             }
             catch (Exception e)

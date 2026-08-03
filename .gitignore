@@ -17,6 +17,7 @@
 mono_crash.*
 
 # Build results
+/Build/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -350,6 +351,7 @@ MigrationBackup/
 .ionide/
 
 Temp/
+Build/
 *.msbt
 *.bin
 *.prc
@@ -358,4 +360,4 @@ Temp/
 *.brstm
 *.idsp
 *.lopus
-ReverseTest/
+!Resources/template.nus3bank

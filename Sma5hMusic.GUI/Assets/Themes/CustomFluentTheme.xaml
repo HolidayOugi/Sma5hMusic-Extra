@@ -1,5 +1,6 @@
 ﻿<Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields">
   <!-- TREEVIEW -->
   <Style Selector="TreeViewItem">
     <Style.Resources />
@@ -51,6 +52,36 @@
                           ItemsPanel="{TemplateBinding ItemsPanel}" />
         </StackPanel>
 
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="fields|PropertyUIntField.fixedTimePart NumericUpDown">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <ButtonSpinner Name="PART_Spinner"
+                       Background="{TemplateBinding Background}"
+                       BorderThickness="{TemplateBinding BorderThickness}"
+                       BorderBrush="{TemplateBinding BorderBrush}"
+                       Padding="0"
+                       HorizontalContentAlignment="Stretch"
+                       VerticalContentAlignment="Stretch"
+                       AllowSpin="{TemplateBinding AllowSpin}"
+                       ShowButtonSpinner="{TemplateBinding ShowButtonSpinner}"
+                       DataValidationErrors.Errors="{TemplateBinding (DataValidationErrors.Errors)}"
+                       ButtonSpinnerLocation="{TemplateBinding ButtonSpinnerLocation}">
+          <TextBox Name="PART_TextBox"
+                   Background="Transparent"
+                   BorderBrush="Transparent"
+                   Margin="-1"
+                   Padding="{TemplateBinding Padding}"
+                   Watermark="{TemplateBinding Watermark}"
+                   IsReadOnly="{TemplateBinding IsReadOnly}"
+                   VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                   HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                   Text="{TemplateBinding Text}"
+                   AcceptsReturn="False"
+                   TextWrapping="NoWrap"/>
+        </ButtonSpinner>
       </ControlTemplate>
     </Setter>
   </Style>

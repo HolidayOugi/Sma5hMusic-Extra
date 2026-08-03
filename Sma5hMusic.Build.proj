@@ -1,0 +1,82 @@
+<Project DefaultTargets="Build">
+  <PropertyGroup>
+    <RepositoryRoot>$(MSBuildThisFileDirectory)</RepositoryRoot>
+    <GuiProject>$(RepositoryRoot)Sma5hMusic.GUI/Sma5hMusic.GUI.csproj</GuiProject>
+    <BuildDirectory>$(RepositoryRoot)Build/</BuildDirectory>
+    <ResourcesSource>$(RepositoryRoot)Resources/</ResourcesSource>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetOS)' == 'windows'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ToolsDirectoryName>Windows</ToolsDirectoryName>
+    <ExecutableName>Sma5hMusic.GUI.exe</ExecutableName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetOS)' == 'linux'">
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <ToolsDirectoryName>Linux</ToolsDirectoryName>
+    <ExecutableName>Sma5hMusic.GUI</ExecutableName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PublishDirectory>$(RepositoryRoot)artifacts/publish/$(RuntimeIdentifier)/</PublishDirectory>
+    <ToolsSource>$(RepositoryRoot)Tools/$(ToolsDirectoryName)/</ToolsSource>
+  </PropertyGroup>
+
+  <Target Name="ValidateTargetOS">
+    <Error
+      Condition="'$(TargetOS)' != 'windows' and '$(TargetOS)' != 'linux'"
+      Text="TargetOS must be either 'windows' or 'linux'. Example: dotnet build Sma5hMusic.Build.proj -p:TargetOS=windows" />
+    <Error Condition="!Exists('$(GuiProject)')" Text="GUI project not found: $(GuiProject)" />
+    <Error Condition="!Exists('$(ResourcesSource)')" Text="Resources directory not found: $(ResourcesSource)" />
+    <Error Condition="!Exists('$(ToolsSource)')" Text="Tools directory not found: $(ToolsSource)" />
+  </Target>
+
+  <Target Name="Restore" DependsOnTargets="ValidateTargetOS">
+    <MSBuild
+      Projects="$(GuiProject)"
+      Targets="Restore"
+      Properties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+  </Target>
+
+  <Target Name="Build" DependsOnTargets="ValidateTargetOS">
+    <RemoveDir Directories="$(PublishDirectory)" />
+
+    <Message Importance="high" Text="Publishing Sma5hMusic.GUI for $(TargetOS) ($(RuntimeIdentifier))..." />
+    <MSBuild
+      Projects="$(GuiProject)"
+      Targets="Publish"
+      Properties="Configuration=Release;RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true;PublishSingleFile=true;DebugSymbols=false;DebugType=None;PublishDir=$(PublishDirectory)" />
+
+    <Error
+      Condition="!Exists('$(PublishDirectory)$(ExecutableName)')"
+      Text="Published executable not found: $(PublishDirectory)$(ExecutableName)" />
+
+    <RemoveDir Directories="$(BuildDirectory)" />
+    <MakeDir Directories="$(BuildDirectory);$(BuildDirectory)Resources;$(BuildDirectory)Tools" />
+
+    <ItemGroup>
+      <ResourceFiles Include="$(ResourcesSource)**/*" />
+      <ToolFiles Include="$(ToolsSource)**/*" />
+      <LinuxExecutableFiles
+        Condition="'$(TargetOS)' == 'linux'"
+        Include="$(BuildDirectory)Sma5hMusic.GUI;$(BuildDirectory)Tools/VGAudioCli;$(BuildDirectory)Tools/vgmstream/vgmstream-cli;$(BuildDirectory)Tools/sox/sox;$(BuildDirectory)Tools/BgmProperty/bgm-property;$(BuildDirectory)Tools/Nus3Audio/nus3audio" />
+    </ItemGroup>
+
+    <Copy
+      SourceFiles="$(PublishDirectory)$(ExecutableName)"
+      DestinationFolder="$(BuildDirectory)" />
+    <Copy
+      SourceFiles="@(ResourceFiles)"
+      DestinationFiles="@(ResourceFiles->'$(BuildDirectory)Resources/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy
+      SourceFiles="@(ToolFiles)"
+      DestinationFiles="@(ToolFiles->'$(BuildDirectory)Tools/%(RecursiveDir)%(Filename)%(Extension)')" />
+
+    <Exec
+      Condition="'$(TargetOS)' == 'linux' and $([MSBuild]::IsOSPlatform('Windows')) != 'true'"
+      Command="chmod +x &quot;%(LinuxExecutableFiles.Identity)&quot;" />
+
+    <Message Importance="high" Text="Build ready: $(BuildDirectory)" />
+  </Target>
+</Project>

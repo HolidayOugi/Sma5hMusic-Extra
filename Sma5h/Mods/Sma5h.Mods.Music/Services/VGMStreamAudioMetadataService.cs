@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sma5h.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using System;
@@ -97,7 +98,7 @@ namespace Sma5h.Mods.Music.Services
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = Path.Combine(_config.CurrentValue.ToolsPath, "VGAudioCli.exe"),
+                FileName = ToolPathResolver.Resolve(_config.CurrentValue.ToolsPath, "VGAudioCli.exe", "VGAudioCli"),
                 UseShellExecute = false,
                 CreateNoWindow = true
             };

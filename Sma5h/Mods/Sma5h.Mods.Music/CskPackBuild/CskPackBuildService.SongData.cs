@@ -13,6 +13,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private JArray EnsurePlaylist(JObject songData, string playlistId)
         {
             var playlists = songData["playlist_entries"] as JObject;
+            if (playlists == null)
+                songData["playlist_entries"] = playlists = new JObject();
             if (playlists[playlistId] == null)
                 playlists[playlistId] = new JArray();
             return (JArray)playlists[playlistId];

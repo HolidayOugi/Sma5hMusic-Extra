@@ -128,8 +128,8 @@ namespace Sma5hMusic.GUI.ViewModels
             _appSettings = appSettings;
             IsLoading = true;
 
-            _logger.LogInformation($"GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")} | Game v{_guiStateManager.GameVersion}");
-            Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")}";
+            _logger.LogInformation($"GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} | Game v{_guiStateManager.GameVersion}");
+            Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")}";
 
             //Set values
             IsAdvanced = appSettings.CurrentValue.Sma5hMusicGUI.Advanced;
@@ -318,7 +318,7 @@ namespace Sma5hMusic.GUI.ViewModels
                         await _messageDialog.ShowInformation("Game version not found", $"The version of your game could not be identified.\r\nIt might be that you are using a version that is unsupported or that your game files are customized.\r\nThis is known to cause some issues, such as silent files or wrong text information.\r\nBefore asking for support please make sure that the proper version of the files is recognized.");
                     }, DispatcherPriority.Background);
                 }
-                Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")} | Game v{_guiStateManager.GameVersion}";
+                Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} | Game v{_guiStateManager.GameVersion}";
 
                 IsLoading = false;
             }, (o) =>
@@ -331,7 +331,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public async Task OnThanksOpen()
         {
             await _messageDialog.ShowInformation("About",
-                $"Sma5hMusic - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "b" : "")} by deinonychus71\r\n" +
+                $"Sma5hMusic - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} by deinonychus71\r\n" +
                 $"Mod Sma5hMusic - v{MusicConstants.VersionSma5hMusic} by deinonychus71\r\n" +
                 $"Mod Sma5hMusicOverride - v{MusicConstants.VersionSma5hMusicOverride} by deinonychus71\r\n" +
                 $"Extra Features by HolidayOugi\r\n" +
@@ -339,7 +339,8 @@ namespace Sma5hMusic.GUI.ViewModels
                 "https://github.com/Deinonychus71/Sma5hMusic \r\n\r\n" +
                 "Research: soneek\r\n" +
                 "Testing: Demonslayerx8, Segtendo\r\n" +
-                "Original Icon: Segtendo\r\n\r\n" +
+                "Original Icon: Segtendo\r\n" +
+                "Testing (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char\r\n\r\n" +
                 "prcEditor: https://github.com/BenHall-7/paracobNET \r\nBenHall-7\r\n\r\n" +
                 "paramLabels: https://github.com/ultimate-research/param-labels \r\nBenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8\r\n\r\n" +
                 "msbtEditor: https://github.com/IcySon55/3DLandMSBTeditor \r\nIcySon55, exelix11 \r\n\r\n" +
@@ -361,11 +362,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public async Task OnGlobalSettingsOpen()
         {
-            var vmGlobalSettings = new GlobalConfigurationViewModel(_mapper, _appSettings.CurrentValue);
             var result = await _dialogGlobalSettingsEditor.ShowDialog(_rootDialog.Window, new GlobalConfigurationViewModel(_mapper, _appSettings.CurrentValue));
             if (result != null)
             {
-                await _guiStateManager.UpdateGlobalSettings(vmGlobalSettings.GetReference());
                 IsAdvanced = result.Advanced;
             }
         }
@@ -490,7 +489,7 @@ namespace Sma5hMusic.GUI.ViewModels
             }
 
             var results = await _fileDialog.OpenFileDialogAudioMultiple();
-            if (results.Length == 0)
+            if (results == null || results.Length == 0)
                 return;
 
             await ImportAudioFiles(managerMod, results);

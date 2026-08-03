@@ -59,7 +59,7 @@ namespace Sma5hMusic.GUI.Dialogs
             else
                 results = await _openFileDialog.ShowAsync(parent);
 
-            if (results.Length > 0)
+            if (results?.Length > 0)
                 _savedDirectory = Path.GetDirectoryName(results[0]);
 
             _logger.LogDebug("Selected {NbrItems} items", results?.Length);
@@ -92,7 +92,7 @@ namespace Sma5hMusic.GUI.Dialogs
             else
                 results = await _openFileDialog.ShowAsync(parent);
 
-            if (results.Length > 0)
+            if (results?.Length > 0)
             {
                 _savedDirectory = Path.GetDirectoryName(results[0]);
                 return results[0];
@@ -126,7 +126,7 @@ namespace Sma5hMusic.GUI.Dialogs
             else
                 results = await _openFileDialog.ShowAsync(parent);
 
-            if (results.Length > 0)
+            if (results?.Length > 0)
             {
                 _savedDirectory = Path.GetDirectoryName(results[0]);
                 return results[0];
@@ -141,15 +141,19 @@ namespace Sma5hMusic.GUI.Dialogs
 
             _openFileDialog.AllowMultiple = false;
             _openFileDialog.Directory = _savedDirectory;
-            _openFileDialog.Filters = new List<FileDialogFilter>()
-            {
-                new FileDialogFilter()
+            _openFileDialog.Filters = OperatingSystem.IsWindows()
+                ? new List<FileDialogFilter>()
                 {
-                    Extensions = new List<string>() { "exe" },
-                    Name = "yt-dlp executable"
+                    new FileDialogFilter()
+                    {
+                        Extensions = new List<string>() { "exe" },
+                        Name = "yt-dlp executable"
+                    }
                 }
-            };
-            _openFileDialog.Title = "Select yt-dlp.exe";
+                : null;
+            _openFileDialog.Title = OperatingSystem.IsWindows()
+                ? "Select yt-dlp.exe"
+                : "Select yt-dlp executable";
 
             string[] results;
             if (parent == null)
@@ -157,7 +161,7 @@ namespace Sma5hMusic.GUI.Dialogs
             else
                 results = await _openFileDialog.ShowAsync(parent);
 
-            if (results.Length > 0)
+            if (results?.Length > 0)
             {
                 _savedDirectory = Path.GetDirectoryName(results[0]);
                 return results[0];
@@ -172,15 +176,19 @@ namespace Sma5hMusic.GUI.Dialogs
 
             _openFileDialog.AllowMultiple = false;
             _openFileDialog.Directory = _savedDirectory;
-            _openFileDialog.Filters = new List<FileDialogFilter>()
-            {
-                new FileDialogFilter()
+            _openFileDialog.Filters = OperatingSystem.IsWindows()
+                ? new List<FileDialogFilter>()
                 {
-                    Extensions = new List<string>() { "exe" },
-                    Name = "ffmpeg executable"
+                    new FileDialogFilter()
+                    {
+                        Extensions = new List<string>() { "exe" },
+                        Name = "ffmpeg executable"
+                    }
                 }
-            };
-            _openFileDialog.Title = "Select ffmpeg.exe";
+                : null;
+            _openFileDialog.Title = OperatingSystem.IsWindows()
+                ? "Select ffmpeg.exe"
+                : "Select ffmpeg executable";
 
             string[] results;
             if (parent == null)
@@ -188,7 +196,7 @@ namespace Sma5hMusic.GUI.Dialogs
             else
                 results = await _openFileDialog.ShowAsync(parent);
 
-            if (results.Length > 0)
+            if (results?.Length > 0)
             {
                 _savedDirectory = Path.GetDirectoryName(results[0]);
                 return results[0];
@@ -219,7 +227,7 @@ namespace Sma5hMusic.GUI.Dialogs
             else
                 results = await _openFileDialog.ShowAsync(parent);
 
-            if (results.Length > 0)
+            if (results?.Length > 0)
             {
                 _savedDirectory = Path.GetDirectoryName(results[0]);
                 return results[0];
@@ -318,9 +326,11 @@ namespace Sma5hMusic.GUI.Dialogs
                 var startInfo = new ProcessStartInfo
                 {
                     Arguments = folderPath,
-                    FileName = "explorer.exe"
+                    FileName = OperatingSystem.IsWindows()
+                        ? "explorer.exe"
+                        : "xdg-open"
                 };
-
+                
                 Process.Start(startInfo);
             }
         }

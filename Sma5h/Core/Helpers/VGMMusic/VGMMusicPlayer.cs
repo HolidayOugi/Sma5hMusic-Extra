@@ -2,6 +2,7 @@
 using NAudio.Wave;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,7 +54,12 @@ namespace VGMMusic
 
             if (!_reader.FileLoaded)
             {
-                _logger.LogError("Error while loading {FileName}. VGMStreamReader could not load the file. If this file plays on foobar make sure that libvgmstream is properly installed.", filename);
+                _logger.LogError(
+                    "Error while loading {FileName}. VGMStreamReader could not load the file. libvgmstream error: {VGMStreamError}",
+                    filename,
+                    Native.VGMStreamNative.LastError);
+                _reader.Dispose();
+                _reader = null;
                 return false;
             }
 
@@ -66,7 +72,9 @@ namespace VGMMusic
 
         public async Task<VGMAudioCuePoints> GetAudioCuePoints(string filename)
         {
-            await LoadFile(filename);
+            if (!await LoadFile(filename))
+                return new VGMAudioCuePoints();
+
             var audioCuePoints = new VGMAudioCuePoints()
             {
                 LoopEndMs = _reader.LoopEndMilliseconds,
@@ -162,20 +170,28 @@ namespace VGMMusic
             try
             {
                 _logger.LogInformation("InternalPlay starting. File={FileName}", _filename);
-                _outputDevice = new WaveOutEvent();
                 if (_reader != null)
                 {
-                    _logger.LogInformation("Initializing WaveOutEvent. WaveFormat={WaveFormat}, Position={Position}", _reader.WaveFormat, _reader.Position);
-                    _outputDevice.Init(_reader);
-                    if (ApplyVolume)
-                        _outputDevice.Volume = Volume;
-                    _outputDevice.Play();
-                    _logger.LogInformation("WaveOutEvent started. PlaybackState={PlaybackState}, ApplyVolume={ApplyVolume}, Volume={Volume}", _outputDevice.PlaybackState, ApplyVolume, Volume);
-                    while (_outputDevice.PlaybackState == PlaybackState.Playing && !_requestStop)
+                    if (OperatingSystem.IsLinux())
                     {
-                        Thread.Sleep(500);
+                        //use pulseaudio for playback on Linux
+                        PlayWithPulseAudio();
                     }
-                    _logger.LogInformation("Playback loop ended. PlaybackState={PlaybackState}, RequestStop={RequestStop}", _outputDevice.PlaybackState, _requestStop);
+                    else
+                    {
+                        _outputDevice = new WaveOutEvent();
+                        _logger.LogInformation("Initializing WaveOutEvent. WaveFormat={WaveFormat}, Position={Position}", _reader.WaveFormat, _reader.Position);
+                        _outputDevice.Init(_reader);
+                        if (ApplyVolume)
+                            _outputDevice.Volume = Volume;
+                        _outputDevice.Play();
+                        _logger.LogInformation("WaveOutEvent started. PlaybackState={PlaybackState}, ApplyVolume={ApplyVolume}, Volume={Volume}", _outputDevice.PlaybackState, ApplyVolume, Volume);
+                        while (_outputDevice.PlaybackState == PlaybackState.Playing && !_requestStop)
+                        {
+                            Thread.Sleep(500);
+                        }
+                        _logger.LogInformation("Playback loop ended. PlaybackState={PlaybackState}, RequestStop={RequestStop}", _outputDevice.PlaybackState, _requestStop);
+                    }
                 }
                 _requestStop = false;
 
@@ -220,5 +236,108 @@ namespace VGMMusic
         {
             InternalStop();
         }
+
+        private void PlayWithPulseAudio()
+        {
+            //audio samples format
+            var sampleSpec = new PulseSampleSpec
+            {
+                Format = 3, // PA_SAMPLE_S16LE
+                Rate = (uint)_reader.WaveFormat.SampleRate,
+                Channels = (byte)_reader.WaveFormat.Channels
+            };
+            var error = 0;
+            var output = pa_simple_new(
+                null,
+                "Sma5hMusic",
+                1, // PA_STREAM_PLAYBACK
+                null,
+                "Music preview",
+                ref sampleSpec,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                ref error);
+            if (output == IntPtr.Zero)
+                throw new InvalidOperationException($"PulseAudio could not open the default audio device ({error}).");
+
+            try
+            {
+                //allocate buffer
+                var buffer = new byte[4096 * _reader.WaveFormat.BlockAlign];
+                //until it's requested to stop
+                while (!_requestStop)
+                {
+                    var bytesRead = _reader.Read(buffer, 0, buffer.Length);
+                    //end of audio stream
+                    if (bytesRead == 0)
+                        break;
+
+                    //apply volume if requested
+                    if (ApplyVolume && Volume != 1.0f)
+                        ApplyPcm16Volume(buffer, bytesRead, Volume);
+
+                    if (pa_simple_write(output, buffer, (UIntPtr)(uint)bytesRead, ref error) < 0)
+                        throw new InvalidOperationException($"PulseAudio playback failed ({error}).");
+                }
+
+                //if the playback ended by itself, drain the remaining samples in the buffer
+                if (!_requestStop)
+                    pa_simple_drain(output, ref error);
+            }
+            finally
+            {
+                //free the PulseAudio output stream
+                pa_simple_free(output);
+            }
+        }
+
+        private static void ApplyPcm16Volume(byte[] buffer, int length, float volume)
+        {
+            volume = Math.Clamp(volume, 0.0f, 1.0f);
+            for (var offset = 0; offset + 1 < length; offset += sizeof(short))
+            {
+                var sample = (short)(buffer[offset] | buffer[offset + 1] << 8);
+
+                //multiply the sample by the volume factor and clamp it to the valid range for 16-bit PCM
+                sample = (short)(sample * volume);
+                buffer[offset] = (byte)sample;
+                buffer[offset + 1] = (byte)(sample >> 8);
+            }
+        }
+
+        //calls to PulseAudio functions
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PulseSampleSpec
+        {
+            public int Format;
+            public uint Rate;
+            public byte Channels;
+        }
+
+        [DllImport("libpulse-simple.so.0", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr pa_simple_new(
+            string server,
+            string name,
+            int direction,
+            string device,
+            string streamName,
+            ref PulseSampleSpec sampleSpec,
+            IntPtr channelMap,
+            IntPtr bufferAttributes,
+            ref int error);
+
+        [DllImport("libpulse-simple.so.0", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int pa_simple_write(
+            IntPtr output,
+            byte[] data,
+            UIntPtr bytes,
+            ref int error);
+
+        [DllImport("libpulse-simple.so.0", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int pa_simple_drain(IntPtr output, ref int error);
+
+        [DllImport("libpulse-simple.so.0", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void pa_simple_free(IntPtr output);
     }
 }

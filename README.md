@@ -1,9 +1,12 @@
 # Sma5hMusic Extra
 
-This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software.
+This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software. The software is available both for Windows and Linux operating systems.
 
 > [!WARNING]
-> This tool is experimental, please make a backup of your music files and jsons before using it.
+> This tool is experimental, please make a backup of your music files and JSONs before using it.
+
+> [!NOTE]
+> The Linux version is currently secondary to the main Windows version and has not been extensively tested. Support may or may not be interrupted at any point. Requires PulseAudio / PipeWire to be installed (many distributions have it installed by default). Tested on Ubuntu 26.04, Ubuntu 24.04.1 under WSL2 and SteamOS 3.8.
 
 Like the original release, a dump of the following files from `data.arc` is needed:
 
@@ -152,7 +155,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * The default volume for a new song can now be set in Global Settings.
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
 * The Song List can now be exported to a spreadsheet.
-* [Experimental] Added option to generate a Sma5hMusic Mod from an already generated build.
+* Added option to generate a Sma5hMusic Mod from an already generated build.
 * Small text is now shown directly in the GUI.
 * A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
 * A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
@@ -197,8 +200,16 @@ Follow the instructions detailed on its [GitHub page](https://github.com/arkrow/
 
 ## Generate a Release build
 
+### Windows
+
 ```
-dotnet publish Sma5hMusic.GUI\Sma5hMusic.GUI.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true
+dotnet build Sma5hMusic.Build.proj -p:TargetOS=windows
+```
+
+### Linux
+
+```
+dotnet build Sma5hMusic.Build.proj -p:TargetOS=linux
 ```
 
 ## Issues
@@ -207,7 +218,8 @@ If you encounter any problems using the software, submit an issue here on GitHub
 
 ## To-Do List
 
-- [ ] Update vgmstream library and main executable to x64
+- [x] Update vgmstream library and main executable to x64
+- [x] Linux Support
 - [ ] Decouple CSK Build service from JSONs loading
 - [ ] Allow editing of Color Picker color list
 - [ ] Add Trim function when importing from audio
@@ -220,7 +232,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 2.  Research: soneek
 3.  Testing: Demonslayerx8, Segtendo
 4.  Original Icon: Segtendo
-5.  Testing and Support (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char
+5.  Testing and Support (Extra): zyrskyd, Segtendo, CorbataLM, Mika, vernonviper, Kagura101, Char, shun_one, liebidi
 6.  prcEditor: https://github.com/BenHall-7/paracobNET - BenHall-7
 7.  paramLabels: https://github.com/ultimate-research/param-labels - BenHall-7, jam1garner, Dr-HyperCake, Birdwards, ThatNintendoNerd, ScanMountGoat, Meshima, Blazingflare, TheSmartKid, jugeeya, Demonslayerx8
 8.  msbtEditor: https://github.com/IcySon55/3DLandMSBTeditor - IcySon55, exelix11

@@ -2,6 +2,7 @@
 using CsvHelper.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sma5h.Helpers;
 using Sma5h.Interfaces;
 using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
@@ -33,7 +34,10 @@ namespace Sma5h.Mods.Music.Services
             _processService = processService;
             _audioMetadataService = audioMetadataService;
             _config = config;
-            _nus3AudioExeFile = Path.Combine(config.CurrentValue.ToolsPath, MusicConstants.Resources.NUS3AUDIO_EXE_FILE);
+            _nus3AudioExeFile = ToolPathResolver.Resolve(
+                config.CurrentValue.ToolsPath,
+                MusicConstants.Resources.NUS3AUDIO_EXE_FILE,
+                "Nus3Audio/nus3audio");
             _nus3BankTemplateFile = Path.Combine(config.CurrentValue.ResourcesPath, MusicConstants.Resources.NUS3BANK_TEMPLATE_FILE);
 
             var nus3BankIds = GetCoreNus3BankIds();

@@ -47,6 +47,7 @@ namespace Sma5h.Mods.Music.Services
         private readonly Dictionary<string, BgmPropertyEntry> _originalCoreBgmPropertyEntries;
         //private readonly Dictionary<string, BgmDbRootEntry> _deletedBgmEntries; //TODO
         private readonly Dictionary<string, PlaylistEntry> _playlistsEntries;
+        private readonly Dictionary<string, PlaylistEntry> _originalCorePlaylistEntries;
         private readonly Dictionary<string, StageEntry> _stageEntries;
         private readonly Dictionary<string, float> _coreVolumes;
 
@@ -73,6 +74,7 @@ namespace Sma5h.Mods.Music.Services
             _originalCoreBgmStreamPropertyEntries = new Dictionary<string, BgmStreamPropertyEntry>();
             _originalCoreBgmPropertyEntries = new Dictionary<string, BgmPropertyEntry>();
             _playlistsEntries = new Dictionary<string, PlaylistEntry>();
+            _originalCorePlaylistEntries = new Dictionary<string, PlaylistEntry>();
             _stageEntries = new Dictionary<string, StageEntry>();
             _coreVolumes = GetCoreNus3BankVolumes();
         }
@@ -176,6 +178,11 @@ namespace Sma5h.Mods.Music.Services
         public IEnumerable<PlaylistEntry> GetPlaylists()
         {
             return _playlistsEntries.Values;
+        }
+
+        public IEnumerable<PlaylistEntry> GetOriginalCorePlaylists()
+        {
+            return _originalCorePlaylistEntries.Values;
         }
         #endregion
 
@@ -779,6 +786,7 @@ namespace Sma5h.Mods.Music.Services
             _seriesEntries.Clear();
             _localesEntries.Clear();
             _playlistsEntries.Clear();
+            _originalCorePlaylistEntries.Clear();
             _stageEntries.Clear();
 
             //Load Data
@@ -892,12 +900,16 @@ namespace Sma5h.Mods.Music.Services
             //Mapping playlists
             foreach (var paramPlaylist in paramBgmDatabase.PlaylistEntries)
             {
+                //get both the new playlist and the original playlist for comparison
                 var newPlaylist = new PlaylistEntry(paramPlaylist.Id);
+                var originalPlaylist = new PlaylistEntry(paramPlaylist.Id);
                 _playlistsEntries.Add(paramPlaylist.Id, newPlaylist);
+                _originalCorePlaylistEntries.Add(paramPlaylist.Id, originalPlaylist);
 
                 foreach (var track in paramPlaylist.Values)
                 {
                     newPlaylist.Tracks.Add(_mapper.Map<Models.PlaylistEntryModels.PlaylistValueEntry>(track));
+                    originalPlaylist.Tracks.Add(_mapper.Map<Models.PlaylistEntryModels.PlaylistValueEntry>(track));
                 }
             }
 

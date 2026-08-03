@@ -22,10 +22,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             foreach (var playlistId in playlists)
             {
-                var playlistEntries = EnsurePlaylist(songData, playlistId);
-                var tracks = GetArray(playlistData[playlistId], "tracks");
+                var playlist = playlistData[playlistId];
+                if (playlist == null)
+                    continue;
 
-                foreach (JObject track in tracks)
+                var playlistEntries = EnsurePlaylist(songData, playlistId);
+                foreach (JObject track in GetArray(playlist, "tracks"))
                 {
                     var uiBgmId = GetString(track, "ui_bgm_id");
                     if (!coreBgmIds.Contains(uiBgmId))
@@ -47,7 +49,89 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #endregion
 
+        //adds entries for any unmodified core bgm that are part of a custom playlist
+        private void PopulateCustomPlaylists(JObject songData, string seriesName, JObject playlistData, JObject coreBgmOverride, JObject orderOverride, Dictionary<string, string> coreGameSeriesById)
+        {   
+            //get all unmodified core bgms that are part of the series
+            var seriesCoreBgmIds = _audioStateService.GetOriginalCoreBgmDbRootEntries()
+                .Where(p => !string.IsNullOrEmpty(p.UiBgmId)
+                            && !string.IsNullOrEmpty(p.UiGameTitleId)
+                            && !IsCoreBgmOverride(coreBgmOverride, p.UiBgmId)
+                            && coreGameSeriesById.TryGetValue(p.UiGameTitleId, out var bgmSeries)
+                            && string.Equals(bgmSeries, seriesName, StringComparison.OrdinalIgnoreCase))
+                .Select(p => p.UiBgmId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var vanillaPlaylistIds = SeriesToPlaylist.Values.SelectMany(p => p).Concat(VanillaNonSeriesPlaylists);
+
+            //for every custom playlist, check if any of the tracks are part of the series and add them to the song data if they are
+            foreach (var playlist in playlistData.Properties().Where(p => !vanillaPlaylistIds.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
+            {
+                foreach (JObject track in GetArray(playlist.Value, "tracks"))
+                {
+                    var uiBgmId = GetString(track, "ui_bgm_id");
+                    if (!seriesCoreBgmIds.Contains(uiBgmId))
+                        continue;
+
+                    var entries = EnsurePlaylist(songData, playlist.Name);
+                    if (entries.Any(p => string.Equals(GetString(p, "ui_bgm_id"), uiBgmId, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    AddCoreBgmFromState(songData, uiBgmId, coreBgmOverride, orderOverride);
+                    var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
+                    for (var i = 0; i < 16; i++)
+                    {
+                        entry[$"order{i}"] = GetInt(track, "o0", 0);
+                        entry[$"incidence{i}"] = GetInt(track, "i0", 10000);
+                    }
+                    entries.Add(entry);
+                }
+            }
+        }
+
         #region Effective Playlist Data
+
+        //creates a diff of the vanilla playlists, only including playlists that have been modified by the override
+        private JObject BuildVanillaPlaylistDiff(JObject playlistOverride)
+        {
+            var diff = new JObject();
+            if (playlistOverride == null)
+                return diff;
+
+            var originalPlaylists = _audioStateService.GetOriginalCorePlaylists()
+                .ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
+            var vanillaPlaylistIds = SeriesToPlaylist.Values.SelectMany(p => p).Concat(VanillaNonSeriesPlaylists);
+
+            foreach (var playlist in playlistOverride.Properties().Where(p => vanillaPlaylistIds.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
+            {
+                var normalized = NormalizePlaylistObject(playlist.Name, (JObject)playlist.Value);
+                if (!originalPlaylists.TryGetValue(playlist.Name, out var original))
+                {
+                    diff[playlist.Name] = normalized;
+                    continue;
+                }
+
+                var originalTracks = new JArray(original.Tracks.Select(CreatePlaylistTrack));
+                for (var i = 0; i < 16; i++)
+                {   
+                    //replicate behaviour of playlist_override.json in GUI
+                    //the order ids are set based on their appeareance in GUI
+                    var orderId = $"o{i}";
+                    var visibleTracks = originalTracks
+                        .OfType<JObject>()
+                        .Where(p => GetInt(p, orderId, -1) != -1)
+                        .OrderBy(p => GetInt(p, orderId, -1))
+                        .ToList();
+
+                    for (var order = 0; order < visibleTracks.Count; order++)
+                        visibleTracks[order][orderId] = order;
+                }
+
+                if (!JToken.DeepEquals(normalized["tracks"], originalTracks))
+                    diff[playlist.Name] = normalized;
+            }
+
+            return diff;
+        }
 
         private JObject BuildEffectivePlaylistData(JObject playlistOverride)
         {
@@ -182,7 +266,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var playlistId = playlistProperty.Name;
                 var isVanillaPlaylist = SeriesToPlaylist.Values
                     .SelectMany(p => p)
-                    .Append("bgmsmashmenu")
+                    .Concat(VanillaNonSeriesPlaylists)
                     .Contains(playlistId, StringComparer.OrdinalIgnoreCase);
 
                 foreach (JObject track in GetArray(playlistProperty.Value, "tracks"))

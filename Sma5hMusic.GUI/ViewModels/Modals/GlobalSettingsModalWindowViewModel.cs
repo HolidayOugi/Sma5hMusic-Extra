@@ -4,6 +4,7 @@ using ReactiveUI.Validation.Extensions;
 using Sma5hMusic.GUI.Helpers;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -121,6 +122,9 @@ namespace Sma5hMusic.GUI.ViewModels
             };
             if (!string.IsNullOrEmpty(result))
             {
+                if (param == "YtDlpPath" || param == "FfmpegPath")
+                    EnsureExecutableOnLinux(result);
+
                 switch (param)
                 {
                     case "OutputPath":
@@ -160,6 +164,25 @@ namespace Sma5hMusic.GUI.ViewModels
             }
         }
 
+        private static void EnsureExecutableOnLinux(string path)
+        {
+            if (!OperatingSystem.IsLinux())
+                return;
+
+            try
+            {
+                //set bit for executable on
+                var mode = File.GetUnixFileMode(path);
+                File.SetUnixFileMode(path, mode | UnixFileMode.UserExecute);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
         protected override void LoadItem(GlobalConfigurationViewModel item)
         {
             SelectedGUILocale = Locales.FirstOrDefault(p => p.Id == item?.DefaultGUILocale);
@@ -176,12 +199,13 @@ namespace Sma5hMusic.GUI.ViewModels
                 item.StartingOrderForSeries = 1;
         }
 
-        protected override Task<bool> SaveChanges()
+        protected override async Task<bool> SaveChanges()
         {
             SelectedItem.DefaultGUILocale = SelectedGUILocale?.Id;
             SelectedItem.DefaultMSBTLocale = SelectedMSBTLocale?.Id;
+            SelectedItem.SaveChanges();
 
-            return base.SaveChanges();
+            return await _guiStateManager.UpdateGlobalSettings(SelectedItem.GetReference());
         }
 
         private void SetPlaylistGenerationItemDescription(GlobalConfigurationViewModel item)

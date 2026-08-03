@@ -28,7 +28,7 @@ namespace Sma5hMusic.GUI.Controls
         private readonly IDisposable _dropDownOpenSubscription;
         private const double PreviewFontSize = 13;
         private const double SmallTextFontScale = 0.8;
-        private static readonly FontFamily PreviewFontFamily = new FontFamily("Segoe UI,Microsoft YaHei,Simsun,苹方-简,宋体-简");
+        private static readonly FontFamily PreviewFontFamily = FontFamily.Default;
         private INotifyPropertyChanged _viewModelNotifier;
         private object _dataContext;
         private List<MsbtRichTextSpan> _spans = new List<MsbtRichTextSpan>();
@@ -37,6 +37,7 @@ namespace Sma5hMusic.GUI.Controls
         private int _selectionEnd;
         private int _pendingColorSelectionStart;
         private int _pendingColorSelectionEnd;
+        private bool _hasPendingColorSelection;
         private bool _colorAppliedDuringDropDown;
         private bool _isUsingColorPicker;
         private bool _isUsingSmallTextMarkerButton;
@@ -121,15 +122,16 @@ namespace Sma5hMusic.GUI.Controls
         private void TextColorComboBoxPointerPressed(object sender, PointerPressedEventArgs e)
         {
             //save text selection before color picker gets focus
+            if (!_isUsingColorPicker)
+                StorePendingColorSelection(true);
             _isUsingColorPicker = true;
-            StorePendingColorSelection();
         }
 
         private void SmallTextMarkerButtonPointerPressed(object sender, PointerPressedEventArgs e)
         {
             //save text selection before button gets focus
+            StorePendingColorSelection(true);
             _isUsingSmallTextMarkerButton = true;
-            StorePendingColorSelection();
         }
 
 
@@ -142,12 +144,17 @@ namespace Sma5hMusic.GUI.Controls
                 return;
             }
 
-            var start = Math.Min(_selectionStart, _selectionEnd);
-            var end = Math.Max(_selectionStart, _selectionEnd);
-            if (end <= start)
+            int start;
+            int end;
+            if (_hasPendingColorSelection)
             {
                 start = _pendingColorSelectionStart;
                 end = _pendingColorSelectionEnd;
+            }
+            else
+            {
+                start = Math.Min(_selectionStart, _selectionEnd);
+                end = Math.Max(_selectionStart, _selectionEnd);
             }
 
             var chars = ToColoredCharacters();
@@ -182,9 +189,10 @@ namespace Sma5hMusic.GUI.Controls
             if (isOpen)
             {
                 //save selection before opening color menu
+                if (!_isUsingColorPicker)
+                    StorePendingColorSelection(true);
                 _isUsingColorPicker = true;
                 _colorAppliedDuringDropDown = false;
-                StorePendingColorSelection();
                 return;
             }
 
@@ -287,19 +295,27 @@ namespace Sma5hMusic.GUI.Controls
 
         private bool ApplyColorToSelection(MSBTFieldViewModel viewModel, MsbtTextColor selectedColor)
         {
-            var start = Math.Min(_selectionStart, _selectionEnd);
-            var end = Math.Max(_selectionStart, _selectionEnd);
             if (viewModel.IsResettingTextColorSelection)
             {
                 ClearPendingColorSelection();
                 return false;
             }
 
-            if (end <= start)
+            int start;
+            int end;
+            if (_hasPendingColorSelection)
             {
                 start = _pendingColorSelectionStart;
                 end = _pendingColorSelectionEnd;
             }
+            else
+            {
+                start = Math.Min(_selectionStart, _selectionEnd);
+                end = Math.Max(_selectionStart, _selectionEnd);
+            }
+
+            start = Math.Max(0, Math.Min(start, _plainText.Length));
+            end = Math.Max(start, Math.Min(end, _plainText.Length));
             if (end <= start)
                 return false;
 
@@ -357,10 +373,11 @@ namespace Sma5hMusic.GUI.Controls
 
             var selectedStart = Math.Min(start, end);
             var selectedEnd = Math.Max(start, end);
-            if (selectedEnd > selectedStart)
+            if (selectedEnd > selectedStart && !_isUsingColorPicker && !_isUsingSmallTextMarkerButton && !_isChoosingCustomColor)
             {
                 _pendingColorSelectionStart = selectedStart;
                 _pendingColorSelectionEnd = selectedEnd;
+                _hasPendingColorSelection = true;
             }
             else
             {
@@ -373,21 +390,30 @@ namespace Sma5hMusic.GUI.Controls
             }
         }
 
-        private void StorePendingColorSelection()
+        private void StorePendingColorSelection(bool overwrite = false)
         {
-            var start = Math.Min(_selectionStart, _selectionEnd);
-            var end = Math.Max(_selectionStart, _selectionEnd);
+            if (_hasPendingColorSelection && !overwrite)
+                return;
+
+            var selectionStart = _editor?.SelectionStart ?? _selectionStart;
+            var selectionEnd = _editor?.SelectionEnd ?? _selectionEnd;
+            var start = Math.Max(0, Math.Min(Math.Min(selectionStart, selectionEnd), _plainText.Length));
+            var end = Math.Max(start, Math.Min(Math.Max(selectionStart, selectionEnd), _plainText.Length));
             if (end > start)
             {
                 _pendingColorSelectionStart = start;
                 _pendingColorSelectionEnd = end;
+                _hasPendingColorSelection = true;
             }
+            else if (overwrite)
+                ClearPendingColorSelection();
         }
 
         private void ClearPendingColorSelection()
         {
             _pendingColorSelectionStart = 0;
             _pendingColorSelectionEnd = 0;
+            _hasPendingColorSelection = false;
         }
 
         private void CollapseEditorSelection(int position)

@@ -18,7 +18,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 {
     public partial class MusicModReverseService
     {
-        private ResourceSnapshot LoadSnapshot(string rootPath, string fallbackRootPath = null)
+        private ResourceSnapshot LoadSnapshot(string rootPath, string fallbackRootPath = null, ISet<string> audioFallbackToneIds = null)
         {
             //loads either from build or resources
             var bgmDbPath = ResolveSnapshotFilePath(rootPath, PrcExtConstants.PRC_UI_BGM_DB_PATH, fallbackRootPath);
@@ -63,7 +63,7 @@ namespace Sma5h.Mods.Music.ReverseBuild
 
             //add entries to snapshot
             LoadBgmEntries(snapshot, bgmDb, bgmMsbts, toneIds, gameTitleIds);
-            var skippedFallbackToneIds = LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds);
+            var skippedFallbackToneIds = LoadBgmPropertyEntries(snapshot, rootPath, bgmProperty, toneIds, audioFallbackToneIds);
             LoadGameEntries(snapshot, gameTitleDb, titleMsbts, gameTitleIds, seriesIds);
             LoadSeriesEntries(snapshot, seriesDb, titleMsbts, seriesIds);
             //generate playlist IDs
@@ -140,7 +140,12 @@ namespace Sma5h.Mods.Music.ReverseBuild
             }
         }
 
-        private HashSet<string> LoadBgmPropertyEntries(ResourceSnapshot snapshot, string rootPath, BinBgmProperty bgmProperty, List<string> toneIds)
+        private HashSet<string> LoadBgmPropertyEntries(
+            ResourceSnapshot snapshot,
+            string rootPath,
+            BinBgmProperty bgmProperty,
+            List<string> toneIds,
+            ISet<string> audioFallbackToneIds)
         {
             if (bgmProperty == null)
             {
@@ -152,14 +157,19 @@ namespace Sma5h.Mods.Music.ReverseBuild
             {
                 //generate bgm property nameID from tone ID
                 value.NameId = ResolveGeneratedId(value.NameId, toneIds, string.Empty);
+                if (audioFallbackToneIds?.Contains(value.NameId) == true)
+                    continue;
+
                 var filename = Path.Combine(rootPath, "stream;", "sound", "bgm", string.Format(MusicConstants.GameResources.NUS3AUDIO_FILE, value.NameId));
                 snapshot.BgmPropertyEntries.Add(value.NameId, _mapper.Map(value, new BgmPropertyEntry(value.NameId, filename)));
             }
 
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return audioFallbackToneIds == null || audioFallbackToneIds.Count == 0
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : LoadBgmPropertyEntriesFromAudioFallback(snapshot, rootPath, audioFallbackToneIds);
         }
 
-        private HashSet<string> LoadBgmPropertyEntriesFromAudioFallback(ResourceSnapshot snapshot, string rootPath)
+        private HashSet<string> LoadBgmPropertyEntriesFromAudioFallback(ResourceSnapshot snapshot, string rootPath, ISet<string> toneIds = null)
         {
             var skippedToneIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var bgmPath = Path.Combine(rootPath, "stream;", "sound", "bgm");
@@ -174,6 +184,9 @@ namespace Sma5h.Mods.Music.ReverseBuild
                     nameId = nameId.Substring(MusicConstants.InternalIds.NUS3AUDIO_FILE_PREFIX.Length);
                 if (nameId.StartsWith(MusicConstants.InternalIds.UI_BGM_ID_PREFIX, StringComparison.OrdinalIgnoreCase))
                     nameId = nameId.Substring(MusicConstants.InternalIds.UI_BGM_ID_PREFIX.Length);
+
+                if (toneIds != null && !toneIds.Contains(nameId))
+                    continue;
 
                 //read audio metadata from nus3audio file
                 _logger.LogInformation("Reverse MusicMod: scanning {AudioFile} with vgmstream.", file);

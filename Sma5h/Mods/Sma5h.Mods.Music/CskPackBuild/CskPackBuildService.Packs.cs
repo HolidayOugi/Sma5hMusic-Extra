@@ -390,6 +390,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
             ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, ref orderCounter);
             //save vanilla playlists data
             PopulateVanillaPlaylists(songData, seriesName, playlistData, coreBgmIds, coreBgmOverride, orderOverride);
+            //save custom playlists data
+            if (VanillaSeries.Contains(seriesName))
+                PopulateCustomPlaylists(songData, seriesName, playlistData, coreBgmOverride, orderOverride, coreGameSeriesById);
             //add stage entries
             PopulateStageDatabaseEntries(songData, seriesName, stageOverride, playlistData);
             //process overrides for core bgms

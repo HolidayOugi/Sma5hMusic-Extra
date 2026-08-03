@@ -59,24 +59,36 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 PopulateCustomStageDatabaseEntries(songData, stageOverride);
         }
 
-        private void PopulateCustomStageDatabaseEntries(JObject songData, JObject stageOverride)
+        private void PopulateCustomStageDatabaseEntries(JObject songData, JObject stageOverride, HashSet<string> excludedSeriesIds = null)
         {
             //get playlists
             var validPlaylists = SeriesToPlaylist.Values.SelectMany(p => p).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            validPlaylists.Add("bgmsmashmenu");
+            validPlaylists.UnionWith(VanillaNonSeriesPlaylists);
+            var playlists = songData["playlist_entries"] as JObject;
+            if (playlists == null)
+                return;
 
             //for each playlist, assign its stage
-            foreach (var playlistName in ((JObject)songData["playlist_entries"]).Properties().Select(p => p.Name).ToList())
+            foreach (var playlistName in playlists.Properties().Select(p => p.Name).ToList())
             {
                 if (validPlaylists.Contains(playlistName))
                     continue;
 
+                //exclude any stages that are part of the excluded series
                 var foundStage = stageOverride.Properties()
-                    .FirstOrDefault(p => GetString(p.Value, "bgm_set_id") == playlistName);
+                    .FirstOrDefault(p =>
+                        string.Equals(GetString(p.Value, "bgm_set_id"), playlistName, StringComparison.OrdinalIgnoreCase)
+                        && excludedSeriesIds?.Contains(GetString(p.Value, "ui_series_id")) != true);
 
                 if (foundStage != null)
                 {
-                    GetArray(songData, "stage_database_entries").Add(new JObject
+                    var stageEntries = songData["stage_database_entries"] as JArray;
+                    if (stageEntries == null)
+                        songData["stage_database_entries"] = stageEntries = new JArray();
+                    if (stageEntries.Any(p => string.Equals(GetString(p, "ui_stage_id"), foundStage.Name, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    stageEntries.Add(new JObject
                     {
                         ["ui_stage_id"] = foundStage.Name,
                         ["bgm_set_id"] = playlistName

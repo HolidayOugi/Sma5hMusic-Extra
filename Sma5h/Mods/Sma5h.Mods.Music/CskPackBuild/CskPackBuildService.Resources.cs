@@ -28,6 +28,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 HasCoreOverrides = HasJsonValues(coreBgmOverride) || HasJsonValues(coreGameOverride) || HasJsonValues(coreSeriesOverride),
                 OrderOverride = BuildEffectiveOrderData(orderOverride),
                 PlaylistData = BuildEffectivePlaylistData(playlistOverride),
+                VanillaPlaylistDiff = BuildVanillaPlaylistDiff(playlistOverride),
+                RawPlaylistOverride = playlistOverride,
                 RawCoreBgmOverride = coreBgmOverride,
                 RawCoreGameOverride = coreGameOverride,
                 RawCoreSeriesOverride = coreSeriesOverride,

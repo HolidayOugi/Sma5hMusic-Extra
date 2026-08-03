@@ -79,8 +79,8 @@
                         </ComboBox.ItemTemplate>
                       </ComboBox>
                     </StackPanel>
-                    <AutoCompleteBox Items="{Binding Games}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
-                                   MinimumPopulateDelay="0.5" SelectedItem="{Binding SelectedGameTitleViewModel, Mode=TwoWay}" FilterMode="Contains"/>
+                    <AutoCompleteBox x:Name="GamePicker" Items="{Binding Games}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
+                                     MinimumPopulateDelay="0.5" FilterMode="Contains"/>
                   </StackPanel>
                 </fields:PropertyField.FieldContent>
               </fields:PropertyField>

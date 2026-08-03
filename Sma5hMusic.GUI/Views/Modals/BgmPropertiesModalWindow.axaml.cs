@@ -12,6 +12,7 @@ namespace Sma5hMusic.GUI.Views
     public class BgmPropertiesModalWindow : ReactiveWindow<BgmPropertiesModalWindowViewModel>
     {
         private PropertyField GameIdValidation => this.FindControl<PropertyField>("GameId");
+        private AutoCompleteBox GamePicker => this.FindControl<AutoCompleteBox>("GamePicker");
 
         public BgmPropertiesModalWindow()
         {
@@ -24,6 +25,8 @@ namespace Sma5hMusic.GUI.Views
             FitToWorkingArea();
             this.WhenActivated(disposables =>
             {
+                this.Bind(ViewModel, vm => vm.SelectedGameTitleViewModel, view => view.GamePicker.SelectedItem)
+                .DisposeWith(disposables);
                 this.BindValidation(ViewModel, vm => vm.SelectedGameTitleViewModel, view => view.GameIdValidation.ValidationError)
                 .DisposeWith(disposables);
             });
@@ -32,7 +35,12 @@ namespace Sma5hMusic.GUI.Views
         //reduce height for low resolution
         private void FitToWorkingArea()
         {
-            var newWidth = Screens.Primary.WorkingArea.Width;
+            var primaryScreen = Screens.Primary;
+            //fix a crash on WSL2
+            if (primaryScreen == null)
+                return;
+
+            var newWidth = primaryScreen.WorkingArea.Width;
             if (Width > newWidth)
                 Width = newWidth - 100;
         }

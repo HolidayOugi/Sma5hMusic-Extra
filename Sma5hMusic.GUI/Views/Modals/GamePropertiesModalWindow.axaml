@@ -21,7 +21,7 @@
         <fields:PropertyTextField x:Name="GameId" IsReadOnly="{Binding IsEdit}" IsRequired="True" Label="Game Id" Text="{Binding UiGameTitleId, Mode=TwoWay}" ToolTip="The ID for the game generated in the background. This is mostly informational." />
         <fields:PropertyField x:Name="Series" Label="Series" ToolTip="The Series associated to this game. This list cannot be updated at this time.">
           <fields:PropertyField.FieldContent>
-            <ComboBox SelectedItem="{Binding SelectedSeries, Mode=TwoWay}" Items="{Binding Series}">
+            <ComboBox x:Name="SeriesPicker" Items="{Binding Series}">
               <ComboBox.ItemTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding Title}" />
