@@ -105,6 +105,25 @@ namespace Sma5h.Mods.Music.CskPackBuild
             });
         }
 
+        private void AddCoreBgmEntriesForSeries(
+            JObject songData,
+            string seriesName,
+            JObject coreBgmOverride,
+            JObject orderOverride,
+            Dictionary<string, string> coreGameSeriesById)
+        {
+            foreach (var db in _audioStateService.GetOriginalCoreBgmDbRootEntries()
+                .Where(p => !string.IsNullOrEmpty(p.UiBgmId) && !string.IsNullOrEmpty(p.UiGameTitleId))
+                .Where(p => coreGameSeriesById.TryGetValue(p.UiGameTitleId, out var bgmSeries) &&
+                            string.Equals(bgmSeries, seriesName, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (GetInt(orderOverride, db.UiBgmId, db.TestDispOrder) == -1)
+                    continue;
+
+                AddCoreBgmFromState(songData, db.UiBgmId, coreBgmOverride, orderOverride);
+            }
+        }
+
         private static bool IsCoreBgmOverride(JObject coreBgmOverride, string uiBgmId)
         {
             if (coreBgmOverride == null || string.IsNullOrEmpty(uiBgmId))

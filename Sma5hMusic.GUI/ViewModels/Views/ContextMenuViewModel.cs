@@ -111,7 +111,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private void UpdateBgmCounter()
         {
-            NbrBgms = $"{_items.Count} songs ({_items.Count(p => p.IsCoreReplacement)} replaced) ({_items.Count(p => p.IsMod)} mods)";
+            NbrBgms = $"{_items.Count} songs ({_items.Count(p => p.IsCoreReplacement)} replaced) ({_items.Count(p => p.IsMod)} added)";
         }
 
         public void ChangeLocale(LocaleViewModel vmLocale)

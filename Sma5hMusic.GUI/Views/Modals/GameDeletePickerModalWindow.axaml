@@ -21,8 +21,8 @@
       <fields:PropertyField x:Name="GameDeletePicker" Label="Game" ToolTip="Pick an existing game to delete. You can only delete custom game entries that have no song associated to them.">
         <fields:PropertyField.FieldContent>
           <StackPanel>
-            <AutoCompleteBox Items="{Binding Games}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
-                           MinimumPopulateDelay="0.5" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" FilterMode="Contains"/>
+            <AutoCompleteBox x:Name="GamePicker" Items="{Binding Games}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
+                             MinimumPopulateDelay="0.5" FilterMode="Contains"/>
           </StackPanel>
         </fields:PropertyField.FieldContent>
       </fields:PropertyField>
