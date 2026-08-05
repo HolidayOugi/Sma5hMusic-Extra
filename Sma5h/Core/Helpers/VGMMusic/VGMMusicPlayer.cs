@@ -32,9 +32,9 @@ namespace VGMMusic
 
         }
 
-        public async Task<bool> LoadFile(string filename)
+        public async Task<bool> LoadFile(string filename, bool playForever = false)
         {
-            _logger.LogInformation("VGMMusicPlayer LoadFile requested. File={FileName}", filename);
+            _logger.LogInformation("VGMMusicPlayer LoadFile requested. File={FileName}, PlayForever={PlayForever}", filename, playForever);
 
             //Test file exist
             if (!File.Exists(filename))
@@ -50,7 +50,7 @@ namespace VGMMusic
 
             //Attempt to load file
             _logger.LogInformation("Creating VGMStreamReader for {FileName}.", filename);
-            _reader = new VGMStreamReader(filename);
+            _reader = new VGMStreamReader(filename, playForever);
 
             if (!_reader.FileLoaded)
             {
@@ -105,11 +105,11 @@ namespace VGMMusic
             return true;
         }
 
-        public async Task<bool> Play(string filename)
+        public async Task<bool> Play(string filename, bool playForever = true)
         {
-            _logger.LogInformation("VGMMusicPlayer Play file requested. File={FileName}", filename);
+            _logger.LogInformation("VGMMusicPlayer Play file requested. File={FileName}, PlayForever={PlayForever}", filename, playForever);
 
-            if (await LoadFile(filename))
+            if (await LoadFile(filename, playForever))
             {
                 return Play();
             }

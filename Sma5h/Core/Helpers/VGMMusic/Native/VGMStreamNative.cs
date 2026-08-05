@@ -43,7 +43,7 @@ namespace VGMMusic.Native
             return IntPtr.Zero;
         }
 
-        public static IntPtr InitVGMStream(string filename)
+        public static IntPtr InitVGMStream(string filename, bool playForever = false)
         {
             IntPtr streamFile = IntPtr.Zero;
             IntPtr utf8Filename = IntPtr.Zero;
@@ -73,6 +73,8 @@ namespace VGMMusic.Native
 
                 var config = new LibVGMStreamConfig
                 {
+                    AllowPlayForever = playForever,
+                    PlayForever = playForever,
                     LoopCount = 1,
                     ForceSampleFormat = LibVGMStreamSampleFormat.Pcm16
                 };
