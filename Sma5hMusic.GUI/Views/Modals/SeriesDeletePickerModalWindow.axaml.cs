@@ -12,6 +12,7 @@ namespace Sma5hMusic.GUI.Views
     public class SeriesDeletePickerModalWindow : ReactiveWindow<SeriesDeletePickerModalWindowViewModel>
     {
         private PropertyField SeriesDeletePickerValidation => this.FindControl<PropertyField>("SeriesDeletePicker");
+        private AutoCompleteBox SeriesPicker => this.FindControl<AutoCompleteBox>("SeriesPicker");
 
         public SeriesDeletePickerModalWindow()
         {
@@ -23,6 +24,8 @@ namespace Sma5hMusic.GUI.Views
             AvaloniaXamlLoader.Load(this);
             this.WhenActivated(disposables =>
             {
+                this.Bind(ViewModel, vm => vm.SelectedItem, view => view.SeriesPicker.SelectedItem)
+                .DisposeWith(disposables);
                 this.BindValidation(ViewModel, vm => vm.SelectedItem, view => view.SeriesDeletePickerValidation.ValidationError)
                 .DisposeWith(disposables);
             });

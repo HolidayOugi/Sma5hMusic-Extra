@@ -38,9 +38,9 @@ namespace VGMMusic
         public int TotalMilliseconds { get { return (int)(_totalSamples / (_sampleRate / 1000.00)); } }
         public bool FileLoaded { get { return _fileLoaded; } }
 
-        public VGMStreamReader(string filename)
+        public VGMStreamReader(string filename, bool playForever = false)
         {
-            _vgmstream = VGMStreamNative.InitVGMStream(filename);
+            _vgmstream = VGMStreamNative.InitVGMStream(filename, playForever);
             if (_vgmstream == IntPtr.Zero)
             {
                 _fileLoaded = false;

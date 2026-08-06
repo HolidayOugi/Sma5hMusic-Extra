@@ -11,7 +11,7 @@ namespace VGMMusic
         bool Play();
         bool ApplyVolume { get; set; }
         float Volume { get; set; }
-        Task<bool> Play(string filename);
+        Task<bool> Play(string filename, bool playForever = true);
         Task<bool> Play(string filename, int startSample);
         Task<VGMAudioCuePoints> GetAudioCuePoints(string filename);
         Task<bool> Stop();

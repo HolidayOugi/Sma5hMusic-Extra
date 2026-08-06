@@ -21,8 +21,8 @@
       <fields:PropertyField x:Name="SeriesDeletePicker" Label="Series" ToolTip="Pick an existing series to delete. You can only delete custom series entries that have no game or song associated to them.">
         <fields:PropertyField.FieldContent>
           <StackPanel>
-            <AutoCompleteBox Items="{Binding Series}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
-                           MinimumPopulateDelay="0.5" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" FilterMode="Contains"/>
+            <AutoCompleteBox x:Name="SeriesPicker" Items="{Binding Series}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
+                             MinimumPopulateDelay="0.5" FilterMode="Contains"/>
           </StackPanel>
         </fields:PropertyField.FieldContent>
       </fields:PropertyField>

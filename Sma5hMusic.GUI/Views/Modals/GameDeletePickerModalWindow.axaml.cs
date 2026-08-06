@@ -12,6 +12,7 @@ namespace Sma5hMusic.GUI.Views
     public class GameDeletePickerModalWindow : ReactiveWindow<GameDeletePickerModalWindowViewModel>
     {
         private PropertyField GameDeletePickerValidation => this.FindControl<PropertyField>("GameDeletePicker");
+        private AutoCompleteBox GamePicker => this.FindControl<AutoCompleteBox>("GamePicker");
 
         public GameDeletePickerModalWindow()
         {
@@ -23,6 +24,8 @@ namespace Sma5hMusic.GUI.Views
             AvaloniaXamlLoader.Load(this);
             this.WhenActivated(disposables =>
             {
+                this.Bind(ViewModel, vm => vm.SelectedItem, view => view.GamePicker.SelectedItem)
+                .DisposeWith(disposables);
                 this.BindValidation(ViewModel, vm => vm.SelectedItem, view => view.GameDeletePickerValidation.ValidationError)
                 .DisposeWith(disposables);
             });

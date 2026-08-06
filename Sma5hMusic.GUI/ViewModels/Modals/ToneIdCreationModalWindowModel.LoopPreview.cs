@@ -78,7 +78,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     previewInfo.Filename, previewInfo.PreviewLengthSamples, File.Exists(previewInfo.Filename), File.Exists(previewInfo.Filename) ? new FileInfo(previewInfo.Filename).Length : 0);
 
                 _musicPlayer.ApplyVolume = false;
-                var played = await _musicPlayer.Play(previewInfo.Filename);
+                var played = await _musicPlayer.Play(previewInfo.Filename, playForever: false);
                 _logger.LogInformation("Preview loop play requested. Played={Played}", played);
                 if (!played)
                     await _messageDialog.ShowError("Loop preview failed", "The preview file was created, but vgmstream could not play it.");

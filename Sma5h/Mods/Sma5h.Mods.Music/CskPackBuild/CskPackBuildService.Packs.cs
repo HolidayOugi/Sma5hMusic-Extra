@@ -388,6 +388,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             //process bgms from core games that have been moved to this series
             ProcessCoreGameMovedBgms(series, metadata, coreGameOverride, songData, playlistData, msgBgmEntries, msgTitleEntries, coreBgmOverride, orderOverride, seriesName, seriesFolderName, outputRoot, generatedBgmFolder, metadataBgmIds, includeAudio, ref orderCounter);
+            //include every unmodified core BGM belonging to this series as well (this is done to ensure that the ordering is always respected)
+            AddCoreBgmEntriesForSeries(songData, seriesName, coreBgmOverride, orderOverride, coreGameSeriesById);
             //save vanilla playlists data
             PopulateVanillaPlaylists(songData, seriesName, playlistData, coreBgmIds, coreBgmOverride, orderOverride);
             //save custom playlists data

@@ -51,6 +51,8 @@ namespace Sma5hMusic.GUI.ViewModels
         private bool _isSaving;
         private string _originalGameTitleId;
         private string _originalFilename;
+        private string _pendingOriginalNus3AudioFile; //original nus3audio
+        private string _pendingStagedNus3AudioFile; //pending staged copy
 
         public IEnumerable<GameTitleEntryViewModel> RecentGameTitles { get { return _recentGameTitles; } }
         [Reactive]
@@ -184,7 +186,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
             ActionNewGame = ReactiveCommand.Create<Window>(AddNewGame);
             ActionChangeFile = ReactiveCommand.CreateFromTask<BgmPropertyEntryViewModel>(ChangeFile);
-            ActionCalculateLoopCues = ReactiveCommand.CreateFromTask<BgmPropertyEntryViewModel>(CalculateAudioCues);
+            ActionCalculateLoopCues = ReactiveCommand.CreateFromTask<BgmPropertyEntryViewModel>(p => CalculateAudioCues(p, _pendingStagedNus3AudioFile));
             ActionPreviewLoops = ReactiveCommand.CreateFromTask<Window>(PreviewLoops);
             ActionNormalizeSong = ReactiveCommand.CreateFromTask<Window>(NormalizeSong);
             ActionClosing = ReactiveCommand.Create<Window>(ClosingWindow);
@@ -344,7 +346,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     var updatedFile = await UpdateNus3AudioLoopPointsWithProgress(
                         parentWindow,
                         BgmPropertyViewModel.NameId,
-                        previousFilename,
+                        StageExistingNus3Audio(previousFilename),
                         newLoopStartSample,
                         newLoopEndSample
                     );
@@ -368,13 +370,14 @@ namespace Sma5hMusic.GUI.ViewModels
                             }
                         }
 
-                        BgmPropertyViewModel.Filename = GetRelativeDisplayPath(updatedFile);
+                        if (!string.Equals(updatedFile, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase))
+                            BgmPropertyViewModel.Filename = GetRelativeDisplayPath(updatedFile);
                     }
 
-                    await CalculateAudioCues(BgmPropertyViewModel);
+                    await CalculateAudioCues(BgmPropertyViewModel, updatedFile);
 
                     if (BgmPropertyViewModel.MusicPlayer != null)
-                        await BgmPropertyViewModel.MusicPlayer.ChangeFilename(BgmPropertyViewModel.Filename);
+                        await BgmPropertyViewModel.MusicPlayer.ChangeFilename(updatedFile);
                 }
                 else
                 {
@@ -406,7 +409,7 @@ namespace Sma5hMusic.GUI.ViewModels
             uint loopEndSample)
         {
             var progressVm = new AudioConversionProgressModalWindowViewModel();
-            progressVm.SetUpdatingLoops(Path.GetFileName(filename));
+            progressVm.SetUpdatingLoops(Path.GetFileName(BgmPropertyViewModel.Filename));
 
             var progressWindow = new AudioConversionProgressModalWindow
             {
@@ -487,7 +490,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 await NormalizeSongWithProgress(parentWindow);
 
                 if (BgmPropertyViewModel.MusicPlayer != null)
-                    await BgmPropertyViewModel.MusicPlayer.ChangeFilename(BgmPropertyViewModel.Filename);
+                    await BgmPropertyViewModel.MusicPlayer.ChangeFilename(_pendingStagedNus3AudioFile ?? BgmPropertyViewModel.Filename);
             }
             catch (Exception e)
             {
@@ -528,7 +531,9 @@ namespace Sma5hMusic.GUI.ViewModels
                     convertedOutputExists = File.Exists(outputFile);
                 }
 
-                var normalizedFile = await _audioImportService.NormalizeExistingNus3Audio(BgmPropertyViewModel.NameId, previousFilename);
+                var normalizedFile = await _audioImportService.NormalizeExistingNus3Audio(
+                    BgmPropertyViewModel.NameId,
+                    StageExistingNus3Audio(previousFilename));
                 //update filename in bgmproperty window if changed
                 if (!string.Equals(normalizedFile, previousFilename, StringComparison.OrdinalIgnoreCase))
                 {
@@ -549,9 +554,10 @@ namespace Sma5hMusic.GUI.ViewModels
                         }
                     }
 
-                    BgmPropertyViewModel.Filename = GetRelativeDisplayPath(normalizedFile);
+                    if (!string.Equals(normalizedFile, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase))
+                        BgmPropertyViewModel.Filename = GetRelativeDisplayPath(normalizedFile);
                 }
-                await CalculateAudioCues(BgmPropertyViewModel);
+                await CalculateAudioCues(BgmPropertyViewModel, normalizedFile);
                 progressVm.SetComplete();
             }
             finally
@@ -585,6 +591,32 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 return filename;
             }
+        }
+
+        private string StageExistingNus3Audio(string filename)
+        {
+            if (!_audioImportService.IsNus3Audio(filename))
+                return filename;
+            
+            //if already staged, return the staged file
+            if (!string.IsNullOrWhiteSpace(_pendingStagedNus3AudioFile) &&
+                (string.Equals(filename, _pendingOriginalNus3AudioFile, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(filename, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase)))
+                return _pendingStagedNus3AudioFile;
+
+            //if filename changed, delete old staged file
+            if (!string.IsNullOrWhiteSpace(_pendingStagedNus3AudioFile))
+            {
+                File.Delete(_pendingStagedNus3AudioFile);
+                _pendingConvertedNus3AudioFiles.Remove(_pendingStagedNus3AudioFile);
+            }
+
+            //create new staged file
+            _pendingOriginalNus3AudioFile = filename;
+            _pendingStagedNus3AudioFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.nus3audio");
+            File.Copy(filename, _pendingStagedNus3AudioFile);
+            _pendingConvertedNus3AudioFiles.Add(_pendingStagedNus3AudioFile);
+            return _pendingStagedNus3AudioFile;
         }
 
         private List<ComboItem> GetRecordTypes()
@@ -669,6 +701,18 @@ namespace Sma5hMusic.GUI.ViewModels
         protected override Task<bool> SaveChanges()
         {
             _logger.LogDebug("Save Changes");
+            //replace the original nus3audio with the staged nus3audio if it was changed
+            if (!string.IsNullOrWhiteSpace(_pendingStagedNus3AudioFile))
+            {
+                if (string.Equals(BgmPropertyViewModel.Filename, _pendingOriginalNus3AudioFile, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(BgmPropertyViewModel.Filename, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Copy(_pendingStagedNus3AudioFile, _pendingOriginalNus3AudioFile, true);
+                    BgmPropertyViewModel.Filename = _pendingOriginalNus3AudioFile;
+                }
+                File.Delete(_pendingStagedNus3AudioFile);
+                _pendingConvertedNus3AudioFiles.Remove(_pendingStagedNus3AudioFile);
+            }
             _isSaving = true;
             if (BgmPropertyViewModel.AudioVolume < Constants.MinimumGameVolume)
                 BgmPropertyViewModel.AudioVolume = Constants.MinimumGameVolume;
@@ -725,6 +769,8 @@ namespace Sma5hMusic.GUI.ViewModels
             _originalFilename = BgmPropertyViewModel?.Filename;
             _isSaving = false;
             _pendingConvertedNus3AudioFiles.Clear();
+            _pendingOriginalNus3AudioFile = null;
+            _pendingStagedNus3AudioFile = null;
 
             IsModSong = item.MusicMod != null;
 
@@ -741,9 +787,9 @@ namespace Sma5hMusic.GUI.ViewModels
             SetSpecialCategoryRules(StreamSetViewModel.SpecialCategory);
         }
 
-        private async Task<bool> CalculateAudioCues(BgmPropertyEntryViewModel bgmPropertyEntryViewModel)
+        private async Task<bool> CalculateAudioCues(BgmPropertyEntryViewModel bgmPropertyEntryViewModel, string filename = null)
         {
-            var audioCuePoints = await _guiStateManager.UpdateAudioCuePoints(bgmPropertyEntryViewModel.Filename);
+            var audioCuePoints = await _guiStateManager.UpdateAudioCuePoints(filename ?? bgmPropertyEntryViewModel.Filename);
             if (audioCuePoints != null)
             {
                 _mapper.Map(audioCuePoints, bgmPropertyEntryViewModel);
