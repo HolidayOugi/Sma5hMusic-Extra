@@ -20,7 +20,7 @@ Like the original release, a dump of the following files from `data.arc` is need
 
 After extraction, the files are to be copied (with their directories) in the `Resources/Game` directory.
 
-A full tutorial on how to use Sma5hMusic can be found [here](https://gamebanana.com/tuts/13677).
+A full tutorial on how to use Sma5hMusic Extra can be found [here](https://gamebanana.com/tuts/20119).
 
 Here's a rundown of the added features.
 
