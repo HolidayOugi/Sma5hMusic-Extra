@@ -1,5 +1,7 @@
 ﻿using System.IO;
 
+using System;
+
 namespace Sma5h.Mods.Music.Helpers
 {
     public static class CopyDirHelper
@@ -9,6 +11,18 @@ namespace Sma5h.Mods.Music.Helpers
             DirectoryInfo diSource = new DirectoryInfo(sourceDirectory);
             DirectoryInfo diTarget = new DirectoryInfo(targetDirectory);
 
+            var sourcePath = Path.TrimEndingDirectorySeparator(diSource.FullName);
+            var targetPath = Path.TrimEndingDirectorySeparator(diTarget.FullName);
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            if (string.Equals(sourcePath, targetPath, comparison) ||
+                targetPath.StartsWith(sourcePath + Path.DirectorySeparatorChar, comparison))
+            {
+                throw new IOException($"The target directory '{diTarget.FullName}' must be outside the source directory '{diSource.FullName}'.");
+            }
+
             CopyAll(diSource, diTarget, searchPattern);
         }
 
@@ -16,7 +30,7 @@ namespace Sma5h.Mods.Music.Helpers
         {
             Directory.CreateDirectory(target.FullName);
 
-            foreach (FileInfo fi in source.GetFiles(searchPattern, SearchOption.AllDirectories))
+            foreach (FileInfo fi in source.GetFiles(searchPattern, SearchOption.TopDirectoryOnly))
             {
                 fi.CopyTo(Path.Combine(target.FullName, fi.Name), true);
             }

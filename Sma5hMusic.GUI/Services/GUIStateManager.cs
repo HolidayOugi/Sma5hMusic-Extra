@@ -2125,8 +2125,10 @@ namespace Sma5hMusic.GUI.Services
                     var modFolder = _config.CurrentValue.Sma5hMusic.ModPath;
                     var modOverrideFolder = _config.CurrentValue.Sma5hMusicOverride.ModPath;
                     var dateFolder = $"backup_{DateTime.Now:yyyy_MM_dd_hh_mm_ss_tt}";
-                    var backupModFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, modFolder);
-                    var backupModOverrideFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, modOverrideFolder);
+                    var modFolderPath = Path.TrimEndingDirectorySeparator(modFolder);
+                    var modOverrideFolderPath = Path.TrimEndingDirectorySeparator(modOverrideFolder);
+                    var backupModFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, Path.GetFileName(Path.GetDirectoryName(modFolderPath) ?? string.Empty), Path.GetFileName(modFolderPath));
+                    var backupModOverrideFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, Path.GetFileName(Path.GetDirectoryName(modOverrideFolderPath) ?? string.Empty), Path.GetFileName(modOverrideFolderPath));
                     if (Directory.Exists(modFolder))
                         CopyDirHelper.Copy(modFolder, backupModFolder, fullBackup ? "*" : "*.json");
                     if (Directory.Exists(modOverrideFolder))
