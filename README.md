@@ -1,6 +1,6 @@
 # Sma5hMusic Extra
 
-This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software. The software is available both for Windows and Linux operating systems.
+This is a modified version of [Sma5hMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software. The software is available both for Windows and Linux operating systems.
 
 > [!WARNING]
 > This tool is experimental, please make a backup of your music files and JSONs before using it.
