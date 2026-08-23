@@ -17,12 +17,78 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly ICskPackBuildService _cskPackBuildService;
 
         public ReactiveCommand<Unit, Unit> ActionBuildCskPacks { get; }
+        public ReactiveCommand<Unit, Unit> ActionBuildCskPacksByMod { get; }
         public ReactiveCommand<Unit, Unit> ActionBuildSingleCskPack { get; }
         public ReactiveCommand<Unit, Unit> ActionBuildCskMetadataOnly { get; }
 
         public async Task OnBuildCskPacks()
         {
             await BuildCskPacks(false);
+        }
+
+        public async Task OnBuildCskPacksByMod()
+        {
+            var buildStarted = false;
+            try
+            {
+                var currentLocale = _viewModelManager.CurrentLocale;
+                var availableMods = await _cskPackBuildService.GetAvailableMods(currentLocale);
+                if (availableMods.Count == 0)
+                {
+                    if (!HasCskOverride())
+                    {
+                        await _messageDialog.ShowError("CSK pack build failed", "No changes were found.");
+                        return;
+                    }
+
+                    if (!await _buildDialog.EnsureArcOutputIsClean())
+                        return;
+
+                    IsLoading = true;
+                    IsShowingDebug = true;
+                    buildStarted = true;
+                    await _musicPlayer.Stop();
+                    _logger.LogInformation("Building CSK vanilla song changes pack.");
+
+                    await _cskPackBuildService.BuildByMod(Enumerable.Empty<string>(), currentLocale);
+                    await _messageDialog.ShowInformation("Complete", "Modular CSK packs build complete.");
+                    return;
+                }
+
+                var pickerViewModel = new CskPackModPickerModalWindowViewModel(availableMods);
+                var pickerWindow = new CskPackModPickerModalWindow { DataContext = pickerViewModel };
+                var pickerResult = await pickerWindow.ShowDialog<CskPackModPickerModalWindow>(_rootDialog.Window);
+                if (pickerResult == null)
+                    return;
+
+                var selectedModKeys = pickerViewModel.GetSelectedModKeys().ToList();
+                if (selectedModKeys.Count == 0)
+                    return;
+
+                if (!await _buildDialog.EnsureArcOutputIsClean())
+                    return;
+
+                IsLoading = true;
+                IsShowingDebug = true;
+                buildStarted = true;
+                await _musicPlayer.Stop();
+                _logger.LogInformation("Building modular CSK packs for {SelectedModCount} selected mods.", selectedModKeys.Count);
+
+                await _cskPackBuildService.BuildByMod(selectedModKeys, currentLocale);
+                await _messageDialog.ShowInformation("Complete", "Modular CSK packs build complete.");
+            }
+            catch (Exception e)
+            {
+                await _messageDialog.ShowError("CSK pack build failed", e.Message, e);
+            }
+            finally
+            {
+                if (buildStarted)
+                {
+                    IsLoading = false;
+                    IsShowingDebug = false;
+                }
+            }
         }
 
         public async Task OnBuildSingleCskPack()

@@ -8,8 +8,10 @@ namespace Sma5h.Mods.Music.Interfaces
     {
         Task Build(string locale = null);
         Task Build(IEnumerable<string> selectedSeriesKeys, string locale = null);
+        Task BuildByMod(IEnumerable<string> selectedModKeys, string locale = null);
         Task BuildMetadataOnly(string locale = null);
         Task BuildSingle(IEnumerable<string> selectedSeriesKeys, string locale = null);
+        Task<IReadOnlyList<CskPackModOption>> GetAvailableMods(string locale = null);
         Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null);
     }
 }

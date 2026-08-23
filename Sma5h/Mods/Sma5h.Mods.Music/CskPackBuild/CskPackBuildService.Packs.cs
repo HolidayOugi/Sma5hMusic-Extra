@@ -86,6 +86,91 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 includeAudio);
         }
 
+        //generation of one pack for each selected mod
+        private void GenerateCskPacksByMod(IEnumerable<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources, bool includeAudio)
+        {
+            var contextList = contexts.ToList();
+            var allSeries = contextList.SelectMany(context => context.SeriesList).ToList();
+            var seriesSoundOrder = BuildSeriesSoundOrder(allSeries, buildResources.OrderOverride);
+
+            foreach (var context in contextList.Where(context => context.SeriesList.Any(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series)))))
+            {
+                var packFolderName = SanitizePathSegment(context.Mod.Name, context.SafePackName, "mod pack folder name");
+                var packRoot = Path.Combine(outputRoot, packFolderName);
+                var databaseFolder = Path.Combine(packRoot, "database");
+                var uiFolder = Path.Combine(packRoot, "ui", "message");
+                Directory.CreateDirectory(databaseFolder);
+                Directory.CreateDirectory(uiFolder);
+
+                var songData = CreateSongData();
+                var msgBgmEntries = new List<string>();
+                var msgTitleEntries = new List<string>();
+                var metadataBgmIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                _logger.LogInformation("Generating CSK pack for mod {ModName} from {MetadataPath}", context.Mod.Name, context.MetadataPath);
+
+                foreach (var series in context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
+                {
+                    var seriesName = GetString(series, "name_id", "<unknown>");
+                    _logger.LogInformation("[CSK] Adding {SeriesName} to mod pack {ModName}.", seriesName, context.Mod.Name);
+                    CopySeriesIcon(series, packRoot);
+                    PopulateSeriesPackData(
+                        series,
+                        songData,
+                        msgBgmEntries,
+                        msgTitleEntries,
+                        packFolderName,
+                        outputRoot,
+                        generatedBgmFolder,
+                        buildResources.PlaylistData,
+                        context.SeriesIdToName,
+                        buildResources.CoreBgmOverride,
+                        buildResources.OrderOverride,
+                        buildResources.CoreGameSeriesById,
+                        seriesSoundOrder,
+                        buildResources.StageOverride,
+                        buildResources.CoreGameOverride,
+                        buildResources.CoreSeriesOverride,
+                        context.Metadata,
+                        buildResources.CoreBgmIds,
+                        metadataBgmIds,
+                        includeAudio);
+
+                    if (includeAudio)
+                        CopyCoreVolumeOverrideBankFiles(seriesName, packFolderName, outputRoot, generatedBgmFolder, buildResources);
+                }
+
+                NormalizeCombinedSongData(songData);
+                WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
+                WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_title.xmsbt"), msgTitleEntries);
+
+                var databaseFileBaseName = SanitizePathSegment(
+                    context.Mod.Name.Replace(' ', '_').ToLowerInvariant(),
+                    context.SafePackName.Replace(' ', '_').ToLowerInvariant(),
+                    "mod database file name");
+                var outputJsonPath = Path.Combine(databaseFolder, $"{databaseFileBaseName}.json");
+                File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
+                _logger.LogInformation("[CSK] Saved mod CSK pack: {SavedPath}", outputJsonPath);
+            }
+
+            //generates series order pack for vanilla series not included
+            GenerateSeriesOrderPack(
+                contextList,
+                outputRoot,
+                selectedSeriesKeys,
+                seriesSoundOrder,
+                buildResources.CoreSeriesOverride);
+
+            //generates pack with vanilla song changes for non-selected series
+            GenerateVanillaSongsChangesPack(
+                contextList,
+                outputRoot,
+                selectedSeriesKeys,
+                generatedBgmFolder,
+                buildResources,
+                includeAudio);
+        }
+
         //generation of a single pack for all series
         private void GenerateSingleCskPack(IEnumerable<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedSeriesKeys, CskBuildResources buildResources, bool includeAudio)
         {

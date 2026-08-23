@@ -269,7 +269,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private static string CreateSeriesKey(IMusicMod mod, JObject series)
         {
-            return $"{Path.GetFullPath(mod.ModPath)}|{GetString(series, "ui_series_id")}|{GetString(series, "name_id")}";
+            return $"{CreateModKey(mod)}|{GetString(series, "ui_series_id")}|{GetString(series, "name_id")}";
+        }
+
+        private static string CreateModKey(IMusicMod mod)
+        {
+            return Path.GetFullPath(mod.ModPath);
         }
 
         private string GetSeriesDisplayName(JObject series)

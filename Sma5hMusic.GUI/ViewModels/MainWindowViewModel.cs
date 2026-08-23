@@ -217,6 +217,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionBuild = ReactiveCommand.CreateFromTask(OnBuild);
             ActionBuildNoCache = ReactiveCommand.CreateFromTask(OnBuildNoCache);
             ActionBuildCskPacks = ReactiveCommand.CreateFromTask(OnBuildCskPacks);
+            ActionBuildCskPacksByMod = ReactiveCommand.CreateFromTask(OnBuildCskPacksByMod);
             ActionBuildSingleCskPack = ReactiveCommand.CreateFromTask(OnBuildSingleCskPack);
             ActionBuildCskMetadataOnly = ReactiveCommand.CreateFromTask(OnBuildCskMetadataOnly);
             ActionRefreshData = ReactiveCommand.CreateFromTask(() => OnInitData());
@@ -336,7 +337,8 @@ namespace Sma5hMusic.GUI.ViewModels
                 $"Mod Sma5hMusicOverride - v{MusicConstants.VersionSma5hMusicOverride} by deinonychus71\r\n" +
                 $"Extra Features by HolidayOugi\r\n" +
                 $"Game - v{_guiStateManager.GameVersion}\r\n" +
-                "https://github.com/Deinonychus71/Sma5hMusic \r\n\r\n" +
+                "Original Project: https://github.com/Deinonychus71/Sma5hMusic\r\n" +
+                "Extra Project: https://github.com/HolidayOugi/Sma5hMusic-Extra\r\n\r\n" +
                 "Research: soneek\r\n" +
                 "Testing: Demonslayerx8, Segtendo\r\n" +
                 "Original Icon: Segtendo\r\n" +
