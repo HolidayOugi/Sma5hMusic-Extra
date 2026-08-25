@@ -2,8 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="210"
-        Width="360" Height="210" MinWidth="360" MinHeight="210"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="450"
+        Width="400" Height="450" MinWidth="400" MinHeight="450"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         x:Class="Sma5hMusic.GUI.Views.CustomTextColorModalWindow"
         Title="Custom Color">
@@ -16,20 +16,36 @@
       <Button x:Name="CancelButton" Content="Cancel"></Button>
     </StackPanel>
 
-    <StackPanel Classes="content" HorizontalAlignment="Center">
-      <TextBlock Text="Hex value" HorizontalAlignment="Center"/>
-      <Grid Margin="0,8,0,0">
-        <Grid ColumnDefinitions="Auto,160" HorizontalAlignment="Center">
-          <Border Grid.Column="0" BorderBrush="#777" BorderThickness="1,1,0,1" Padding="8,3" MinHeight="28">
+    <StackPanel Classes="content" HorizontalAlignment="Center" Spacing="0">
+      <Grid ColumnDefinitions="240,12,36" Height="240">
+        <Canvas Grid.Column="0" Width="240" Height="240">
+          <Image x:Name="ColorAreaImage" Width="240" Height="240"/>
+          <Grid x:Name="ColorAreaSelector" Width="18" Height="18" IsHitTestVisible="False">
+            <Ellipse Stroke="#CC000000" StrokeThickness="4"/>
+            <Ellipse Stroke="White" StrokeThickness="2" Margin="2"/>
+          </Grid>
+        </Canvas>
+        <Canvas Grid.Column="2" Width="36" Height="240">
+          <Image x:Name="HueBarImage" Canvas.Left="4" Width="28" Height="240"/>
+          <Grid x:Name="HueBarSelector" Width="36" Height="8" IsHitTestVisible="False">
+            <Border BorderBrush="#CC000000" BorderThickness="2"/>
+            <Border BorderBrush="White" BorderThickness="1" Margin="2"/>
+          </Grid>
+        </Canvas>
+      </Grid>
+
+      <TextBlock Text="Hex value" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+      <Grid ColumnDefinitions="Auto,160,Auto" HorizontalAlignment="Center" Margin="0,8,0,0">
+          <Border Grid.Column="0" BorderBrush="#777" BorderThickness="1,1,0,1"
+                  Padding="8,3" MinHeight="28">
             <TextBlock Text="#" VerticalAlignment="Center"/>
           </Border>
           <TextBox x:Name="HexTextBox" Grid.Column="1" MinHeight="28"/>
-        </Grid>
-        <Border x:Name="ColorPreview" Width="28" Height="28" Margin="224,0,0,0"
-                HorizontalAlignment="Center" BorderBrush="#777" BorderThickness="1" IsVisible="False"/>
+          <Border x:Name="ColorPreview" Grid.Column="2" Width="28" Height="28" Margin="8,0,0,0"
+                  BorderBrush="#777" BorderThickness="1" Opacity="0"/>
       </Grid>
       <TextBlock x:Name="ValidationText" Classes="error" Margin="0,6,0,0"
-                 MinHeight="18" MaxWidth="220" TextWrapping="Wrap" TextAlignment="Center"/>
+                 MinHeight="18" MaxWidth="260" TextWrapping="Wrap" TextAlignment="Center"/>
     </StackPanel>
   </DockPanel>
 </Window>

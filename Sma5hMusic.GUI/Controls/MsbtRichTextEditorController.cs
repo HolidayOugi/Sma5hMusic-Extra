@@ -345,7 +345,7 @@ namespace Sma5hMusic.GUI.Controls
             string hexColor = null;
             if (owner != null)
             {
-                var dialog = new CustomTextColorModalWindow();
+                var dialog = new CustomTextColorModalWindow(previousColor.Hex);
                 hexColor = await dialog.ShowDialog<string>(owner);
             }
 
