@@ -171,6 +171,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Fixed tone ID validation not always checking if the value is already present.
 * Fixed song list not refreshing when a filter was active.
 * Fixed backups creating duplicates of the metadata JSON.
+* Fixed Playlist and Sound Test views not updating if a song was hidden.
 
 ## FAQ
 

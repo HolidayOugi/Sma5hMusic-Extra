@@ -52,7 +52,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 .Filter(p => !p.HiddenInSoundTest)
                 .AutoRefresh(p => p.TestDispOrder, TimeSpan.FromMilliseconds(50))
                 .AutoRefresh(p => p.GameTitleViewModel.UiSeriesId, TimeSpan.FromMilliseconds(50))
-                .Sort(SortExpressionComparer<BgmDbRootEntryViewModel>.Ascending(p => p.TestDispOrder), SortOptimisations.ComparesImmutableValuesOnly, 100)
+                .Sort(SortExpressionComparer<BgmDbRootEntryViewModel>.Ascending(p => p.TestDispOrder), SortOptimisations.None, 100)
                 .TreatMovesAsRemoveAdd()
                 .Throttle(TimeSpan.FromMilliseconds(50))
                 .ObserveOn(RxApp.MainThreadScheduler)
