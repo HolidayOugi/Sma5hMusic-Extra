@@ -32,7 +32,7 @@ namespace Sma5h.Mods.Music
             public bool HideSeriesColumn { get; set; }
             public bool HideRecordColumn { get; set; }
             public bool HideModColumn { get; set; }
-            
+            public System.Collections.Generic.List<Helpers.MsbtTextColorSetting> DefaultColorList { get; set; }
         }
     }
 }

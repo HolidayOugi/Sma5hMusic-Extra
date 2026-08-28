@@ -54,7 +54,7 @@ namespace Sma5hMusic.GUI.Interfaces
         Task<bool> RemovePlaylist(string playlistId);
         Task<bool> PersistStageChanges();
 
-        Task<bool> UpdateGlobalSettings(ApplicationSettings appSettings);
+        Task<bool> UpdateGlobalSettings(ApplicationSettings appSettings, bool showRestartMessage = true);
         Task<bool> WipeAudioCache();
         Task<bool> ReorderSongs();
         Task<bool> ReorderSongs(IEnumerable<string> bgmEntriesToReorder, short newPosition);

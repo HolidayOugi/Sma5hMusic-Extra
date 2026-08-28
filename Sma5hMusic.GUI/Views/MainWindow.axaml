@@ -125,6 +125,9 @@
                     ToolTip.Tip="Sorts selected series alphabetically, ignoring games."
                     Command="{Binding ActionSortSongsAlphabeticallyBySeries}"></MenuItem>
         </MenuItem>
+        <Separator></Separator>
+        <MenuItem Header="Modify Default Color List"
+                  Command="{Binding ActionModifyDefaultColorList}"></MenuItem>
       </MenuItem>
       <MenuItem Header="Settings">
         <MenuItem Header="Show Advanced BGM Options" Command="{Binding ActionToggleAdvanced}">

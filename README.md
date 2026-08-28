@@ -33,7 +33,7 @@ Here's a rundown of the added features.
 **CSK-compatible Music Packs** can be now be built. The software offers two options:
 
 * **Single Pack**: A single Music Pack comprised of all the Mods and Series currently loaded.
-* **Modular Packs**: Multiple Modular Music Packs for each Series and Mod. An option is given to select which Series to generate. 
+* **Modular Packs**: Multiple Modular Music Packs. The packs can either be splitted by Mod (if multiple mods are present) or by Series.
 
 ![Series Selection](https://elixi.re/i/bfyok.png)
 
@@ -41,7 +41,7 @@ Here's a rundown of the added features.
 > When using the Modular Packs option, if one or more Vanilla Series were not selected during the generation, an optional Series Order pack is generated. If loaded, it ensures that each Series is in its correct order in the Music Select / Sound Test screen.
 
 > [!TIP]
-> When using the Modular Packs option, if one or more Core songs had their values changed and they weren't from a Series already selected during the generation, an optional Vanilla Song Changes pack is generated. If loaded, it will apply the changes made to the edited Core Songs.
+> When using the Modular Packs option, if one or more Core songs had their values changed and they weren't from a Series or Mod already selected during the generation, an optional Vanilla Song Changes pack is generated. If loaded, it will apply the changes made to the edited Core Songs.
 
 ## Icon Selection and Conversion
 
@@ -110,7 +110,7 @@ The songs can be imported either from their URL or from a text file containing a
 
 ## Colored Text
 
-Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors or by inputting the hex value of a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
+Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors, which can be modified in the Extra submenu, or by inputting a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
 
 ![Colored](https://elixi.re/i/t07dd.png)
 
@@ -223,7 +223,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 - [x] Update vgmstream library and main executable to x64
 - [x] Linux Support
 - [ ] Decouple CSK Build service from JSONs loading
-- [ ] Allow editing of Color Picker color list
+- [x] Allow editing of Color Picker color list
 - [ ] Add Trim function when importing from audio
 - [ ] Add Filter to MainWindow for songs not in a playlist
 - [ ] Allow reverse importing of CSK Packs and/or XMSBT files

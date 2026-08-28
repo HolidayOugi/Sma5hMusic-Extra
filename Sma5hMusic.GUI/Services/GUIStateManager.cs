@@ -1803,7 +1803,7 @@ namespace Sma5hMusic.GUI.Services
             }
         }
 
-        public async Task<bool> UpdateGlobalSettings(ApplicationSettings appSettings)
+        public async Task<bool> UpdateGlobalSettings(ApplicationSettings appSettings, bool showRestartMessage = true)
         {
             bool result;
 
@@ -1827,7 +1827,7 @@ namespace Sma5hMusic.GUI.Services
                     await _messageDialog.ShowError("Update Global Settings", "There was an error while updating appsettings.json. Please check the logs.");
                 }, DispatcherPriority.Background);
             }
-            else
+            else if (showRestartMessage)
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {

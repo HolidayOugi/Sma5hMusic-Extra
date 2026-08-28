@@ -19,6 +19,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private const string COPY_ACTION_ALL = "all";
         private const string COPY_ACTION_EMPTY = "empty";
         private readonly Dictionary<string, List<string>> _useRecentDict;
+        private readonly HashSet<string> _customTextColorIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly IEnumerable<ComboItem> _copyActions;
         private readonly IEnumerable<ComboItem> _locales;
 
@@ -82,6 +83,7 @@ namespace Sma5hMusic.GUI.ViewModels
             TextColorOptions = new ObservableCollection<MsbtTextColor>(
                 MsbtRichTextColorHelper.Colors.Concat(new[] { MsbtRichTextColorHelper.CustomColorSelector }));
             SelectedTextColor = MsbtRichTextColorHelper.DefaultColor;
+            MsbtRichTextColorHelper.DefaultColorsChanged += RefreshDefaultTextColors;
             ActionChangeLocale = ReactiveCommand.Create<ComboItem>(ChangeLocale);
             ActionCopyToAll = ReactiveCommand.Create(CopyToAllLanguages);
             ActionCopyToEmptyLanguages = ReactiveCommand.Create(CopyToEmptyLanguages);
@@ -222,10 +224,13 @@ namespace Sma5hMusic.GUI.ViewModels
             var existingColor = TextColorOptions.FirstOrDefault(p => string.Equals(p.Id, color.Id, StringComparison.OrdinalIgnoreCase));
             if (existingColor != null)
             {
+                if (!MsbtRichTextColorHelper.Colors.Any(p => string.Equals(p.Id, color.Id, StringComparison.OrdinalIgnoreCase)))
+                    _customTextColorIds.Add(color.Id);
                 SelectedTextColor = existingColor;
                 return;
             }
 
+            _customTextColorIds.Add(color.Id);
             var customSelectorIndex = TextColorOptions.IndexOf(MsbtRichTextColorHelper.CustomColorSelector);
             if (customSelectorIndex < 0)
                 TextColorOptions.Add(color);
@@ -233,6 +238,29 @@ namespace Sma5hMusic.GUI.ViewModels
                 TextColorOptions.Insert(customSelectorIndex, color);
 
             SelectedTextColor = color;
+        }
+
+        //refresh color list to include any temporary custom colors that may have been added
+        private void RefreshDefaultTextColors()
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var customColors = TextColorOptions
+                    .Where(p => _customTextColorIds.Contains(p.Id) &&
+                                !MsbtRichTextColorHelper.Colors.Any(c =>
+                                    string.Equals(c.Id, p.Id, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+                var selectedId = SelectedTextColor?.Id;
+
+                TextColorOptions.Clear();
+                foreach (var color in MsbtRichTextColorHelper.Colors.Concat(customColors))
+                    TextColorOptions.Add(color);
+                TextColorOptions.Add(MsbtRichTextColorHelper.CustomColorSelector);
+
+                SelectedTextColor = TextColorOptions.FirstOrDefault(p =>
+                    string.Equals(p.Id, selectedId, StringComparison.OrdinalIgnoreCase))
+                    ?? MsbtRichTextColorHelper.DefaultColor;
+            }, DispatcherPriority.Background);
         }
 
         private void SaveValueToCurrentLocale()

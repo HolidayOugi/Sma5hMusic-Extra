@@ -85,6 +85,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Unit, Unit> ActionOpenThanks { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenWiki { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenGlobalSettings { get; }
+        public ReactiveCommand<Unit, Unit> ActionModifyDefaultColorList { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenModsFolder { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenOutputFolder { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenResourcesFolder { get; }
@@ -226,6 +227,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionOpenThanks = ReactiveCommand.CreateFromTask(OnThanksOpen);
             ActionOpenWiki = ReactiveCommand.Create(OnWikiOpen);
             ActionOpenGlobalSettings = ReactiveCommand.CreateFromTask(OnGlobalSettingsOpen);
+            ActionModifyDefaultColorList = ReactiveCommand.CreateFromTask(OnModifyDefaultColorList);
             ActionOpenModsFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.Sma5hMusic.ModPath));
             ActionOpenOutputFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.OutputPath));
             ActionOpenResourcesFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.ResourcesPath));
@@ -369,6 +371,25 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 IsAdvanced = result.Advanced;
             }
+        }
+
+        public async Task OnModifyDefaultColorList()
+        {
+            var currentColors = MsbtRichTextColorHelper.Colors
+                .Where(p => !p.IsDefault)
+                .Select(p => new MsbtTextColorSetting(p.Hex, p.Label))
+                .ToList();
+            var dialog = new DefaultColorListModalWindow(currentColors);
+            var result = await dialog.ShowDialog<List<MsbtTextColorSetting>>(_rootDialog.Window);
+            if (result == null)
+                return;
+
+            var previousColors = _appSettings.CurrentValue.Sma5hMusicGUI.DefaultColorList;
+            _appSettings.CurrentValue.Sma5hMusicGUI.DefaultColorList = result;
+            if (await _guiStateManager.UpdateGlobalSettings(_appSettings.CurrentValue, false))
+                MsbtRichTextColorHelper.ConfigureDefaultColors(result);
+            else
+                _appSettings.CurrentValue.Sma5hMusicGUI.DefaultColorList = previousColors;
         }
 
         public void OnAdvancedToggle()
