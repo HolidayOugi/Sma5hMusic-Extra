@@ -361,7 +361,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public void OnWikiOpen()
         {
-            WebBrowserHelper.OpenBrowser("https://github.com/Deinonychus71/Sma5hMusic/wiki");
+            WebBrowserHelper.OpenBrowser("https://gamebanana.com/tuts/20119");
         }
 
         public async Task OnGlobalSettingsOpen()

@@ -148,7 +148,7 @@
         <MenuItem Header="Global Settings" Command="{Binding ActionOpenGlobalSettings}"></MenuItem>
       </MenuItem>
       <MenuItem Header="About">
-        <MenuItem Header="Wiki" Command="{Binding ActionOpenWiki}"></MenuItem>
+        <MenuItem Header="Tutorial" Command="{Binding ActionOpenWiki}"></MenuItem>
         <Separator></Separator>
         <MenuItem Header="About" Command="{Binding ActionOpenThanks}"></MenuItem>
       </MenuItem>
