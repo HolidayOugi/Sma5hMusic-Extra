@@ -24,7 +24,7 @@
         <TextBlock x:Name="EmptyText" Text="No default colors configured."
                    HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,20,0,0"/>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel x:Name="ColorsPanel" Spacing="6"/>
+          <StackPanel x:Name="ColorsPanel"/>
         </ScrollViewer>
       </Grid>
     </DockPanel>

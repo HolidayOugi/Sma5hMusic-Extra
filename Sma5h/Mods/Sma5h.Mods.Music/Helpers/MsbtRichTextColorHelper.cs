@@ -68,10 +68,10 @@ namespace Sma5h.Mods.Music.Helpers
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var setting in settings ?? Enumerable.Empty<MsbtTextColorSetting>())
             {
-                if (setting == null || !TryParseHexColor(setting.Hex, out var color) || !seen.Add(color.Hex))
-                    continue;
-
-                if (string.IsNullOrWhiteSpace(setting.DisplayName))
+                if (setting == null ||
+                    string.IsNullOrWhiteSpace(setting.DisplayName) ||
+                    !TryParseHexColor(setting.Hex, out var color) ||
+                    !seen.Add(color.Hex))
                     continue;
 
                 var displayName = setting.DisplayName.Trim();
@@ -259,8 +259,11 @@ namespace Sma5h.Mods.Music.Helpers
         private static bool TryParseHexColor(string value, out MsbtTextColor color)
         {
             color = null;
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
             //accept double hex for easy copy-paste
-            var hex = value.TrimStart('#');
+            var hex = value.Trim().TrimStart('#');
             if (hex.Length != 6 && hex.Length != 8)
                 return false;
 
