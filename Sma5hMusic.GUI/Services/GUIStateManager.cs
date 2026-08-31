@@ -1999,7 +1999,11 @@ namespace Sma5hMusic.GUI.Services
             var newBgmStreamPropertyEntry = new BgmStreamPropertyEntry($"{MusicConstants.InternalIds.STREAM_PREFIX}{toneId}", musicMod) { DataName0 = newBgmPropertyEntry.NameId };
             var newBgmAssignedInfoEntry = new BgmAssignedInfoEntry($"{MusicConstants.InternalIds.INFO_ID_PREFIX}{toneId}", musicMod) { StreamId = newBgmStreamPropertyEntry.StreamId };
             var newBgmStreamSetEntry = new BgmStreamSetEntry($"{MusicConstants.InternalIds.STREAM_SET_PREFIX}{toneId}", musicMod) { Info0 = newBgmAssignedInfoEntry.InfoId };
-            var newBgmDbRootEntry = new BgmDbRootEntry($"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}", musicMod) { StreamSetId = newBgmStreamSetEntry.StreamSetId };
+            var newBgmDbRootEntry = new BgmDbRootEntry($"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}", musicMod)
+            {
+                StreamSetId = newBgmStreamSetEntry.StreamSetId,
+                RecordType = GetDefaultRecordType()
+            };
             newBgmDbRootEntry.TestDispOrder = GetNewHighestSoundTestOrderValue();
 
             //Create mod
@@ -2104,6 +2108,15 @@ namespace Sma5hMusic.GUI.Services
                 Math.Round(volume, 1, MidpointRounding.AwayFromZero),
                 (decimal)Helpers.Constants.MinimumGameVolume,
                 (decimal)Helpers.Constants.MaximumGameVolume);
+        }
+
+        private string GetDefaultRecordType()
+        {
+            var recordType = _config.CurrentValue.Sma5hMusicGUI.DefaultRecordType;
+
+            return !string.IsNullOrWhiteSpace(recordType) && Helpers.Constants.CONVERTER_RECORD_TYPE.ContainsKey(recordType)
+                ? recordType
+                : MusicConstants.InternalIds.RECORD_TYPE_DEFAULT;
         }
 
         public async Task<bool> BackupProject(bool fullBackup, bool showConfirm = true)

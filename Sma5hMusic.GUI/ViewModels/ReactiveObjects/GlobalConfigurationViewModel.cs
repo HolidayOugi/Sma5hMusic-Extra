@@ -28,6 +28,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public string DefaultSma5hMusicLocale { get; set; } //TODO, remove?
         public string DefaultGUILocale { get; set; }
         public string DefaultMSBTLocale { get; set; }
+        public string DefaultRecordType { get; set; }
         public List<MsbtTextColorSetting> DefaultColorList { get; set; }
 
         [Reactive]

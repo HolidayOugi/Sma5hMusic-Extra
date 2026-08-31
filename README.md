@@ -152,7 +152,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 
 * (*Should have*) fixed bug where songs would stop playing in-game due to their order in the global song list.
 * Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
-* The default volume for a new song can now be set in Global Settings.
+* The default volume and arrange type for a new song can now be set in Global Settings.
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
 * The Song List can now be exported to a spreadsheet.
 * Added option to generate a Sma5hMusic Mod from an already generated build.

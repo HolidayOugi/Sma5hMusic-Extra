@@ -261,6 +261,7 @@ namespace Sma5hMusic.GUI
                 { "Sma5hMusicGUI:DefaultMSBTLocale", "us_en" },
                 { "Sma5hMusicGUI:PlaylistIncidenceDefault", "0" },
                 { "Sma5hMusicGUI:DefaultSongVolume", "2.7" },
+                { "Sma5hMusicGUI:DefaultRecordType", MusicConstants.InternalIds.RECORD_TYPE_DEFAULT },
                 { "Sma5hMusicGUI:SkipWarningGameVersion", "false" },
                 { "Sma5hMusicGUI:AutoBackupAtStart", "true" },
                 { "Sma5hMusicGUI:InGameVolume", "false" },
