@@ -38,6 +38,7 @@ namespace Sma5hMusic.GUI.Dialogs
                 ContentTitle = title,
                 ContentMessage = message,
                 Icon = Icon.Warning,
+                WindowIcon = _rootDialogWindow.Window.Icon,
                 Style = _style
             });
             var result = await msBoxStandardWindow.ShowDialog(_rootDialogWindow.Window);
@@ -54,6 +55,7 @@ namespace Sma5hMusic.GUI.Dialogs
                 ContentTitle = title,
                 ContentMessage = message,
                 Icon = Icon.Warning,
+                WindowIcon = _rootDialogWindow.Window.Icon,
                 Style = _style
             });
             await msBoxStandardWindow.ShowDialog(_rootDialogWindow.Window);
@@ -72,6 +74,7 @@ namespace Sma5hMusic.GUI.Dialogs
                 ContentTitle = title,
                 ContentMessage = message,
                 Icon = Icon.Error,
+                WindowIcon = _rootDialogWindow.Window.Icon,
                 Style = _style
             });
             await msBoxStandardWindow.ShowDialog(_rootDialogWindow.Window);
@@ -87,6 +90,7 @@ namespace Sma5hMusic.GUI.Dialogs
                 ContentTitle = title,
                 ContentMessage = message,
                 Icon = Icon.Info,
+                WindowIcon = _rootDialogWindow.Window.Icon,
                 Style = _style
             };
             if (maxWidth > 0)
@@ -106,6 +110,7 @@ namespace Sma5hMusic.GUI.Dialogs
                 ContentTitle = title,
                 ContentMessage = message,
                 Icon = Icon.Info,
+                WindowIcon = _rootDialogWindow.Window.Icon,
                 Style = Style.DarkMode
             });
             var result = await msBoxStandardWindow.ShowDialog(_rootDialogWindow.Window);

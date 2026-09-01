@@ -18,5 +18,8 @@
   </Application.Resources>
   <Application.Styles>
     <StyleInclude Source="/Assets/Styles/Styles.xaml" />
+    <Style Selector="Window">
+      <Setter Property="Icon" Value="/Assets/sma5hmusic-logo.ico" />
+    </Style>
   </Application.Styles>
 </Application>
