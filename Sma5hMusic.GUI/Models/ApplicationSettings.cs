@@ -20,6 +20,7 @@ namespace Sma5h.Mods.Music
             public bool CopyToEmptyLocales { get; set; }
             public ushort PlaylistIncidenceDefault { get; set; }
             public double DefaultSongVolume { get; set; }
+            public string DefaultRecordType { get; set; }
             public bool SkipWarningGameVersion { get; set; }
             public bool AutoBackupAtStart { get; set; }
             public bool InGameVolume { get; set; }
@@ -32,7 +33,7 @@ namespace Sma5h.Mods.Music
             public bool HideSeriesColumn { get; set; }
             public bool HideRecordColumn { get; set; }
             public bool HideModColumn { get; set; }
-            
+            public System.Collections.Generic.List<Helpers.MsbtTextColorSetting> DefaultColorList { get; set; }
         }
     }
 }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NReco.Logging.File;
 using Sma5h.Mods.Music;
+using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.Dialogs;
 using Sma5hMusic.GUI.Helpers;
 using Sma5hMusic.GUI.Interfaces;
@@ -18,6 +19,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using VGMMusic;
 using VGMMusic.Native;
 
@@ -60,6 +62,7 @@ namespace Sma5hMusic.GUI
 
             var configuration = configurationBuilder.Build();
             Configuration = configuration;
+            MsbtRichTextColorHelper.ConfigureDefaultColors(GetConfiguredDefaultColors(configuration));
 
             ConfigureNativeLibraryPaths(configuration);
 
@@ -91,6 +94,14 @@ namespace Sma5hMusic.GUI
 
             //Add UI Services
             services.Configure<ApplicationSettings>(configuration);
+            services.PostConfigure<ApplicationSettings>(settings =>
+            {
+                var configuredColors = settings.Sma5hMusicGUI.DefaultColorList
+                    ?? GetConfiguredDefaultColors(configuration)
+                    ?? MsbtRichTextColorHelper.BuiltInDefaultColors.ToList();
+                settings.Sma5hMusicGUI.DefaultColorList =
+                    MsbtRichTextColorHelper.NormalizeDefaultColorSettings(configuredColors);
+            });
             services.AddSingleton<IDevToolsService, DevToolsService>();
             services.AddSingleton<ISeriesIconService, SeriesIconService>();
             services.AddSingleton<IVGMMusicPlayer, VGMMusicPlayer>();
@@ -159,6 +170,59 @@ namespace Sma5hMusic.GUI
             return Path.GetDirectoryName(processModule?.FileName);
         }
 
+        //get color list from appsettings.json
+        //if color list is absent or invalid, fallback to default list
+        private static List<MsbtTextColorSetting> GetConfiguredDefaultColors(IConfiguration configuration)
+        {
+            var settingsPath = Path.Combine(GetBasePath(), "appsettings.json");
+            if (File.Exists(settingsPath))
+            {
+                using var document = JsonDocument.Parse(File.ReadAllText(settingsPath));
+                if (TryGetProperty(document.RootElement, "Sma5hMusicGUI", out var guiSettings) &&
+                    TryGetProperty(guiSettings, "DefaultColorList", out var colorList) &&
+                    colorList.ValueKind == JsonValueKind.Array)
+                {
+                    return colorList.EnumerateArray()
+                        .Select(ParseColorSetting)
+                        .Where(p => p != null)
+                        .ToList();
+                }
+            }
+
+            return configuration.GetSection("Sma5hMusicGUI:DefaultColorList")
+                .Get<List<MsbtTextColorSetting>>();
+        }
+
+        private static MsbtTextColorSetting ParseColorSetting(JsonElement element)
+        {
+            if (element.ValueKind != JsonValueKind.Object ||
+                !TryGetProperty(element, "Hex", out var hex) ||
+                hex.ValueKind != JsonValueKind.String ||
+                !TryGetProperty(element, "DisplayName", out var name) ||
+                name.ValueKind != JsonValueKind.String)
+                return null;
+
+            return new MsbtTextColorSetting(hex.GetString(), name.GetString());
+        }
+
+        private static bool TryGetProperty(JsonElement element, string propertyName, out JsonElement value)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        value = property.Value;
+                        return true;
+                    }
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
         private static Dictionary<string, string> GetDefaultConfiguration()
         {
             var defaultConfig = new Dictionary<string, string>()
@@ -197,6 +261,7 @@ namespace Sma5hMusic.GUI
                 { "Sma5hMusicGUI:DefaultMSBTLocale", "us_en" },
                 { "Sma5hMusicGUI:PlaylistIncidenceDefault", "0" },
                 { "Sma5hMusicGUI:DefaultSongVolume", "2.7" },
+                { "Sma5hMusicGUI:DefaultRecordType", MusicConstants.InternalIds.RECORD_TYPE_DEFAULT },
                 { "Sma5hMusicGUI:SkipWarningGameVersion", "false" },
                 { "Sma5hMusicGUI:AutoBackupAtStart", "true" },
                 { "Sma5hMusicGUI:InGameVolume", "false" },

@@ -1,6 +1,6 @@
 # Sma5hMusic Extra
 
-This is a modified version of [Sma5shMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software. The software is available both for Windows and Linux operating systems.
+This is a modified version of [Sma5hMusic by Deinonychus71](https://github.com/Deinonychus71/Sma5hMusic) that adds extra functionality to the original software. The software is available both for Windows and Linux operating systems.
 
 > [!WARNING]
 > This tool is experimental, please make a backup of your music files and JSONs before using it.
@@ -20,7 +20,7 @@ Like the original release, a dump of the following files from `data.arc` is need
 
 After extraction, the files are to be copied (with their directories) in the `Resources/Game` directory.
 
-A full tutorial on how to use Sma5hMusic can be found [here](https://gamebanana.com/tuts/13677).
+A full tutorial on how to use Sma5hMusic Extra can be found [here](https://gamebanana.com/tuts/20119).
 
 Here's a rundown of the added features.
 
@@ -33,7 +33,7 @@ Here's a rundown of the added features.
 **CSK-compatible Music Packs** can be now be built. The software offers two options:
 
 * **Single Pack**: A single Music Pack comprised of all the Mods and Series currently loaded.
-* **Modular Packs**: Multiple Modular Music Packs for each Series and Mod. An option is given to select which Series to generate. 
+* **Modular Packs**: Multiple Modular Music Packs. The packs can either be splitted by Mod (if multiple mods are present) or by Series.
 
 ![Series Selection](https://elixi.re/i/bfyok.png)
 
@@ -41,7 +41,7 @@ Here's a rundown of the added features.
 > When using the Modular Packs option, if one or more Vanilla Series were not selected during the generation, an optional Series Order pack is generated. If loaded, it ensures that each Series is in its correct order in the Music Select / Sound Test screen.
 
 > [!TIP]
-> When using the Modular Packs option, if one or more Core songs had their values changed and they weren't from a Series already selected during the generation, an optional Vanilla Song Changes pack is generated. If loaded, it will apply the changes made to the edited Core Songs.
+> When using the Modular Packs option, if one or more Core songs had their values changed and they weren't from a Series or Mod already selected during the generation, an optional Vanilla Song Changes pack is generated. If loaded, it will apply the changes made to the edited Core Songs.
 
 ## Icon Selection and Conversion
 
@@ -110,7 +110,7 @@ The songs can be imported either from their URL or from a text file containing a
 
 ## Colored Text
 
-Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors or by inputting the hex value of a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
+Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors, which can be modified in the Extra submenu, or by inputting a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
 
 ![Colored](https://elixi.re/i/t07dd.png)
 
@@ -152,7 +152,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 
 * (*Should have*) fixed bug where songs would stop playing in-game due to their order in the global song list.
 * Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
-* The default volume for a new song can now be set in Global Settings.
+* The default volume and arrange type for a new song can now be set in Global Settings.
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
 * The Song List can now be exported to a spreadsheet.
 * Added option to generate a Sma5hMusic Mod from an already generated build.
@@ -170,6 +170,8 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Fixed some UI elements not showing properly at lower screen resolutions.
 * Fixed tone ID validation not always checking if the value is already present.
 * Fixed song list not refreshing when a filter was active.
+* Fixed backups creating duplicates of the metadata JSON.
+* Fixed Playlist and Sound Test views not updating if a song was hidden.
 
 ## FAQ
 
@@ -221,7 +223,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 - [x] Update vgmstream library and main executable to x64
 - [x] Linux Support
 - [ ] Decouple CSK Build service from JSONs loading
-- [ ] Allow editing of Color Picker color list
+- [x] Allow editing of Color Picker color list
 - [ ] Add Trim function when importing from audio
 - [ ] Add Filter to MainWindow for songs not in a playlist
 - [ ] Allow reverse importing of CSK Packs and/or XMSBT files

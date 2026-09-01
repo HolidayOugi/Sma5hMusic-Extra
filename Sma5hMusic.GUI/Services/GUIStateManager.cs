@@ -1803,7 +1803,7 @@ namespace Sma5hMusic.GUI.Services
             }
         }
 
-        public async Task<bool> UpdateGlobalSettings(ApplicationSettings appSettings)
+        public async Task<bool> UpdateGlobalSettings(ApplicationSettings appSettings, bool showRestartMessage = true)
         {
             bool result;
 
@@ -1827,7 +1827,7 @@ namespace Sma5hMusic.GUI.Services
                     await _messageDialog.ShowError("Update Global Settings", "There was an error while updating appsettings.json. Please check the logs.");
                 }, DispatcherPriority.Background);
             }
-            else
+            else if (showRestartMessage)
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
@@ -1999,7 +1999,11 @@ namespace Sma5hMusic.GUI.Services
             var newBgmStreamPropertyEntry = new BgmStreamPropertyEntry($"{MusicConstants.InternalIds.STREAM_PREFIX}{toneId}", musicMod) { DataName0 = newBgmPropertyEntry.NameId };
             var newBgmAssignedInfoEntry = new BgmAssignedInfoEntry($"{MusicConstants.InternalIds.INFO_ID_PREFIX}{toneId}", musicMod) { StreamId = newBgmStreamPropertyEntry.StreamId };
             var newBgmStreamSetEntry = new BgmStreamSetEntry($"{MusicConstants.InternalIds.STREAM_SET_PREFIX}{toneId}", musicMod) { Info0 = newBgmAssignedInfoEntry.InfoId };
-            var newBgmDbRootEntry = new BgmDbRootEntry($"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}", musicMod) { StreamSetId = newBgmStreamSetEntry.StreamSetId };
+            var newBgmDbRootEntry = new BgmDbRootEntry($"{MusicConstants.InternalIds.UI_BGM_ID_PREFIX}{toneId}", musicMod)
+            {
+                StreamSetId = newBgmStreamSetEntry.StreamSetId,
+                RecordType = GetDefaultRecordType()
+            };
             newBgmDbRootEntry.TestDispOrder = GetNewHighestSoundTestOrderValue();
 
             //Create mod
@@ -2106,6 +2110,15 @@ namespace Sma5hMusic.GUI.Services
                 (decimal)Helpers.Constants.MaximumGameVolume);
         }
 
+        private string GetDefaultRecordType()
+        {
+            var recordType = _config.CurrentValue.Sma5hMusicGUI.DefaultRecordType;
+
+            return !string.IsNullOrWhiteSpace(recordType) && Helpers.Constants.CONVERTER_RECORD_TYPE.ContainsKey(recordType)
+                ? recordType
+                : MusicConstants.InternalIds.RECORD_TYPE_DEFAULT;
+        }
+
         public async Task<bool> BackupProject(bool fullBackup, bool showConfirm = true)
         {
             try
@@ -2125,8 +2138,10 @@ namespace Sma5hMusic.GUI.Services
                     var modFolder = _config.CurrentValue.Sma5hMusic.ModPath;
                     var modOverrideFolder = _config.CurrentValue.Sma5hMusicOverride.ModPath;
                     var dateFolder = $"backup_{DateTime.Now:yyyy_MM_dd_hh_mm_ss_tt}";
-                    var backupModFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, modFolder);
-                    var backupModOverrideFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, modOverrideFolder);
+                    var modFolderPath = Path.TrimEndingDirectorySeparator(modFolder);
+                    var modOverrideFolderPath = Path.TrimEndingDirectorySeparator(modOverrideFolder);
+                    var backupModFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, Path.GetFileName(Path.GetDirectoryName(modFolderPath) ?? string.Empty), Path.GetFileName(modFolderPath));
+                    var backupModOverrideFolder = Path.Combine(_config.CurrentValue.BackupPath, dateFolder, Path.GetFileName(Path.GetDirectoryName(modOverrideFolderPath) ?? string.Empty), Path.GetFileName(modOverrideFolderPath));
                     if (Directory.Exists(modFolder))
                         CopyDirHelper.Copy(modFolder, backupModFolder, fullBackup ? "*" : "*.json");
                     if (Directory.Exists(modOverrideFolder))

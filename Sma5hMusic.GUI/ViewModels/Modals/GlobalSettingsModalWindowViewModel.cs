@@ -1,6 +1,7 @@
 ﻿using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using ReactiveUI.Validation.Extensions;
+using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.Helpers;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
@@ -24,6 +25,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public List<string> ConversionFormats => new List<string>() { "lopus", "idsp" };
         public List<string> FallBackConversionFormats => new List<string>() { "lopus", "idsp" };
         public List<ComboItem> Locales => Constants.CONVERTER_LOCALE.Select(p => new ComboItem(p.Key, p.Value)).ToList();
+        public List<ComboItem> RecordTypes => Constants.CONVERTER_RECORD_TYPE.Select(p => new ComboItem(p.Key, p.Value)).ToList();
         public List<PlaylistGenerationItem> PlaylistGenerationModes => new List<PlaylistGenerationItem>()
         {
             new PlaylistGenerationItem(PlaylistGeneration.Manual, "Manual"),
@@ -36,6 +38,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public ComboItem SelectedGUILocale { get; set; }
         public ComboItem SelectedMSBTLocale { get; set; }
+        public ComboItem SelectedDefaultRecordType { get; set; }
         public PlaylistGenerationItem SelectedPlaylistGenerationItem
         {
             get => _selectedPlaylistGenerationItem;
@@ -187,6 +190,8 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             SelectedGUILocale = Locales.FirstOrDefault(p => p.Id == item?.DefaultGUILocale);
             SelectedMSBTLocale = Locales.FirstOrDefault(p => p.Id == item?.DefaultMSBTLocale);
+            SelectedDefaultRecordType = RecordTypes.FirstOrDefault(p => p.Id == item?.DefaultRecordType)
+                ?? RecordTypes.First(p => p.Id == MusicConstants.InternalIds.RECORD_TYPE_DEFAULT);
             SelectedPlaylistGenerationItem = PlaylistGenerationModes.FirstOrDefault(p => p.Id == (int?)item?.PlaylistGenerationMode);
 
             if (item != null && item.AudioNormalizationTargetLufs <= 0)
@@ -203,6 +208,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             SelectedItem.DefaultGUILocale = SelectedGUILocale?.Id;
             SelectedItem.DefaultMSBTLocale = SelectedMSBTLocale?.Id;
+            SelectedItem.DefaultRecordType = SelectedDefaultRecordType?.Id ?? MusicConstants.InternalIds.RECORD_TYPE_DEFAULT;
             SelectedItem.SaveChanges();
 
             return await _guiStateManager.UpdateGlobalSettings(SelectedItem.GetReference());

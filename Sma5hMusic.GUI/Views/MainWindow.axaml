@@ -24,7 +24,10 @@
         <MenuItem Header="Build [with cache]" Command="{Binding ActionBuild}"/>
         <Separator></Separator>
         <MenuItem Header="Build Single CSK Pack" Command="{Binding ActionBuildSingleCskPack}"/>
-        <MenuItem Header="Build Modular CSK Packs" Command="{Binding ActionBuildCskPacks}"/>
+        <MenuItem Header="Build Modular CSK Packs">
+          <MenuItem Header="Per Mod" Command="{Binding ActionBuildCskPacksByMod}"/>
+          <MenuItem Header="Per Series" Command="{Binding ActionBuildCskPacks}"/>
+        </MenuItem>
         <Separator></Separator>
         <MenuItem Header="Refresh Data" Command="{Binding ActionRefreshData}"></MenuItem>
         <Separator></Separator>
@@ -122,6 +125,9 @@
                     ToolTip.Tip="Sorts selected series alphabetically, ignoring games."
                     Command="{Binding ActionSortSongsAlphabeticallyBySeries}"></MenuItem>
         </MenuItem>
+        <Separator></Separator>
+        <MenuItem Header="Modify Default Color List"
+                  Command="{Binding ActionModifyDefaultColorList}"></MenuItem>
       </MenuItem>
       <MenuItem Header="Settings">
         <MenuItem Header="Show Advanced BGM Options" Command="{Binding ActionToggleAdvanced}">
@@ -142,7 +148,7 @@
         <MenuItem Header="Global Settings" Command="{Binding ActionOpenGlobalSettings}"></MenuItem>
       </MenuItem>
       <MenuItem Header="About">
-        <MenuItem Header="Wiki" Command="{Binding ActionOpenWiki}"></MenuItem>
+        <MenuItem Header="Tutorial" Command="{Binding ActionOpenWiki}"></MenuItem>
         <Separator></Separator>
         <MenuItem Header="About" Command="{Binding ActionOpenThanks}"></MenuItem>
       </MenuItem>

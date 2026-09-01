@@ -342,7 +342,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
                     await _messageDialog.ShowError(
                         "YouTube Import Failed",
-                        $"yt-dlp could not find {failedLinks.Count} {songText}. Please check that the link is correct."
+                        $"yt-dlp could not find {failedLinks.Count} {songText}. Please check that the link is correct. If the issue persists, try updating yt-dlp to the latest version."
                     );
                 }
                 else
@@ -362,7 +362,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
                 await _messageDialog.ShowError(
                     "YouTube Import Warning",
-                    $"yt-dlp could not find {failedLinks.Count} {songText}. Please check that the link is correct."
+                    $"yt-dlp could not find {failedLinks.Count} {songText}. Please check that the link is correct. If the issue persists, try updating yt-dlp to the latest version."
                 );
             }
 

@@ -85,6 +85,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Unit, Unit> ActionOpenThanks { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenWiki { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenGlobalSettings { get; }
+        public ReactiveCommand<Unit, Unit> ActionModifyDefaultColorList { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenModsFolder { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenOutputFolder { get; }
         public ReactiveCommand<Unit, Unit> ActionOpenResourcesFolder { get; }
@@ -217,6 +218,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionBuild = ReactiveCommand.CreateFromTask(OnBuild);
             ActionBuildNoCache = ReactiveCommand.CreateFromTask(OnBuildNoCache);
             ActionBuildCskPacks = ReactiveCommand.CreateFromTask(OnBuildCskPacks);
+            ActionBuildCskPacksByMod = ReactiveCommand.CreateFromTask(OnBuildCskPacksByMod);
             ActionBuildSingleCskPack = ReactiveCommand.CreateFromTask(OnBuildSingleCskPack);
             ActionBuildCskMetadataOnly = ReactiveCommand.CreateFromTask(OnBuildCskMetadataOnly);
             ActionRefreshData = ReactiveCommand.CreateFromTask(() => OnInitData());
@@ -225,6 +227,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionOpenThanks = ReactiveCommand.CreateFromTask(OnThanksOpen);
             ActionOpenWiki = ReactiveCommand.Create(OnWikiOpen);
             ActionOpenGlobalSettings = ReactiveCommand.CreateFromTask(OnGlobalSettingsOpen);
+            ActionModifyDefaultColorList = ReactiveCommand.CreateFromTask(OnModifyDefaultColorList);
             ActionOpenModsFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.Sma5hMusic.ModPath));
             ActionOpenOutputFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.OutputPath));
             ActionOpenResourcesFolder = ReactiveCommand.Create(() => _fileDialog.OpenFolder(_appSettings.CurrentValue.ResourcesPath));
@@ -336,7 +339,8 @@ namespace Sma5hMusic.GUI.ViewModels
                 $"Mod Sma5hMusicOverride - v{MusicConstants.VersionSma5hMusicOverride} by deinonychus71\r\n" +
                 $"Extra Features by HolidayOugi\r\n" +
                 $"Game - v{_guiStateManager.GameVersion}\r\n" +
-                "https://github.com/Deinonychus71/Sma5hMusic \r\n\r\n" +
+                "Original Project: https://github.com/Deinonychus71/Sma5hMusic\r\n" +
+                "Extra Project: https://github.com/HolidayOugi/Sma5hMusic-Extra\r\n\r\n" +
                 "Research: soneek\r\n" +
                 "Testing: Demonslayerx8, Segtendo\r\n" +
                 "Original Icon: Segtendo\r\n" +
@@ -357,7 +361,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public void OnWikiOpen()
         {
-            WebBrowserHelper.OpenBrowser("https://github.com/Deinonychus71/Sma5hMusic/wiki");
+            WebBrowserHelper.OpenBrowser("https://gamebanana.com/tuts/20119");
         }
 
         public async Task OnGlobalSettingsOpen()
@@ -367,6 +371,25 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 IsAdvanced = result.Advanced;
             }
+        }
+
+        public async Task OnModifyDefaultColorList()
+        {
+            var currentColors = MsbtRichTextColorHelper.Colors
+                .Where(p => !p.IsDefault)
+                .Select(p => new MsbtTextColorSetting(p.Hex, p.Label))
+                .ToList();
+            var dialog = new DefaultColorListModalWindow(currentColors);
+            var result = await dialog.ShowDialog<List<MsbtTextColorSetting>>(_rootDialog.Window);
+            if (result == null)
+                return;
+
+            var previousColors = _appSettings.CurrentValue.Sma5hMusicGUI.DefaultColorList;
+            _appSettings.CurrentValue.Sma5hMusicGUI.DefaultColorList = result;
+            if (await _guiStateManager.UpdateGlobalSettings(_appSettings.CurrentValue, false))
+                MsbtRichTextColorHelper.ConfigureDefaultColors(result);
+            else
+                _appSettings.CurrentValue.Sma5hMusicGUI.DefaultColorList = previousColors;
         }
 
         public void OnAdvancedToggle()
