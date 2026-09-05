@@ -68,19 +68,19 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (playlists == null)
                 return;
 
-            //for each playlist, assign its stage
+            //for each playlist, assign all of its stages
             foreach (var playlistName in playlists.Properties().Select(p => p.Name).ToList())
             {
                 if (validPlaylists.Contains(playlistName))
                     continue;
 
                 //exclude any stages that are part of the excluded series
-                var foundStage = stageOverride.Properties()
-                    .FirstOrDefault(p =>
+                var foundStages = stageOverride.Properties()
+                    .Where(p =>
                         string.Equals(GetString(p.Value, "bgm_set_id"), playlistName, StringComparison.OrdinalIgnoreCase)
                         && excludedSeriesIds?.Contains(GetString(p.Value, "ui_series_id")) != true);
 
-                if (foundStage != null)
+                foreach (var foundStage in foundStages)
                 {
                     var stageEntries = songData["stage_database_entries"] as JArray;
                     if (stageEntries == null)

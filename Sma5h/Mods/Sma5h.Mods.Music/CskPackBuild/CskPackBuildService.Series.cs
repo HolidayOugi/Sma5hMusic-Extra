@@ -111,12 +111,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var msgTitleCount = msgTitleEntries.Count;
             var copiedAudio = false;
             var selectedSeriesNames = GetSelectedSeriesNames(contexts, selectedSeriesKeys);
+            //populate playlists both vanilla and custom
             foreach (var seriesName in VanillaSeries.Where(p => !selectedSeriesNames.Contains(p)))
-            {
-                //populate playlists both vanilla and custom
                 PopulateVanillaPlaylists(songData, seriesName, buildResources.VanillaPlaylistDiff, buildResources.CoreBgmIds, buildResources.CoreBgmOverride, buildResources.OrderOverride);
+
+            var unselectedCoreSeriesNames = buildResources.CoreGameSeriesById.Values
+                .Where(p => !string.IsNullOrEmpty(p) && !selectedSeriesNames.Contains(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var seriesName in unselectedCoreSeriesNames)
                 PopulateCustomPlaylists(songData, seriesName, buildResources.PlaylistData, buildResources.CoreBgmOverride, buildResources.OrderOverride, buildResources.CoreGameSeriesById);
-            }
 
             var selectedSeriesIds = contexts
                 .SelectMany(context => context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
