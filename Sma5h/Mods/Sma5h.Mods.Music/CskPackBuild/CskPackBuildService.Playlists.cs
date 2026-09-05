@@ -49,14 +49,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #endregion
 
-        //adds entries for any unmodified core bgm that are part of a custom playlist
+        //adds entries for any core bgm that are part of a custom playlist
         private void PopulateCustomPlaylists(JObject songData, string seriesName, JObject playlistData, JObject coreBgmOverride, JObject orderOverride, Dictionary<string, string> coreGameSeriesById)
         {   
-            //get all unmodified core bgms that are part of the series
+            //get all core bgms that are part of the series
             var seriesCoreBgmIds = _audioStateService.GetOriginalCoreBgmDbRootEntries()
                 .Where(p => !string.IsNullOrEmpty(p.UiBgmId)
                             && !string.IsNullOrEmpty(p.UiGameTitleId)
-                            && !IsCoreBgmOverride(coreBgmOverride, p.UiBgmId)
                             && coreGameSeriesById.TryGetValue(p.UiGameTitleId, out var bgmSeries)
                             && string.Equals(bgmSeries, seriesName, StringComparison.OrdinalIgnoreCase))
                 .Select(p => p.UiBgmId)
