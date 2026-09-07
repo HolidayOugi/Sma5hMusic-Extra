@@ -4,8 +4,8 @@ namespace Sma5h.Mods.Music.Helpers
 {
     public class MusicConstants
     {
-        public const string VersionSma5hMusic = "2.1";
-        public const string VersionSma5hMusicOverride = "2.1";
+        public const string VersionSma5hMusic = "2.2";
+        public const string VersionSma5hMusicOverride = "2.2";
 
         public class MusicModFiles
         {
@@ -119,6 +119,49 @@ namespace Sma5h.Mods.Music.Helpers
         public static string[] EXTENSIONS_NEED_CONVERSION = new string[]
         {
             ".brstm"
+        };
+
+        public readonly static Dictionary<string, int> DEFAULT_SERIES_DISP_ORDER_SOUND = new Dictionary<string, int>()
+        {
+            {"ui_series_smashbros", 1 },
+            {"ui_series_mario", 2 },
+            {"ui_series_mariokart", 3 },
+            {"ui_series_donkeykong", 4 },
+            {"ui_series_zelda", 5 },
+            {"ui_series_metroid", 6 },
+            {"ui_series_yoshi", 7 },
+            {"ui_series_kirby", 8 },
+            {"ui_series_starfox", 9 },
+            {"ui_series_pokemon", 10 },
+            {"ui_series_fzero", 11 },
+            {"ui_series_mother", 12 },
+            {"ui_series_fireemblem", 13 },
+            {"ui_series_gamewatch", 14 },
+            {"ui_series_palutena", 15 },
+            {"ui_series_wario", 16 },
+            {"ui_series_pikmin", 17 },
+            {"ui_series_doubutsu", 18 },
+            {"ui_series_wiifit", 19 },
+            {"ui_series_punchout", 20 },
+            {"ui_series_xenoblade", 21 },
+            {"ui_series_splatoon", 22 },
+            {"ui_series_metalgear", 23 },
+            {"ui_series_sonic", 24 },
+            {"ui_series_rockman", 25 },
+            {"ui_series_pacman", 26 },
+            {"ui_series_streetfighter", 27 },
+            {"ui_series_finalfantasy", 28 },
+            {"ui_series_bayonetta", 29 },
+            {"ui_series_castlevania", 30 },
+            {"ui_series_persona", 31 },
+            {"ui_series_dragonquest", 32 },
+            {"ui_series_banjokazooie", 33 },
+            {"ui_series_fatalfury", 34 },
+            {"ui_series_arms", 35 },
+            {"ui_series_minecraft", 36 },
+            {"ui_series_tekken", 37 },
+            {"ui_series_kingdomhearts", 38 },
+            {"ui_series_etc", 99 }
         };
 
         public static Dictionary<string, string> SPECIAL_CATEGORY_LABELS = new Dictionary<string, string>()

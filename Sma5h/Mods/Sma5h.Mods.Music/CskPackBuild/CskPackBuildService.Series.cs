@@ -347,22 +347,31 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .Where(series => !string.IsNullOrEmpty(series.UiSeriesId))
                 .Where(series => !selectedSeriesIds.Contains(series.UiSeriesId));
 
-            //create series entry
-            var seriesEntries = unselectedVanillaSeries
-                .Select(series =>
-                {
-                    var seriesObject = CreateSeriesObject(series);
-                    var dispOrderSound = GetSeriesSoundOrder(seriesSoundOrder, seriesObject);
-                    if (dispOrderSound > 127)
-                        dispOrderSound = 127;
+            //create series entries only when their sound order differs from the default
+            var seriesEntries = new List<JObject>();
+            foreach (var series in unselectedVanillaSeries)
+            {
+                var seriesObject = CreateSeriesObject(series);
+                var dispOrderSound = Math.Min(GetSeriesSoundOrder(seriesSoundOrder, seriesObject), 127);
 
-                    return CreateSeriesDatabaseEntry(seriesObject, coreSeriesOverride, dispOrderSound);
-                })
+                if (!MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(
+                        series.UiSeriesId,
+                        out var defaultDispOrderSound) ||
+                    dispOrderSound == defaultDispOrderSound)
+                {
+                    continue;
+                }
+
+                seriesEntries.Add(CreateSeriesDatabaseEntry(
+                    seriesObject,
+                    coreSeriesOverride,
+                    dispOrderSound));
+            }
+
+            return seriesEntries
                 .OrderBy(entry => GetInt(entry, "disp_order_sound", 0))
                 .ThenBy(entry => GetString(entry, "name_id"), StringComparer.OrdinalIgnoreCase)
                 .ToList();
-
-            return seriesEntries;
         }
 
         private static bool IsVanillaSeries(string seriesName)
