@@ -199,11 +199,19 @@ namespace Sma5h.Mods.Music
             if (!Directory.Exists(iconFolder))
                 return;
 
-            var outputFolder = Path.Combine(_config.CurrentValue.OutputPath, "ui", "replace", "series", "series_0");
-            Directory.CreateDirectory(outputFolder);
-
             foreach (var iconFile in Directory.GetFiles(iconFolder, "*.bntx", SearchOption.TopDirectoryOnly))
             {
+                const string iconFileNamePrefix = "series_0_";
+                var iconName = Path.GetFileNameWithoutExtension(iconFile);
+                var uiSeriesId = iconName.StartsWith(iconFileNamePrefix, StringComparison.OrdinalIgnoreCase)
+                    ? $"{MusicConstants.InternalIds.SERIES_ID_PREFIX}{iconName.Substring(iconFileNamePrefix.Length)}"
+                    : string.Empty;
+                var replaceFolder = MusicConstants.DLC_SERIES.Contains(uiSeriesId, StringComparer.OrdinalIgnoreCase)
+                    ? "replace_patch"
+                    : "replace";
+                var outputFolder = Path.Combine(_config.CurrentValue.OutputPath, "ui", replaceFolder, "series", "series_0");
+                Directory.CreateDirectory(outputFolder);
+
                 var outputFile = Path.Combine(outputFolder, Path.GetFileName(iconFile));
                 File.Copy(iconFile, outputFile, true);
                 _logger.LogInformation("Copied series icon {IconFile} to {OutputFile}", iconFile, outputFile);

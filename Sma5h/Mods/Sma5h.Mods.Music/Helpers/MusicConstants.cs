@@ -93,6 +93,18 @@ namespace Sma5h.Mods.Music.Helpers
             "ui_series_all"
         };
 
+        public static string[] DLC_SERIES = new string[]
+        {
+            "ui_series_persona",
+            "ui_series_dragonquest",
+            "ui_series_banjokazooie",
+            "ui_series_fatalfury",
+            "ui_series_arms",
+            "ui_series_minecraft",
+            "ui_series_tekken",
+            "ui_series_kingdomhearts"
+        };
+
         public static string[] VALID_RECORD_TYPES = new string[]
         {
             "record_arrange",

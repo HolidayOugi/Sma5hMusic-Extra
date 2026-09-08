@@ -107,7 +107,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (string.IsNullOrEmpty(iconFile))
                 return false;
 
-            var destinationFolder = Path.Combine(packRoot, "ui", "replace", "series", "series_0");
+            var uiSeriesId = GetString(series, "ui_series_id");
+            var replaceFolder = MusicConstants.DLC_SERIES.Contains(uiSeriesId, StringComparer.OrdinalIgnoreCase)
+                ? "replace_patch"
+                : "replace";
+            var destinationFolder = Path.Combine(packRoot, "ui", replaceFolder, "series", "series_0");
             Directory.CreateDirectory(destinationFolder);
 
             var destination = Path.Combine(destinationFolder, Path.GetFileName(iconFile));
