@@ -245,11 +245,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Series Sets
 
-        private static readonly HashSet<string> DlcSeries = new HashSet<string>(new[]
-        {
-            "persona", "dragonquest", "banjokazooie", "fatalfury", "arms", "minecraft", "tekken", "kingdomhearts"
-        }, StringComparer.OrdinalIgnoreCase);
-
         private static readonly HashSet<string> VanillaSeries = new HashSet<string>(new[]
         {
             "mario", "mariokart", "donkeykong", "zelda",

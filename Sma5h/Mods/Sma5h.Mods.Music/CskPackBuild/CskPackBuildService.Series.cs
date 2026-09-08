@@ -591,7 +591,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var uiSeriesId = GetString(series, "ui_series_id");
             var seriesName = GetString(series, "name_id");
             var effectiveSeries = GetEffectiveOverrideObject(series, coreSeriesOverride, "ui_series_id");
-            var isDlcSeries = DlcSeries.Contains(seriesName);
+            var isDlcSeries = MusicConstants.DLC_SERIES.Contains(uiSeriesId, StringComparer.OrdinalIgnoreCase);
             var entry = new JObject
             {
                 ["ui_series_id"] = GetString(effectiveSeries, "ui_series_id", uiSeriesId),
