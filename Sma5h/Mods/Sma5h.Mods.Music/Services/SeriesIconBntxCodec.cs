@@ -11,16 +11,16 @@ namespace Sma5h.Mods.Music.Services
 {
     public static class SeriesIconBntxCodec
     {
-        public const int IconSize = 256;
+        public const int SeriesIconSize = 512;
+        public const int MusicIconSize = 256;
 
         private const int Bc7BytesPerBlock = 16;
-        private const int Bc7PayloadSize = 65536;
         private const int BntxBlockHeight = 8;
 
         #region Public
 
         //read PNG and convert to RGBA
-        public static byte[] LoadResizedRgba(string sourcePngPath)
+        public static byte[] LoadResizedRgba(string sourcePngPath, int iconSize)
         {
             using var decoded = SKBitmap.Decode(sourcePngPath);
             if (decoded == null)
@@ -32,12 +32,15 @@ namespace Sma5h.Mods.Music.Services
                 throw new InvalidDataException("The selected image could not be converted to RGBA.");
 
             var source = ReadRgbaFromBitmap(input);
-            return ResizeRgba(source, input.Width, input.Height, IconSize, IconSize);
+            return ResizeRgba(source, input.Width, input.Height, iconSize, iconSize);
         }
 
         //read BNTX and convert to RGBA
-        public static byte[] LoadRgbaFromBntx(string bntxPath)
+        public static (byte[] Rgba, int SourceWidth, int SourceHeight) LoadRgbaFromBntx(string bntxPath, int iconSize)
         {
+            if (iconSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(iconSize), "The icon size must be greater than zero.");
+
             var bntx = File.ReadAllBytes(bntxPath);
             var info = ReadBntxTextureInfo(bntx);
 
@@ -64,35 +67,37 @@ namespace Sma5h.Mods.Music.Services
                 throw new InvalidDataException($"Unsupported BNTX series icon texture format: 0x{info.Format:X4}.");
             }
 
-            if (info.Width != IconSize || info.Height != IconSize)
-                rgba = ResizeRgba(rgba, info.Width, info.Height, IconSize, IconSize);
+            if (info.Width != iconSize || info.Height != iconSize)
+                rgba = ResizeRgba(rgba, info.Width, info.Height, iconSize, iconSize);
 
-            return rgba;
+            return (rgba, info.Width, info.Height);
         }
 
         //writes RGBA to BNTX using templete
         public static void WriteBc7BntxFromRgba(byte[] rgba, string templatePath, string destinationPath)
         {
-            if (rgba == null || rgba.Length != IconSize * IconSize * 4)
-                throw new InvalidDataException("The source icon did not produce a valid 256x256 RGBA buffer.");
-
-            var encodedBc7 = EncodeBc7(rgba);
-            var swizzledBc7 = SwizzleBlockData(encodedBc7, IconSize, IconSize, 4, 4, Bc7BytesPerBlock, BntxBlockHeight);
             var template = File.ReadAllBytes(templatePath);
-            var payloadOffset = GetTexturePayloadOffset(template);
+            var templateInfo = ReadBntxTextureInfo(template);
+            var expectedRgbaLength = checked(templateInfo.Width * templateInfo.Height * 4);
+            if (rgba == null || rgba.Length != expectedRgbaLength)
+                throw new InvalidDataException(
+                    $"The source icon did not produce a valid {templateInfo.Width}x{templateInfo.Height} RGBA buffer.");
 
-            if (swizzledBc7.Length != Bc7PayloadSize)
-                throw new InvalidDataException("The swizzled BC7 payload did not have the expected 256x256 size.");
+            var encodedBc7 = EncodeBc7(rgba, templateInfo.Width, templateInfo.Height);
+            var swizzledBc7 = SwizzleBlockData(encodedBc7, templateInfo.Width, templateInfo.Height, 4, 4, Bc7BytesPerBlock, templateInfo.BlockHeight);
+            if (swizzledBc7.Length > templateInfo.PayloadLength)
+                throw new InvalidDataException(
+                    $"The BNTX template texture payload is too small. Required {swizzledBc7.Length} bytes, found {templateInfo.PayloadLength} bytes.");
 
-            Buffer.BlockCopy(swizzledBc7, 0, template, payloadOffset, swizzledBc7.Length);
+            Buffer.BlockCopy(swizzledBc7, 0, template, templateInfo.PayloadOffset, swizzledBc7.Length);
             File.WriteAllBytes(destinationPath, template);
         }
 
         //writes preview PNG
         public static void WritePreviewFromBntx(string bntxPath, string previewPath)
         {
-            var rgba = LoadRgbaFromBntx(bntxPath);
-            WritePng(rgba, IconSize, IconSize, previewPath);
+            var icon = LoadRgbaFromBntx(bntxPath, SeriesIconSize);
+            WritePng(icon.Rgba, SeriesIconSize, SeriesIconSize, previewPath);
         }
 
         #endregion
@@ -100,16 +105,17 @@ namespace Sma5h.Mods.Music.Services
         #region Encoding
 
         //RGBA -> BC7
-        private static byte[] EncodeBc7(byte[] rgba)
+        private static byte[] EncodeBc7(byte[] rgba, int width, int height)
         {
             var encoder = new BcEncoder(CompressionFormat.Bc7);
             encoder.OutputOptions.GenerateMipMaps = false;
             encoder.OutputOptions.Quality = CompressionQuality.Balanced;
             encoder.OutputOptions.Format = CompressionFormat.Bc7;
 
-            var encoded = encoder.EncodeToRawBytes(rgba, IconSize, IconSize, PixelFormat.Rgba32, 0, out var mipWidth, out var mipHeight);
-            if (mipWidth != IconSize || mipHeight != IconSize || encoded.Length != Bc7PayloadSize)
-                throw new InvalidDataException("The BC7 encoder did not produce the expected 256x256 payload.");
+            var encoded = encoder.EncodeToRawBytes(rgba, width, height, PixelFormat.Rgba32, 0, out var mipWidth, out var mipHeight);
+            var expectedPayloadSize = DivRoundUp(width, 4) * DivRoundUp(height, 4) * Bc7BytesPerBlock;
+            if (mipWidth != width || mipHeight != height || encoded.Length != expectedPayloadSize)
+                throw new InvalidDataException($"The BC7 encoder did not produce the expected {width}x{height} payload.");
 
             return encoded;
         }

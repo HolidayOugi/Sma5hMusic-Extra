@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
+using Sma5h.Mods.Music.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -135,6 +136,24 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var sourceExtension = Path.GetExtension(sourceIconPath);
             var destinationFileName = $"{variantName}_{seriesIconName}{sourceExtension}";
             var destination = Path.Combine(destinationFolder, destinationFileName);
+
+            if (string.Equals(variantName, MusicConstants.InternalIds.SERIES_ICON_VARIANT_PRIMARY, StringComparison.OrdinalIgnoreCase))
+            {
+                var icon = SeriesIconBntxCodec.LoadRgbaFromBntx(sourceIconPath, SeriesIconBntxCodec.MusicIconSize);
+                if (icon.SourceWidth != SeriesIconBntxCodec.MusicIconSize || icon.SourceHeight != SeriesIconBntxCodec.MusicIconSize)
+                {
+                    var templatePath = Path.Combine(_config.CurrentValue.ResourcesPath, "music_icon_template.bntx");
+                    SeriesIconBntxCodec.WriteBc7BntxFromRgba(icon.Rgba, templatePath, destination);
+                    _logger.LogInformation(
+                        "[CSK] Resized series icon {IconFile} from {Width}x{Height} to 256x256",
+                        sourceIconPath,
+                        icon.SourceWidth,
+                        icon.SourceHeight);
+                    _logger.LogInformation("[CSK] Copied series icon {IconFile} to {Destination}", sourceIconPath, destination);
+                    return;
+                }
+            }
+
             File.Copy(sourceIconPath, destination, true);
             _logger.LogInformation("[CSK] Copied series icon {IconFile} to {Destination}", sourceIconPath, destination);
         }

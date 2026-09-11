@@ -80,11 +80,11 @@ namespace Sma5hMusic.GUI.Services
             if (Path.GetExtension(sourceIconPath).Equals(".bntx", StringComparison.OrdinalIgnoreCase))
             {
                 //Convert any BNTX to BC7 BNTX using the template
-                rgba = SeriesIconBntxCodec.LoadRgbaFromBntx(sourceIconPath);
+                rgba = SeriesIconBntxCodec.LoadRgbaFromBntx(sourceIconPath, SeriesIconBntxCodec.SeriesIconSize).Rgba;
             }
             else
             {
-                rgba = SeriesIconBntxCodec.LoadResizedRgba(sourceIconPath);
+                rgba = SeriesIconBntxCodec.LoadResizedRgba(sourceIconPath, SeriesIconBntxCodec.SeriesIconSize);
             }
 
             //save to output

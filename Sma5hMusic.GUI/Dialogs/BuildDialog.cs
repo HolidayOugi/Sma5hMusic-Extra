@@ -323,6 +323,7 @@ namespace Sma5hMusic.GUI.Dialogs
             {
                 Path.Combine(config.ResourcesPath, "template.nus3bank"),
                 Path.Combine(config.ResourcesPath, "series_icon_template.bntx"),
+                Path.Combine(config.ResourcesPath, "music_icon_template.bntx"),
                 Path.Combine(config.ResourcesPath, "ParamLabels.csv"),
                 Path.Combine(config.ResourcesPath, "nusbank_ids.csv"),
                 Path.Combine(config.GameResourcesPath, "sound", "config", "bgm_property.bin"),
