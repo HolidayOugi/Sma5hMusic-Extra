@@ -50,7 +50,7 @@ Here's a rundown of the added features.
 ![Icon Selection](https://elixi.re/i/t0jjq.png)
 
 > [!TIP]
-> To obtain the best results, please choose a square icon with a transparent background and an all-white texture.
+> To obtain the best results, please choose a square icon. The icon must have a transparent background for it to show up in-game.
 
 ## Importing of Audio Files
 
