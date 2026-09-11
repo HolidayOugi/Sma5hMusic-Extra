@@ -334,10 +334,10 @@ namespace Sma5hMusic.GUI.ViewModels
         public async Task OnThanksOpen()
         {
             await _messageDialog.ShowInformation("About",
-                $"Sma5hMusic - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} by deinonychus71\r\n" +
+                $"Sma5hMusic - GUI by deinonychus71\r\n" +
+                $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} by HolidayOugi\r\n" +
                 $"Mod Sma5hMusic - v{MusicConstants.VersionSma5hMusic} by deinonychus71\r\n" +
                 $"Mod Sma5hMusicOverride - v{MusicConstants.VersionSma5hMusicOverride} by deinonychus71\r\n" +
-                $"Extra Features by HolidayOugi\r\n" +
                 $"Game - v{_guiStateManager.GameVersion}\r\n" +
                 "Original Project: https://github.com/Deinonychus71/Sma5hMusic\r\n" +
                 "Extra Project: https://github.com/HolidayOugi/Sma5hMusic-Extra\r\n\r\n" +
