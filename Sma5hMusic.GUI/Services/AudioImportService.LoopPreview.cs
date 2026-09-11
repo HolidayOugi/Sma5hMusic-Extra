@@ -208,7 +208,7 @@ namespace Sma5hMusic.GUI.Services
             {
                 _logger.LogError(e, "pymusiclooper could not be launched.");
                 throw new FileNotFoundException(
-                    "pymusiclooper was not found. Please install it and add it to PATH. Restart the application after installing.",
+                    "pymusiclooper was not found. Please install it by following the instructions in the tutorial, accessible from the application's About menu.",
                     "pymusiclooper",
                     e
                 );
@@ -217,7 +217,7 @@ namespace Sma5hMusic.GUI.Services
             {
                 _logger.LogError(e, "python was launched, but the pymusiclooper module was not found.");
                 throw new FileNotFoundException(
-                    "pymusiclooper was not found. Please install it and add it to PATH. Restart the application after installing.",
+                    "pymusiclooper was not found. Please install it by following the instructions in the tutorial, accessible from the application's About menu.",
                     "pymusiclooper",
                     e
                 );

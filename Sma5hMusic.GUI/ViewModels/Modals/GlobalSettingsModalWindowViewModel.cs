@@ -19,6 +19,15 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IGUIStateManager _guiStateManager;
         private readonly IFileDialog _fileDialog;
         private PlaylistGenerationItem _selectedPlaylistGenerationItem;
+        private string _originalUIScale;
+        private string _originalUITheme;
+        private string _originalDefaultGUILocale;
+        private bool _originalInGameVolume;
+        private string _originalModPath;
+        private string _originalModOverridePath;
+        private string _originalGameResourcesPath;
+        private string _originalResourcesPath;
+        private string _originalToolsPath;
 
         public List<string> UIThemes => new List<string>() { "Dark", "Light" }; //, "WindowsDark", "WindowsLight" };
         public List<string> UIScales => new List<string>() { "Normal", "Small" };
@@ -188,6 +197,16 @@ namespace Sma5hMusic.GUI.ViewModels
 
         protected override void LoadItem(GlobalConfigurationViewModel item)
         {
+            _originalUIScale = item?.UIScale;
+            _originalUITheme = item?.UITheme;
+            _originalDefaultGUILocale = item?.DefaultGUILocale;
+            _originalInGameVolume = item?.InGameVolume ?? false;
+            _originalModPath = item?.ModPath;
+            _originalModOverridePath = item?.ModOverridePath;
+            _originalGameResourcesPath = item?.GameResourcesPath;
+            _originalResourcesPath = item?.ResourcesPath;
+            _originalToolsPath = item?.ToolsPath;
+
             SelectedGUILocale = Locales.FirstOrDefault(p => p.Id == item?.DefaultGUILocale);
             SelectedMSBTLocale = Locales.FirstOrDefault(p => p.Id == item?.DefaultMSBTLocale);
             SelectedDefaultRecordType = RecordTypes.FirstOrDefault(p => p.Id == item?.DefaultRecordType)
@@ -209,11 +228,30 @@ namespace Sma5hMusic.GUI.ViewModels
             SelectedItem.DefaultGUILocale = SelectedGUILocale?.Id;
             SelectedItem.DefaultMSBTLocale = SelectedMSBTLocale?.Id;
             SelectedItem.DefaultRecordType = SelectedDefaultRecordType?.Id ?? MusicConstants.InternalIds.RECORD_TYPE_DEFAULT;
+            var requiresRestart = HasRestartRequiredChanges();
             SelectedItem.SaveChanges();
 
-            return await _guiStateManager.UpdateGlobalSettings(SelectedItem.GetReference());
+            return await _guiStateManager.UpdateGlobalSettings(SelectedItem.GetReference(), requiresRestart);
         }
 
+
+        private bool HasRestartRequiredChanges()
+        {
+            return !string.Equals(_originalUIScale, SelectedItem.UIScale, StringComparison.Ordinal)
+                || !string.Equals(_originalUITheme, SelectedItem.UITheme, StringComparison.Ordinal)
+                || !string.Equals(_originalDefaultGUILocale, SelectedItem.DefaultGUILocale, StringComparison.Ordinal)
+                || _originalInGameVolume != SelectedItem.InGameVolume
+                || !PathsAreEqual(_originalModPath, SelectedItem.ModPath)
+                || !PathsAreEqual(_originalModOverridePath, SelectedItem.ModOverridePath)
+                || !PathsAreEqual(_originalGameResourcesPath, SelectedItem.GameResourcesPath)
+                || !PathsAreEqual(_originalResourcesPath, SelectedItem.ResourcesPath)
+                || !PathsAreEqual(_originalToolsPath, SelectedItem.ToolsPath);
+        }
+
+        private static bool PathsAreEqual(string left, string right)
+        {
+            return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+        }
         private void SetPlaylistGenerationItemDescription(GlobalConfigurationViewModel item)
         {
             if (item != null)
