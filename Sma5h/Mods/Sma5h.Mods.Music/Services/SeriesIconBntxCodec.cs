@@ -55,13 +55,6 @@ namespace Sma5h.Mods.Music.Services
                 var pixels = decoder.DecodeRaw(linearPayload, info.Width, info.Height, compressionFormat);
                 rgba = PixelsToRgba(pixels, compressionFormat);
             }
-            //raw source
-            else if (TryGetRawFormat(info.Format, out var bytesPerPixel, out var channelOrder))
-            {
-                var swizzledPayload = ExtractSwizzledPayload(bntx, info, bytesPerPixel, 1, 1);
-                var linearPayload = UnswizzleBlockData(swizzledPayload, info.Width, info.Height, 1, 1, bytesPerPixel, info.BlockHeight);
-                rgba = RawToRgba(linearPayload, info.Width, info.Height, bytesPerPixel, channelOrder);
-            }
             else
             {
                 throw new InvalidDataException($"Unsupported BNTX series icon texture format: 0x{info.Format:X4}.");
@@ -285,27 +278,6 @@ namespace Sma5h.Mods.Music.Services
             }
         }
 
-        private static bool TryGetRawFormat(uint bntxFormat, out int bytesPerPixel, out RawChannelOrder channelOrder)
-        {
-            switch (bntxFormat)
-            {
-                case 0x0B01:
-                case 0x0B06:
-                    bytesPerPixel = 4;
-                    channelOrder = RawChannelOrder.Rgba;
-                    return true;
-                case 0x0C01:
-                case 0x0C06:
-                    bytesPerPixel = 4;
-                    channelOrder = RawChannelOrder.Bgra;
-                    return true;
-                default:
-                    bytesPerPixel = 0;
-                    channelOrder = RawChannelOrder.Rgba;
-                    return false;
-            }
-        }
-
         #endregion
 
         #region Pixel Conversion
@@ -332,36 +304,6 @@ namespace Sma5h.Mods.Music.Services
                 rgba[offset + 1] = pixels[i].g;
                 rgba[offset + 2] = pixels[i].b;
                 rgba[offset + 3] = pixels[i].a;
-            }
-
-            return rgba;
-        }
-
-        private static byte[] RawToRgba(byte[] raw, int width, int height, int bytesPerPixel, RawChannelOrder channelOrder)
-        {
-            if (bytesPerPixel != 4)
-                throw new InvalidDataException($"Unsupported raw BNTX bytes-per-pixel value: {bytesPerPixel}.");
-
-            var rgba = new byte[width * height * 4];
-            for (var i = 0; i < width * height; i++)
-            {
-                var source = i * 4;
-                var destination = i * 4;
-
-                if (channelOrder == RawChannelOrder.Bgra)
-                {
-                    rgba[destination] = raw[source + 2];
-                    rgba[destination + 1] = raw[source + 1];
-                    rgba[destination + 2] = raw[source];
-                    rgba[destination + 3] = raw[source + 3];
-                }
-                else
-                {
-                    rgba[destination] = raw[source];
-                    rgba[destination + 1] = raw[source + 1];
-                    rgba[destination + 2] = raw[source + 2];
-                    rgba[destination + 3] = raw[source + 3];
-                }
             }
 
             return rgba;
@@ -452,6 +394,7 @@ namespace Sma5h.Mods.Music.Services
             return -1;
         }
 
+        // https://github.com/ScanMountGoat/tegra_swizzle/blob/main/src/swizzle.rs
         private static int GetBlockLinearOffset(int x, int y, int widthBlocks, int bytesPerBlock, int blockHeight)
         {
             var widthInGobs = DivRoundUp(widthBlocks * bytesPerBlock, 64);
@@ -486,12 +429,6 @@ namespace Sma5h.Mods.Music.Services
             public int BlockHeight { get; set; }
             public int PayloadOffset { get; set; }
             public int PayloadLength { get; set; }
-        }
-
-        private enum RawChannelOrder
-        {
-            Rgba,
-            Bgra
         }
 
         #endregion
