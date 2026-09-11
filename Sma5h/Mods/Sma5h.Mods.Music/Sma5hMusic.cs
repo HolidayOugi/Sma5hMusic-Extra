@@ -19,7 +19,6 @@ namespace Sma5h.Mods.Music
         private readonly IAudioStateService _audioStateService;
         private readonly IMusicModManagerService _musicModManagerService;
         private readonly INus3AudioService _nus3AudioService;
-        private const string SmashBattlePlaylistId = "bgmsmashbtl";
 
         private class StandardBuildPlan
         {
@@ -199,23 +198,47 @@ namespace Sma5h.Mods.Music
             if (!Directory.Exists(iconFolder))
                 return;
 
+            var packRoot = _config.CurrentValue.OutputPath;
             foreach (var iconFile in Directory.GetFiles(iconFolder, "*.bntx", SearchOption.TopDirectoryOnly))
             {
-                const string iconFileNamePrefix = "series_0_";
-                var iconName = Path.GetFileNameWithoutExtension(iconFile);
-                var uiSeriesId = iconName.StartsWith(iconFileNamePrefix, StringComparison.OrdinalIgnoreCase)
-                    ? $"{MusicConstants.InternalIds.SERIES_ID_PREFIX}{iconName.Substring(iconFileNamePrefix.Length)}"
-                    : string.Empty;
-                var replaceFolder = MusicConstants.DLC_SERIES.Contains(uiSeriesId, StringComparer.OrdinalIgnoreCase)
-                    ? "replace_patch"
-                    : "replace";
-                var outputFolder = Path.Combine(_config.CurrentValue.OutputPath, "ui", replaceFolder, "series", "series_0");
-                Directory.CreateDirectory(outputFolder);
-
-                var outputFile = Path.Combine(outputFolder, Path.GetFileName(iconFile));
-                File.Copy(iconFile, outputFile, true);
-                _logger.LogInformation("Copied series icon {IconFile} to {OutputFile}", iconFile, outputFile);
+                CopySeriesIcon(iconFile, packRoot);
             }
+        }
+
+        private bool CopySeriesIcon(string iconFile, string packRoot)
+        {
+            var iconFileName = Path.GetFileNameWithoutExtension(iconFile);
+            var primaryVariantPrefix = $"{MusicConstants.InternalIds.SERIES_ICON_VARIANT_PRIMARY}_";
+            if (!iconFileName.StartsWith(primaryVariantPrefix, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var seriesIconName = iconFileName.Substring(primaryVariantPrefix.Length);
+            var uiSeriesId = $"{MusicConstants.InternalIds.SERIES_ID_PREFIX}{seriesIconName}";
+            var replaceFolder = MusicConstants.DLC_SERIES.Contains(uiSeriesId, StringComparer.OrdinalIgnoreCase)
+                ? "replace_patch"
+                : "replace";
+
+            CopySeriesIconVariant(iconFile, packRoot, replaceFolder, seriesIconName, MusicConstants.InternalIds.SERIES_ICON_VARIANT_PRIMARY);
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildSeries1 == true)
+                CopySeriesIconVariant(iconFile, packRoot, replaceFolder, seriesIconName, MusicConstants.InternalIds.SERIES_ICON_VARIANT_SECONDARY);
+            return true;
+        }
+
+        private void CopySeriesIconVariant(
+            string sourceIconPath,
+            string packRoot,
+            string replaceFolder,
+            string seriesIconName,
+            string variantName)
+        {
+            var destinationFolder = Path.Combine(packRoot, "ui", replaceFolder, "series", variantName);
+            Directory.CreateDirectory(destinationFolder);
+
+            var sourceExtension = Path.GetExtension(sourceIconPath);
+            var destinationFileName = $"{variantName}_{seriesIconName}{sourceExtension}";
+            var destination = Path.Combine(destinationFolder, destinationFileName);
+            File.Copy(sourceIconPath, destination, true);
+            _logger.LogInformation("Copied series icon {IconFile} to {Destination}", sourceIconPath, destination);
         }
 
         private string GetMusicIconsFolder()
@@ -360,16 +383,16 @@ namespace Sma5h.Mods.Music
 
         private void ProcessSmashBattlePlaylistFallback(Dictionary<string, PlaylistEntry> playlists, ushort incidence)
         {
-            if (!playlists.TryGetValue(SmashBattlePlaylistId, out var smashBattlePlaylist))
+            if (!playlists.TryGetValue(MusicConstants.InternalIds.PLAYLIST_SMASH_BATTLE, out var smashBattlePlaylist))
             {
-                smashBattlePlaylist = new PlaylistEntry(SmashBattlePlaylistId);
+                smashBattlePlaylist = new PlaylistEntry(MusicConstants.InternalIds.PLAYLIST_SMASH_BATTLE);
                 if (!_audioStateService.AddPlaylistEntry(smashBattlePlaylist))
                 {
-                    _logger.LogWarning("Playlist Fallback: Playlist {PlaylistId} wasn't found and could not be created. Skipping fallback...", SmashBattlePlaylistId);
+                    _logger.LogWarning("Playlist Fallback: Playlist {PlaylistId} wasn't found and could not be created. Skipping fallback...", MusicConstants.InternalIds.PLAYLIST_SMASH_BATTLE);
                     return;
                 }
 
-                playlists[SmashBattlePlaylistId] = smashBattlePlaylist;
+                playlists[MusicConstants.InternalIds.PLAYLIST_SMASH_BATTLE] = smashBattlePlaylist;
             }
 
             var songsInPlaylists = playlists.Values
@@ -395,7 +418,7 @@ namespace Sma5h.Mods.Music
                 bgmEntry.IsSelectableOriginal = true;
                 smashBattlePlaylist.Tracks.Add(CreatePlaylistValueEntry(bgmEntry.UiBgmId, smashBattlePlaylist, incidence));
                 songsInPlaylists.Add(bgmEntry.UiBgmId);
-                _logger.LogInformation("Playlist Fallback: Added BGM {UiBgmId} to Playlist {BgmPlaylist}.", bgmEntry.UiBgmId, SmashBattlePlaylistId);
+                _logger.LogInformation("Playlist Fallback: Added BGM {UiBgmId} to Playlist {BgmPlaylist}.", bgmEntry.UiBgmId, MusicConstants.InternalIds.PLAYLIST_SMASH_BATTLE);
             }
         }
 

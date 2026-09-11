@@ -51,6 +51,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                     AudioNormalizationTargetLufs = p.AudioNormalizationTargetLufs,
                     LoopPreviewSeconds = p.LoopPreviewSeconds,
                     StartingOrderForSeries = p.StartingOrderForSeries,
+                    BuildSeries1 = p.BuildSeries1,
                     HideIndexColumn = p.HideIndexColumn,
                     HideModColumn = p.HideModColumn,
                     HideRecordColumn = p.HideRecordColumn,
@@ -98,6 +99,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.AudioNormalizationTargetLufs, me => me.MapFrom(p => p.Sma5hMusicGUI.AudioNormalizationTargetLufs))
                 .ForMember(i => i.LoopPreviewSeconds, me => me.MapFrom(p => p.Sma5hMusicGUI.LoopPreviewSeconds))
                 .ForMember(i => i.StartingOrderForSeries, me => me.MapFrom(p => p.Sma5hMusicGUI.StartingOrderForSeries))
+                .ForMember(i => i.BuildSeries1, me => me.MapFrom(p => p.Sma5hMusicGUI.BuildSeries1))
                 .ForMember(i => i.HideIndexColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideIndexColumn))
                 .ForMember(i => i.HideModColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideModColumn))
                 .ForMember(i => i.HideRecordColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideRecordColumn))

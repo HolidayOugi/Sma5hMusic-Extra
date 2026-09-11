@@ -269,6 +269,7 @@ namespace Sma5hMusic.GUI
                 { "Sma5hMusicGUI:SaveOutputToSubfolder", "true" },
                 { "Sma5hMusicGUI:LoopPreviewSeconds", "6" },
                 { "Sma5hMusicGUI:StartingOrderForSeries", "1" },
+                { "Sma5hMusicGUI:BuildSeries1", "false" },
                 { "Sma5hMusicGUI:HideIndexColumn", "false" },
                 { "Sma5hMusicGUI:HideSeriesColumn", "false" },
                 { "Sma5hMusicGUI:HideRecordColumn", "false" },

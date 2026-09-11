@@ -86,6 +86,10 @@
               </fields:PropertyField.FieldContent>
             </fields:PropertyField>
           </StackPanel>
+          <Border Classes="contentTitle" DockPanel.Dock="Top">
+            <TextBlock>Icon Settings</TextBlock>
+          </Border>
+          <fields:PropertyBooleanField Label="Build series_1 Icon" IsChecked="{Binding SelectedItem.BuildSeries1}" ToolTip="Include a series_1 copy of every custom icon during build." />
         </StackPanel>
         <!-- Playlist/Audio Settings -->
         <StackPanel Classes="content" Grid.Column="1" Grid.Row="0" HorizontalAlignment="Stretch">

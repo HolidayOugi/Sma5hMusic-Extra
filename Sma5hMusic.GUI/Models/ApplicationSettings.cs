@@ -29,6 +29,7 @@ namespace Sma5h.Mods.Music
             public double AudioNormalizationTargetLufs { get; set; }
             public uint LoopPreviewSeconds { get; set; }
             public int StartingOrderForSeries { get; set; }
+            public bool BuildSeries1 { get; set; }
             public bool HideIndexColumn { get; set; }
             public bool HideSeriesColumn { get; set; }
             public bool HideRecordColumn { get; set; }

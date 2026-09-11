@@ -1,4 +1,5 @@
 using Newtonsoft.Json.Linq;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Models;
 using Sma5h.Mods.Music.Models.PlaylistEntryModels;
 using System;
@@ -243,7 +244,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private static List<string> GetFallbackPlaylistIds(string seriesName)
         {
             if (!VanillaSeries.Contains(seriesName))
-                return new List<string> { SmashBattlePlaylistId };
+                return new List<string> { MusicConstants.InternalIds.PLAYLIST_SMASH_BATTLE };
 
             var seriesKey = seriesName.ToLowerInvariant();
             return SeriesToPlaylist.ContainsKey(seriesKey)

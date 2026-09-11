@@ -107,17 +107,36 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (string.IsNullOrEmpty(iconFile))
                 return false;
 
+            var iconFileName = Path.GetFileNameWithoutExtension(iconFile);
+            var primaryVariantPrefix = $"{MusicConstants.InternalIds.SERIES_ICON_VARIANT_PRIMARY}_";
+            var seriesIconName = iconFileName.Substring(primaryVariantPrefix.Length);
+
             var uiSeriesId = GetString(series, "ui_series_id");
             var replaceFolder = MusicConstants.DLC_SERIES.Contains(uiSeriesId, StringComparer.OrdinalIgnoreCase)
                 ? "replace_patch"
                 : "replace";
-            var destinationFolder = Path.Combine(packRoot, "ui", replaceFolder, "series", "series_0");
+
+            CopySeriesIconVariant(iconFile, packRoot, replaceFolder, seriesIconName, MusicConstants.InternalIds.SERIES_ICON_VARIANT_PRIMARY);
+            if (_config.CurrentValue.Sma5hMusicGUI?.BuildSeries1 == true)
+                CopySeriesIconVariant(iconFile, packRoot, replaceFolder, seriesIconName, MusicConstants.InternalIds.SERIES_ICON_VARIANT_SECONDARY);
+            return true;
+        }
+
+        private void CopySeriesIconVariant(
+            string sourceIconPath,
+            string packRoot,
+            string replaceFolder,
+            string seriesIconName,
+            string variantName)
+        {
+            var destinationFolder = Path.Combine(packRoot, "ui", replaceFolder, "series", variantName);
             Directory.CreateDirectory(destinationFolder);
 
-            var destination = Path.Combine(destinationFolder, Path.GetFileName(iconFile));
-            File.Copy(iconFile, destination, true);
-            _logger.LogInformation("[CSK] Copied series icon {IconFile} to {Destination}", iconFile, destination);
-            return true;
+            var sourceExtension = Path.GetExtension(sourceIconPath);
+            var destinationFileName = $"{variantName}_{seriesIconName}{sourceExtension}";
+            var destination = Path.Combine(destinationFolder, destinationFileName);
+            File.Copy(sourceIconPath, destination, true);
+            _logger.LogInformation("[CSK] Copied series icon {IconFile} to {Destination}", sourceIconPath, destination);
         }
 
         private string GetSeriesIconPath(JObject series)
@@ -142,7 +161,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             {
                 var sanitized = GetSeriesIconNamePart(value);
                 if (!string.IsNullOrEmpty(sanitized))
-                    yield return $"series_0_{sanitized}.bntx";
+                    yield return $"{MusicConstants.InternalIds.SERIES_ICON_VARIANT_PRIMARY}_{sanitized}.bntx";
             }
         }
 

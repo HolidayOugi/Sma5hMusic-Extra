@@ -91,6 +91,8 @@ namespace Sma5hMusic.GUI.ViewModels
         public uint LoopPreviewSeconds { get; set; }
         [Reactive]
         public int StartingOrderForSeries { get; set; }
+        [Reactive]
+        public bool BuildSeries1 { get; set; }
 
         public ApplicationSettings GetReference()
         {

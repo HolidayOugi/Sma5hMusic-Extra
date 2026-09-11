@@ -84,6 +84,11 @@ namespace Sma5h.Mods.Music.Helpers
             public const string SOUND_CONDITION = "sound_condition_none";
 
             public const string PLAYLIST_AUTO_BGM_SELECTOR = "bgmhiddenselector";
+
+            public const string SERIES_ICON_VARIANT_PRIMARY = "series_0";
+            public const string SERIES_ICON_VARIANT_SECONDARY = "series_1";
+
+            public const string PLAYLIST_SMASH_BATTLE = "bgmsmashbtl";
         }
 
         public static string[] INVALID_SERIES = new string[]

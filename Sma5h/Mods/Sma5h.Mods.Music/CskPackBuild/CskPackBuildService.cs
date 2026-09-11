@@ -17,7 +17,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private const string CloneBgmId = "ui_bgm_a29_ppm_medley";
         private const string CloneSeriesId = "ui_series_mario";
         private const string CloneGameTitleId = "ui_gametitle_paper_mario_series";
-        private const string SmashBattlePlaylistId = "bgmsmashbtl";
         private const string SinglePackFolderName = "CSK Music Pack";
 
         private readonly IOptionsMonitor<CskPackBuildOptions> _config;
