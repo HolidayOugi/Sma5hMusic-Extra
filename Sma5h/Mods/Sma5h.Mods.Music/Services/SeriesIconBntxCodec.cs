@@ -22,9 +22,14 @@ namespace Sma5h.Mods.Music.Services
         //read PNG and convert to RGBA
         public static byte[] LoadResizedRgba(string sourcePngPath)
         {
-            using var input = SKBitmap.Decode(sourcePngPath);
-            if (input == null)
+            using var decoded = SKBitmap.Decode(sourcePngPath);
+            if (decoded == null)
                 throw new InvalidDataException("The selected file could not be decoded as an image.");
+
+            //explicitly convert to RGBA to avoid issues with swapped color channels
+            using var input = decoded.Copy(SKColorType.Rgba8888);
+            if (input == null)
+                throw new InvalidDataException("The selected image could not be converted to RGBA.");
 
             var source = ReadRgbaFromBitmap(input);
             return ResizeRgba(source, input.Width, input.Height, IconSize, IconSize);
