@@ -194,7 +194,7 @@ namespace Sma5h.Mods.Music.Helpers
             {"0x16ea1970ce", "wario_madein_minigames" },
             {"0x0d009c712f", "totakeke_live" },
             {"0x105274ba4f", "sf_situationlink" },
-            {"0x12111561a7", "0x12111561a7" }, //Moray Towers
+            {"0x12111561a7", "splaparking_bg_fes" }, //Moray Towers
             {"0x150281ae07", "mario_maker_scenelink" },
             {"0x11ff737d4d", "jack_mementoes_p3" },
             {"0x116117e8ee", "jack_mementoes_p4" },

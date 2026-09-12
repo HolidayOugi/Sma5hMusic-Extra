@@ -23,13 +23,15 @@ namespace Sma5hMusic.GUI.Helpers
             public const string SPECIAL_CATEGORY_PERSONA_STAGE_4_VALUE = "jack_mementoes_p4";
             public const string SPECIAL_CATEGORY_PERSONA_STAGE_5_VALUE = "jack_mementoes_p5";
             public const string SPECIAL_CATEGORY_PINCH_VALUE = "sf_situationlink"; //"0x105274ba4f"
+            public const string SPECIAL_CATEGORY_SPLATOON_STAGE_VALUE = "splaparking_bg_fes"; //"0x12111561a7"
 
             public readonly static Dictionary<string, string> UI_SPECIAL_CATEGORY = new Dictionary<string, string>()
             {
                 { SPECIAL_CATEGORY_PINCH_VALUE, "Pinch Songs" },
                 { SPECIAL_CATEGORY_PERSONA_STAGE_3_VALUE, "Persona 3 Stage" },
                 { SPECIAL_CATEGORY_PERSONA_STAGE_4_VALUE, "Persona 4 Stage" },
-                { SPECIAL_CATEGORY_PERSONA_STAGE_5_VALUE, "Persona 5 Stage" }
+                { SPECIAL_CATEGORY_PERSONA_STAGE_5_VALUE, "Persona 5 Stage" },
+                { SPECIAL_CATEGORY_SPLATOON_STAGE_VALUE, "Splatfest Song" }
             };
         }
 
