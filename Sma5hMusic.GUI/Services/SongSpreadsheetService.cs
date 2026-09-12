@@ -60,8 +60,8 @@ namespace Sma5hMusic.GUI.Services
                 WriteWorkbook(
                     outputPath,
                     "Song List",
-                    new[] { "Song", "Type", "Game", "Series" },
-                    rows.Select(row => new[] { row.Song, row.RecordType, row.Game, row.Series }).ToList(),
+                    new[] { "Song", "Type", "Author", "Game", "Series" },
+                    rows.Select(row => new[] { row.Song, row.RecordType, row.Author, row.Game, row.Series }).ToList(),
                     rows.Select(row => row.Series).ToList());
 
                 return true;
@@ -79,7 +79,7 @@ namespace Sma5hMusic.GUI.Services
                 //write xlsx
                 WriteWorkbook(
                     outputPath,
-                    "Pinch Song",
+                    "Pinch Songs",
                     new[] { "Song", "Pinch Song", "Game", "Series" },
                     rows.Select(row => new[] { row.Song, row.PinchSong, row.Game, row.Series }).ToList(),
                     rows.Select(row => row.Series).ToList());
@@ -99,7 +99,7 @@ namespace Sma5hMusic.GUI.Services
                 //write xlsx
                 WriteWorkbook(
                     outputPath,
-                    "Song List",
+                    "Main Menu Song List",
                     new[] { "Song", "Game", "Series" },
                     rows.Select(row => new[] { row.Song, row.Game, row.Series }).ToList(),
                     rows.Select(row => row.Series).ToList());
@@ -224,6 +224,7 @@ namespace Sma5hMusic.GUI.Services
             return new SongRow
             {
                 Song = StripSongSuffix(UnwrapDoubleBraces(songName), gameName), //remove any {{}} and color tags
+                Author = UnwrapDoubleBraces(GetTitle(song.Author, locale)) ?? string.Empty,
                 RecordType = GetSpreadsheetRecordType(song.RecordType),
                 Game = gameName ?? string.Empty,
                 Series = seriesName ?? string.Empty,
@@ -372,6 +373,7 @@ namespace Sma5hMusic.GUI.Services
         private class SongRow
         {
             public string Song { get; set; }
+            public string Author { get; set; }
             public string RecordType { get; set; }
             public string Game { get; set; }
             public string Series { get; set; }
