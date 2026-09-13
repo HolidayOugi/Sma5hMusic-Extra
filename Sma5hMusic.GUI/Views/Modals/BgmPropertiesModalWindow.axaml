@@ -149,7 +149,8 @@
               </fields:PropertyField>
               <fields:PropertyField Label="Special Category" ToolTip="This option can be used in game to trigger different effects.">
                 <fields:PropertyField.FieldContent>
-                  <ComboBox SelectedItem="{Binding SelectedSpecialCategory, Mode=TwoWay}" Items="{Binding SpecialCategories}">
+                  <ComboBox MaxDropDownHeight="250"
+                            SelectedItem="{Binding SelectedSpecialCategory, Mode=TwoWay}" Items="{Binding SpecialCategories}">
                     <ComboBox.ItemTemplate>
                       <DataTemplate>
                         <TextBlock Text="{Binding Label}" />

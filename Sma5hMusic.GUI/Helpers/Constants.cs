@@ -24,10 +24,36 @@ namespace Sma5hMusic.GUI.Helpers
             public const string SPECIAL_CATEGORY_PERSONA_STAGE_5_VALUE = "jack_mementoes_p5";
             public const string SPECIAL_CATEGORY_PINCH_VALUE = "sf_situationlink"; //"0x105274ba4f"
             public const string SPECIAL_CATEGORY_SPLATOON_STAGE_VALUE = "splaparking_bg_fes"; //"0x12111561a7"
+            public const string SPECIAL_CATEGORY_KOF_THEME_01_VALUE = "dolly_stadium_theme_01";
+            public const string SPECIAL_CATEGORY_KOF_THEME_02_VALUE = "dolly_stadium_theme_02";
+            public const string SPECIAL_CATEGORY_KOF_THEME_03_VALUE = "dolly_stadium_theme_03";
+            public const string SPECIAL_CATEGORY_KOF_THEME_04_VALUE = "dolly_stadium_theme_04";
+            public const string SPECIAL_CATEGORY_KOF_THEME_05_VALUE = "dolly_stadium_theme_05";
+            public const string SPECIAL_CATEGORY_KOF_THEME_06_VALUE = "dolly_stadium_theme_06";
+            public const string SPECIAL_CATEGORY_KOF_THEME_07_VALUE = "dolly_stadium_theme_07";
+            public const string SPECIAL_CATEGORY_KOF_THEME_08_VALUE = "dolly_stadium_theme_08";
+            public const string SPECIAL_CATEGORY_KOF_THEME_09_VALUE = "dolly_stadium_theme_09";
+            public const string SPECIAL_CATEGORY_KOF_THEME_10_VALUE = "dolly_stadium_theme_10";
+            public const string SPECIAL_CATEGORY_KOF_THEME_11_VALUE = "dolly_stadium_theme_11";
+            public const string SPECIAL_CATEGORY_KOF_THEME_12_VALUE = "dolly_stadium_theme_12";
+            public const string SPECIAL_CATEGORY_KOF_THEME_13_VALUE = "dolly_stadium_theme_13";
 
             public readonly static Dictionary<string, string> UI_SPECIAL_CATEGORY = new Dictionary<string, string>()
             {
                 { SPECIAL_CATEGORY_PINCH_VALUE, "Pinch Songs" },
+                { SPECIAL_CATEGORY_KOF_THEME_01_VALUE, "KOF: Andy Bogard" },
+                { SPECIAL_CATEGORY_KOF_THEME_13_VALUE, "KOF: Athena Asamiya" },
+                { SPECIAL_CATEGORY_KOF_THEME_04_VALUE, "KOF: Billy Kane" },
+                { SPECIAL_CATEGORY_KOF_THEME_05_VALUE, "KOF: Geese Howard" },
+                { SPECIAL_CATEGORY_KOF_THEME_08_VALUE, "KOF: Iori Yagami" },
+                { SPECIAL_CATEGORY_KOF_THEME_02_VALUE, "KOF: Joe Higashi" },
+                { SPECIAL_CATEGORY_KOF_THEME_03_VALUE, "KOF: Kim Kaphwan" },
+                { SPECIAL_CATEGORY_KOF_THEME_11_VALUE, "KOF: Kim Kaphwan, Chang Koehan, Choi Bounge" },
+                { SPECIAL_CATEGORY_KOF_THEME_10_VALUE, "KOF: Kyo Kusanagi, Goro Daimon" },
+                { SPECIAL_CATEGORY_KOF_THEME_12_VALUE, "KOF: Kyo Kusanagi, Iori Yagami" },
+                { SPECIAL_CATEGORY_KOF_THEME_09_VALUE, "KOF: Ralf Jones, Clark Still" },
+                { SPECIAL_CATEGORY_KOF_THEME_06_VALUE, "KOF: Ryo Sakazaki, Yuri Sakazaki" },
+                { SPECIAL_CATEGORY_KOF_THEME_07_VALUE, "KOF: Yuri Sakazaki, King, Blue Mary" },
                 { SPECIAL_CATEGORY_PERSONA_STAGE_3_VALUE, "Persona 3 Stage" },
                 { SPECIAL_CATEGORY_PERSONA_STAGE_4_VALUE, "Persona 4 Stage" },
                 { SPECIAL_CATEGORY_PERSONA_STAGE_5_VALUE, "Persona 5 Stage" },
