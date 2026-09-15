@@ -244,8 +244,8 @@ namespace Sma5hMusic.GUI.ViewModels
             return new List<ComboItem>()
             {
                 new ComboItem("All", "All", true),
-                new ComboItem("InPlaylist", "Songs in a Playlist"),
-                new ComboItem("NotInPlaylist", "Songs not in a Playlist")
+                new ComboItem("InPlaylist", "In a Playlist"),
+                new ComboItem("NotInPlaylist", "Not in a Playlist")
             };
         }
     }
