@@ -1498,6 +1498,8 @@ namespace Sma5hMusic.GUI.Services
 
                     var sortedSongs = groupSongs
                         .OrderBy(p => p.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(p => p.UiGameTitleId ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(p => GetRecordTypeSortOrder(p.RecordType))
                         .ThenBy(p => p.UiBgmId, StringComparer.OrdinalIgnoreCase)
                         .ToList();
 
@@ -1529,6 +1531,23 @@ namespace Sma5hMusic.GUI.Services
             }, DispatcherPriority.Background);
 
             return result;
+        }
+
+        private static int GetRecordTypeSortOrder(string recordType)
+        {
+            switch (recordType)
+            {
+                case "record_none":
+                    return 0;
+                case "record_original":
+                    return 1;
+                case "record_arrange":
+                    return 2;
+                case "record_new_arrange":
+                    return 3;
+                default:
+                    return 4;
+            }
         }
 
         private bool ReorderMusicModSongs()
