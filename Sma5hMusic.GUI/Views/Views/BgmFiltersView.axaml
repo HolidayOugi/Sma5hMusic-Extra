@@ -76,6 +76,17 @@
           </ComboBox>
         </fields:PropertyField.FieldContent>
       </fields:PropertyField>
+      <fields:PropertyField Label="Playlist" ToolTip="Only display songs based on whether they are present in any playlist.">
+        <fields:PropertyField.FieldContent>
+          <ComboBox VirtualizationMode="Simple" SelectedItem="{Binding SelectedPlaylistFilter, Mode=TwoWay}" Items="{Binding PlaylistFilters}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </fields:PropertyField.FieldContent>
+      </fields:PropertyField>
       <fields:PropertyField Label="Advanced" ToolTip="Toggle specific options of the songs.">
         <fields:PropertyField.FieldContent>
           <StackPanel>

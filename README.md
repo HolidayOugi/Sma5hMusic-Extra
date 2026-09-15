@@ -52,6 +52,9 @@ Here's a rundown of the added features.
 > [!TIP]
 > To obtain the best results, please choose a square icon. The icon must have a transparent background for it to show up in-game.
 
+> [!TIP]
+> An option can be enabled in Global Settings to also build the Result Screen's series icon (series_1). The resulting icon will have an higher resolution compared to the standard series icon.
+
 ## Importing of Audio Files
 
 **Standard Audio files** (.mp3, .flac, .wav, .ogg, .m4a) can now be loaded directly into the software without prior conversion.
@@ -150,7 +153,6 @@ Victory themes can be generated for both base-game and custom characters. When g
 
 ## Miscellaneous fixes and improvements
 
-* (*Should have*) fixed bug where songs would stop playing in-game due to their order in the global song list.
 * Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
 * The default volume and arrange type for a new song can now be set in Global Settings.
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
@@ -159,11 +161,15 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Small text is now shown directly in the GUI.
 * A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
 * A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
+* New Special Categories have been added in the BGM Properties Window.
+* Added a filter option in the Main Window to show songs that haven't been added to a playlist.
 * Added a checkbox in the Series Properties Window to enable/disable the "Series" suffix after the Series name in Music Select.
 * Core Songs volume can now be changed in app and the relevant nus3bank will be generated at build time. This can be disabled in Global Settings.
 * Songs can now be sorted alphabetically per game or per series automatically.
-* If a song from custom Series was not manually added to a playlist, it will be automatically added to the Battlefield playlist to ensure it shows up in-game.
+* If a song from custom Series was not manually added to a playlist, it will be automatically added to the Battlefield playlist to ensure it shows up in-game. Can be disabled in Global Settings.
 * Global Settings can now be saved when output folder is missing.
+* Changing most options in Global Settings no longer requires a restart.
+* Fixed bug where songs would stop playing in-game due to their order in the global song list.
 * Fixed importing of files with Japanese characters not working.
 * Fixed a possible silent conversion fail with BRSTM/IDSP/LOPUS files at build time.
 * Fixed importing of overrides from older Sma5hMusic builds having invalid characters.
@@ -225,7 +231,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 - [ ] Decouple CSK Build service from JSONs loading
 - [x] Allow editing of Color Picker color list
 - [ ] Add Trim function when importing from audio
-- [ ] Add Filter to MainWindow for songs not in a playlist
+- [x] Add Filter to MainWindow for songs not in a playlist
 - [ ] Allow reverse importing of CSK Packs and/or XMSBT files
 - [ ] One Slot Victory Themes support
 
