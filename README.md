@@ -66,6 +66,8 @@ When loaded, the loop points for the given song can be selected. They can then b
 > [!TIP]
 > The preview duration can be set in the Global Settings.
 
+Alternatively, the song can also be added with no defined loop points, making it silent after the whole track has played.
+
 ### Automatic Loop Detection
 
 > [!NOTE]
@@ -77,6 +79,18 @@ The software can also automatically detect potential loop points, making it easy
 
 > [!TIP]
 > This feature can be used from the BGM Properties tab on songs that have already been added!
+
+### Audio Trimming
+
+> [!NOTE]
+> Requires the download of [FFmpeg](https://www.ffmpeg.org/) and for its path to be set in the Global Settings.
+
+Standard audio files can also be trimmed during importing, to cut out unwanted parts such as silent intro or loud outros.
+
+![Audio Trim](https://elixi.re/i/ops0e.png)
+
+> [!TIP]
+> This feature can be used from the BGM Properties tab on songs that have already been added! If the songs have loop points, they'll be adjusted accordingly.
 
 ## Normalization of Songs
 
@@ -143,7 +157,7 @@ After importing, replaced songs will be denoted in the main window with gold tex
 ## Generate Victory Themes
 
 > [!NOTE]
-> Requires [CSK Collection](https://gamebanana.com/mods/499008) update 5.0.6 or higher.
+> Requires the [CSK Collection](https://gamebanana.com/mods/499008) update 5.0.6 or higher.
 
 Custom Victory Themes can now be generated from an option in the Extra submenu.
 
@@ -151,24 +165,41 @@ Victory themes can be generated for both base-game and custom characters. When g
 
 ![Victory](https://elixi.re/i/o3oru.png)
 
-## Miscellaneous fixes and improvements
+> [!TIP]
+> When importing a Victory Theme from a standard audio file, disabling loops will make the Result Screen theme play in-game after the Victory Theme has finished playing. If loops are defined, the Victory Theme will play endlessly.
 
-* Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
-* The default volume and arrange type for a new song can now be set in Global Settings.
-* Volume can now be set to the mean or median value of all songs' volume in a Mod.
+## Miscellaneous Additions, Fixes and Improvements
+
+### Small Additions
+
 * The Song List can now be exported to a spreadsheet.
 * Added option to generate a Sma5hMusic Mod from an already generated build.
-* Small text is now shown directly in the GUI.
-* A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
-* A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
-* New Special Categories have been added in the BGM Properties Window.
-* Added a filter option in the Main Window to show songs that haven't been added to a playlist.
 * Added a checkbox in the Series Properties Window to enable/disable the "Series" suffix after the Series name in Music Select.
 * Core Songs volume can now be changed in app and the relevant nus3bank will be generated at build time. This can be disabled in Global Settings.
 * Songs can now be sorted alphabetically per game or per series automatically.
+
+### GUI Improvements
+
+* Small text is now shown directly in the GUI.
+* Added a filter option in the Main Window to show songs that haven't been added to a playlist.
+
+### New Settings
+
+* The default volume and arrange type for a new song can now be set in Global Settings.
+* Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
 * If a song from custom Series was not manually added to a playlist, it will be automatically added to the Battlefield playlist to ensure it shows up in-game. Can be disabled in Global Settings.
 * Global Settings can now be saved when output folder is missing.
 * Changing most options in Global Settings no longer requires a restart.
+
+### BGM Properties
+
+* Volume can now be set to the mean or median value of all songs' volume in a Mod.
+* A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
+* A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
+* New Special Categories have been added in the BGM Properties Window.
+
+### Bug Fixes
+
 * Fixed bug where songs would stop playing in-game due to their order in the global song list.
 * Fixed importing of files with Japanese characters not working.
 * Fixed a possible silent conversion fail with BRSTM/IDSP/LOPUS files at build time.
@@ -178,6 +209,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Fixed song list not refreshing when a filter was active.
 * Fixed backups creating duplicates of the metadata JSON.
 * Fixed Playlist and Sound Test views not updating if a song was hidden.
+* Fixed Change File sometimes causing the song not to play.
 
 ## FAQ
 
