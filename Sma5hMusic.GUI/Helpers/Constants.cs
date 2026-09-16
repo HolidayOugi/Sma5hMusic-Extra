@@ -64,7 +64,7 @@ namespace Sma5hMusic.GUI.Helpers
                 { SPECIAL_CATEGORY_PERSONA_STAGE_3_VALUE, "Persona 3 Stage" },
                 { SPECIAL_CATEGORY_PERSONA_STAGE_4_VALUE, "Persona 4 Stage" },
                 { SPECIAL_CATEGORY_PERSONA_STAGE_5_VALUE, "Persona 5 Stage" },
-                { SPECIAL_CATEGORY_SPLATOON_STAGE_VALUE, "Splatfest Song" }
+                { SPECIAL_CATEGORY_SPLATOON_STAGE_VALUE, "Splatfest Songs" }
             };
         }
 

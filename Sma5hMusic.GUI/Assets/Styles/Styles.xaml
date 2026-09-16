@@ -52,6 +52,20 @@
   </Style>
   <!-- END MODALS -->
 
+  <!-- HIDE AVALONIA BINDING VALIDATION ERRORS -->
+  <Style Selector="DataValidationErrors">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <ContentPresenter Name="PART_ContentPresenter"
+                          Content="{TemplateBinding Content}"
+                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <!-- END AVALONIA BINDING VALIDATION ERRORS -->
+
   <!-- TREEVIEW -->
   <Style Selector="TreeView.isDragging TreeViewItem Border.topRow">
     <Setter Property="BorderThickness" Value="0,1,0,0"/>
