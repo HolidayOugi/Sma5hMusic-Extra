@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        Height="840" MinHeight="840"
+        Height="840" MinHeight="900"
         x:Class="Sma5hMusic.GUI.Views.GlobalSettingsModalWindow"
         xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
         Classes="globalSettings" ShowInTaskbar="False" Title="Global Settings">

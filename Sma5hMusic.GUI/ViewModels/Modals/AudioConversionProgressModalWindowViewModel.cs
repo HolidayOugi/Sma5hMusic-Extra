@@ -46,6 +46,15 @@ namespace Sma5hMusic.GUI.ViewModels
             IsIndeterminate = true;
         }
 
+        public void SetTrimming(string filename)
+        {
+            Current = 0;
+            Total = 1;
+            Message = "Rebuilding Trimmed Audio File...";
+            Filename = filename;
+            IsIndeterminate = true;
+        }
+
         public void SetComplete()
         {
             Current = 1;

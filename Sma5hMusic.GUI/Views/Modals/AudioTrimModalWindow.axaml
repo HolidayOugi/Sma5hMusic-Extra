@@ -49,7 +49,10 @@
                                       Maximum="{Binding TotalSamples}"
                                       StartValue="{Binding TrimStartSample, Mode=TwoWay}"
                                       EndValue="{Binding TrimEndSample, Mode=TwoWay}"
-                                      WaveformPeaks="{Binding WaveformPeaks}" />
+                                      WaveformPeaks="{Binding WaveformPeaks}"
+                                      ShowLoopMarkers="{Binding ShowLoopMarkers}"
+                                      LoopStartMarker="{Binding LoopStartMarker}"
+                                      LoopEndMarker="{Binding LoopEndMarker}" />
       <TextBlock Text="{Binding TrimRangeText}"
                  HorizontalAlignment="Center"
                  Margin="0,0,0,4" />

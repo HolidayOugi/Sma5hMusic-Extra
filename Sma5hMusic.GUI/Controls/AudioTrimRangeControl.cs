@@ -13,6 +13,7 @@ namespace Sma5hMusic.GUI.Controls
         private const double TrackPadding = 8;
         private const double ThumbWidth = 1;
         private const double VerticalPadding = 6;
+        private const double LoopMarkerAreaHeight = 10;
 
         private static readonly IBrush SelectionBrush = new SolidColorBrush(Color.Parse("#401E88E5"));
         private static readonly IBrush OutsideWaveformBrush = new SolidColorBrush(Color.Parse("#66808080"));
@@ -21,6 +22,7 @@ namespace Sma5hMusic.GUI.Controls
         private static readonly Pen OutsideWaveformPen = new Pen(OutsideWaveformBrush, 1);
         private static readonly Pen SelectedWaveformPen = new Pen(SelectedWaveformBrush, 1.15);
         private static readonly Pen SelectionOutlinePen = new Pen(HandleBrush, 1.25);
+        private static readonly Pen LoopMarkerPen = new Pen(new SolidColorBrush(Color.Parse("#FFFFB74D")), 2);
 
         private DraggedThumb _draggedThumb;
 
@@ -46,6 +48,15 @@ namespace Sma5hMusic.GUI.Controls
                 nameof(WaveformPeaks),
                 Array.Empty<float>());
 
+        public static readonly StyledProperty<bool> ShowLoopMarkersProperty =
+            AvaloniaProperty.Register<AudioTrimRangeControl, bool>(nameof(ShowLoopMarkers));
+
+        public static readonly StyledProperty<uint> LoopStartMarkerProperty =
+            AvaloniaProperty.Register<AudioTrimRangeControl, uint>(nameof(LoopStartMarker));
+
+        public static readonly StyledProperty<uint> LoopEndMarkerProperty =
+            AvaloniaProperty.Register<AudioTrimRangeControl, uint>(nameof(LoopEndMarker));
+
         static AudioTrimRangeControl()
         {
             AffectsRender<AudioTrimRangeControl>(
@@ -53,7 +64,10 @@ namespace Sma5hMusic.GUI.Controls
                 MaximumProperty,
                 StartValueProperty,
                 EndValueProperty,
-                WaveformPeaksProperty);
+                WaveformPeaksProperty,
+                ShowLoopMarkersProperty,
+                LoopStartMarkerProperty,
+                LoopEndMarkerProperty);
         }
 
         public uint Minimum
@@ -86,6 +100,24 @@ namespace Sma5hMusic.GUI.Controls
             set => SetValue(WaveformPeaksProperty, value);
         }
 
+        public bool ShowLoopMarkers
+        {
+            get => GetValue(ShowLoopMarkersProperty);
+            set => SetValue(ShowLoopMarkersProperty, value);
+        }
+
+        public uint LoopStartMarker
+        {
+            get => GetValue(LoopStartMarkerProperty);
+            set => SetValue(LoopStartMarkerProperty, value);
+        }
+
+        public uint LoopEndMarker
+        {
+            get => GetValue(LoopEndMarkerProperty);
+            set => SetValue(LoopEndMarkerProperty, value);
+        }
+
         public override void Render(DrawingContext context)
         {
             base.Render(context);
@@ -95,7 +127,7 @@ namespace Sma5hMusic.GUI.Controls
             var startX = ValueToX(StartValue, trackLeft, trackWidth);
             var endX = ValueToX(EndValue, trackLeft, trackWidth);
             var waveformTop = VerticalPadding;
-            var waveformHeight = Math.Max(1, Bounds.Height - (VerticalPadding * 2));
+            var waveformHeight = Math.Max(1, Bounds.Height - (VerticalPadding * 2) - LoopMarkerAreaHeight);
             var selectionRect = new Rect(startX, waveformTop, Math.Max(0, endX - startX), waveformHeight);
 
             context.FillRectangle(SelectionBrush, selectionRect);
@@ -112,6 +144,16 @@ namespace Sma5hMusic.GUI.Controls
             context.FillRectangle(
                 HandleBrush,
                 new Rect(endX - (ThumbWidth / 2), waveformTop, ThumbWidth, waveformHeight));
+
+            if (ShowLoopMarkers)
+            {
+                var markerTop = waveformTop + waveformHeight + 2;
+                var markerBottom = Math.Min(Bounds.Height - 1, markerTop + 6);
+                var loopStartX = ValueToX(LoopStartMarker, trackLeft, trackWidth);
+                var loopEndX = ValueToX(LoopEndMarker, trackLeft, trackWidth);
+                context.DrawLine(LoopMarkerPen, new Point(loopStartX, markerTop), new Point(loopStartX, markerBottom));
+                context.DrawLine(LoopMarkerPen, new Point(loopEndX, markerTop), new Point(loopEndX, markerBottom));
+            }
         }
 
         private void DrawWaveform(

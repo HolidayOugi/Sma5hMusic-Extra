@@ -55,6 +55,7 @@
                       <Button Content="Calculate Loop Cues" Command="{Binding ActionCalculateLoopCues}" CommandParameter="{Binding BgmPropertyViewModel}" />
                       <Button Content="Preview Loops" Command="{Binding ActionPreviewLoops}" CommandParameter="{Binding $parent[Window]}" />
                       <Button Content="Normalize Song" Command="{Binding ActionNormalizeSong}" CommandParameter="{Binding $parent[Window]}" />
+                      <Button Content="Trim Audio" Command="{Binding ActionTrimAudio}" CommandParameter="{Binding $parent[Window]}" />
                     </StackPanel>
                   </fields:PropertyField.FieldContent>
                 </fields:PropertyField>

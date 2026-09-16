@@ -131,10 +131,7 @@ namespace Sma5hMusic.GUI.Services
                 Directory.CreateDirectory(modPath);
                 Directory.CreateDirectory(GetTempPath());
 
-                var tempId = Guid.NewGuid().ToString("N");
-                var tempNormalizedWavFile = Path.Combine(GetTempPath(), $"{tempId}_normalized.wav");
-                var tempWavFile = Path.Combine(GetTempPath(), $"{tempId}.wav");
-                var tempLopusFile = Path.Combine(GetTempPath(), $"{tempId}.lopus");
+                var tempNormalizedWavFile = Path.Combine(GetTempPath(), $"{Guid.NewGuid():N}_normalized.wav");
                 var outputFile = Path.Combine(modPath, $"{toneId}.nus3audio");
 
                 if (File.Exists(outputFile))
@@ -145,8 +142,6 @@ namespace Sma5hMusic.GUI.Services
                 try
                 {
                     var info = GetAudioInfo(soxInputFile).GetAwaiter().GetResult();
-                    var loopStart48k = 0u;
-                    var loopEnd48k = 0u;
 
                     if (!noLoop)
                     {
@@ -156,10 +151,9 @@ namespace Sma5hMusic.GUI.Services
                         if (loopStartSample > loopEndSample)
                             throw new InvalidOperationException("Loop start sample must be lower than or equal to loop end sample.");
 
-                        //convert loop points to 48kHz
-                        loopStart48k = ConvertSampleRate(loopStartSample, info.SampleRate);
-                        loopEnd48k = ConvertSampleRate(loopEndSample, info.SampleRate);
                     }
+
+                    var encoderInputFile = soxInputFile;
 
                     if (applyNormalization)
                     {
@@ -175,73 +169,135 @@ namespace Sma5hMusic.GUI.Services
 
                         //normalize audio
                         NormalizeAudioToWav(soxInputFile, tempNormalizedWavFile, targetLufs);
-
-                        File.Copy(tempNormalizedWavFile, tempWavFile, true);
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Converting {InputFile} to WAV 48kHz for import.", filename);
-
-                        //convert to 48kHz WAV
-                        RunTool(
-                            GetSoxExe(),
-                            soxInputFile,
-                            "-r", TargetSampleRate.ToString(CultureInfo.InvariantCulture),
-                            "-b", "16",
-                            "-e", "signed-integer",
-                            tempWavFile
-                        );
+                        encoderInputFile = tempNormalizedWavFile;
                     }
 
-                    //WAV -> LOPUS
-                    var encoderArguments = new List<string>
-                    {
-                        tempWavFile,
-                        tempLopusFile
-                    };
-
-                    if (noLoop)
-                    {
-                        _logger.LogInformation("Encoding temporary LOPUS without loop points.");
-                    }
-                    else
-                    {
-                        //get new loop points after conversion to 48kHz WAV
-                        //needed because after conversion total sample count may have changed by a few samples
-                        (loopStart48k, loopEnd48k) = FitLoopPointsToWav(tempWavFile, loopStart48k, loopEnd48k);
-                        _logger.LogInformation("Encoding temporary LOPUS with loop {LoopStart}-{LoopEnd}.", loopStart48k, loopEnd48k);
-                        encoderArguments.Add("-l");
-                        encoderArguments.Add($"{loopStart48k}-{loopEnd48k}");
-                    }
-
-                    encoderArguments.AddRange(new[]
-                    {
-                        "--bitrate", "64000",
-                        "--cbr",
-                        "--opusheader", "namco"
-                    });
-
-                    var encoderOutput = RunTool(GetVGAudioCliExe(), encoderArguments.ToArray());
-
-                    EnsureLopusCreated(tempLopusFile, encoderOutput);
-
-                    _logger.LogInformation("Creating NUS3AUDIO {OutputFile}.", outputFile);
-
-                    //LOPUS -> NUS3AUDIO
-                    RunTool(GetNus3AudioExe(), "-n", "-w", outputFile);
-                    RunTool(GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
-
-                    return outputFile;
+                    return EncodeAudioToNus3Audio(
+                        toneId,
+                        encoderInputFile,
+                        outputFile,
+                        noLoop ? null : loopStartSample,
+                        noLoop ? null : loopEndSample);
                 }
                 finally
                 {
                     //cleanup temp files
                     DeleteSoxCompatibleInputCopy(filename, soxInputFile);
                     DeleteTempFile(tempNormalizedWavFile);
-                    DeleteTempFile(tempWavFile);
-                    DeleteTempFile(tempLopusFile);
                 }
             });
+        }
+
+        private string EncodeAudioToNus3Audio(
+            string toneId,
+            string audioFilename,
+            string outputFilename,
+            uint? loopStartSample,
+            uint? loopEndSample,
+            CancellationToken cancellationToken = default)
+        {
+            if (!File.Exists(audioFilename))
+                throw new FileNotFoundException($"The audio file '{audioFilename}' could not be found.", audioFilename);
+            if (loopStartSample.HasValue != loopEndSample.HasValue)
+                throw new InvalidOperationException("Both loop points must be provided together.");
+
+            Directory.CreateDirectory(GetTempPath());
+            var outputDirectory = Path.GetDirectoryName(outputFilename);
+            if (!string.IsNullOrWhiteSpace(outputDirectory))
+                Directory.CreateDirectory(outputDirectory);
+
+            var tempId = Guid.NewGuid().ToString("N");
+            var resampledWavFile = Path.Combine(GetTempPath(), $"{tempId}_48k.wav");
+            var lopusFile = Path.Combine(GetTempPath(), $"{tempId}.lopus");
+            var nus3AudioFile = Path.Combine(GetTempPath(), $"{tempId}.nus3audio");
+            var soxInputFile = CreateSoxCompatibleInputCopy(audioFilename);
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var info = GetAudioInfo(soxInputFile).GetAwaiter().GetResult();
+
+                var encoderWavFile = soxInputFile;
+                var isWav = string.Equals(
+                    Path.GetExtension(soxInputFile),
+                    ".wav",
+                    StringComparison.OrdinalIgnoreCase);
+
+                if (!isWav || info.SampleRate != TargetSampleRate)
+                {
+                    //convert compressed audio or WAVs with a different sample rate to 48kHz WAV
+                    RunTool(
+                        cancellationToken,
+                        GetSoxExe(),
+                        soxInputFile,
+                        "-r", TargetSampleRate.ToString(CultureInfo.InvariantCulture),
+                        "-b", "16",
+                        "-e", "signed-integer",
+                        resampledWavFile);
+                    encoderWavFile = resampledWavFile;
+                }
+                else
+                {
+                    _logger.LogInformation("Skipping WAV conversion because {InputFile} is already 48kHz.", soxInputFile);
+                }
+
+                var encoderArguments = new List<string>
+                {
+                    encoderWavFile,
+                    lopusFile
+                };
+
+                var hasValidLoopPoints =
+                    loopStartSample.HasValue &&
+                    loopEndSample.HasValue &&
+                    loopEndSample.Value > 0 &&
+                    loopEndSample.Value <= info.TotalSamples &&
+                    loopStartSample.Value <= loopEndSample.Value;
+
+                if (hasValidLoopPoints)
+                {
+                    //convert loop points to the 48kHz WAV sample rate
+                    var loopStart48k = ConvertSampleRate(loopStartSample.Value, info.SampleRate);
+                    var loopEnd48k = ConvertSampleRate(loopEndSample.Value, info.SampleRate);
+
+                    //get new loop points after conversion to 48kHz WAV
+                    //needed because after conversion total sample count may have changed by a few samples
+                    (loopStart48k, loopEnd48k) = FitLoopPointsToWav(encoderWavFile, loopStart48k, loopEnd48k);
+
+                    _logger.LogInformation("Encoding LOPUS with loop {LoopStart}-{LoopEnd}.", loopStart48k, loopEnd48k);
+                    encoderArguments.Add("-l");
+                    encoderArguments.Add($"{loopStart48k}-{loopEnd48k}");
+                }
+                else
+                {
+                    _logger.LogInformation("Encoding LOPUS without loop points.");
+                }
+
+                encoderArguments.AddRange(new[]
+                {
+                    "--bitrate", "64000",
+                    "--cbr",
+                    "--opusheader", "namco"
+                });
+
+                //WAV -> LOPUS
+                var encoderOutput = RunTool(cancellationToken, GetVGAudioCliExe(), encoderArguments.ToArray());
+                EnsureLopusCreated(lopusFile, encoderOutput);
+
+                //LOPUS -> NUS3AUDIO
+                RunTool(cancellationToken, GetNus3AudioExe(), "-n", "-w", nus3AudioFile);
+                RunTool(cancellationToken, GetNus3AudioExe(), "-A", toneId, lopusFile, "-w", nus3AudioFile);
+                File.Copy(nus3AudioFile, outputFilename, true);
+                return outputFilename;
+            }
+            finally
+            {
+                //cleanup temp files
+                DeleteSoxCompatibleInputCopy(audioFilename, soxInputFile);
+                DeleteTempFile(resampledWavFile);
+                DeleteTempFile(lopusFile);
+                DeleteTempFile(nus3AudioFile);
+            }
         }
 
         private (uint LoopStartSample, uint LoopEndSample) FitLoopPointsToWav(

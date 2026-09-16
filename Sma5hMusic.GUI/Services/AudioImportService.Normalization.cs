@@ -125,74 +125,22 @@ namespace Sma5hMusic.GUI.Services
             uint loopEndSample)
         {
             var tempId = Guid.NewGuid().ToString("N");
-            //double wav because sample rates may not match
             var extractedWavFile = Path.Combine(GetTempPath(), $"{tempId}_source.wav");
-            var tempWavFile = Path.Combine(GetTempPath(), $"{tempId}.wav");
-            var tempLopusFile = Path.Combine(GetTempPath(), $"{tempId}.lopus");
 
             try
             {
                 //NUS3AUDIO -> WAV
                 ExtractAudioToWavFile(filename, extractedWavFile);
-
-                var extractedInfo = GetAudioInfo(extractedWavFile).GetAwaiter().GetResult();
-                var loopStart48k = ConvertSampleRate(loopStartSample, extractedInfo.SampleRate);
-                var loopEnd48k = ConvertSampleRate(loopEndSample, extractedInfo.SampleRate);
-                var encoderWavFile = extractedWavFile;
-
-                if (extractedInfo.SampleRate != TargetSampleRate)
-                {
-                    RunTool(
-                        GetSoxExe(),
-                        extractedWavFile,
-                        "-r", TargetSampleRate.ToString(CultureInfo.InvariantCulture),
-                        "-b", "16",
-                        "-e", "signed-integer",
-                        tempWavFile
-                    );
-
-                    encoderWavFile = tempWavFile;
-                }
-
-                //get new loop points
-                (loopStart48k, loopEnd48k) = FitLoopPointsToWav(encoderWavFile, loopStart48k, loopEnd48k);
-
-                _logger.LogInformation(
-                    "Re-encoding existing NUS3AUDIO with new loop points {LoopStart}-{LoopEnd}. File={File}.",
-                    loopStart48k,
-                    loopEnd48k,
-                    filename
-                );
-
-                //WAV -> LOPUS
-                var encoderOutput = RunTool(
-                    GetVGAudioCliExe(),
-                    encoderWavFile,
-                    tempLopusFile,
-                    "-l",
-                    $"{loopStart48k}-{loopEnd48k}",
-                    "--bitrate",
-                    "64000",
-                    "--cbr",
-                    "--opusheader",
-                    "namco"
-                );
-
-                EnsureLopusCreated(tempLopusFile, encoderOutput);
-
-                _logger.LogInformation("Creating loop-updated NUS3AUDIO {OutputFile}.", outputFile);
-
-                //LOPUS -> NUS3AUDIO
-                RunTool(GetNus3AudioExe(), "-n", "-w", outputFile);
-                RunTool(GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
-
-                return outputFile;
+                return EncodeAudioToNus3Audio(
+                    toneId,
+                    extractedWavFile,
+                    outputFile,
+                    loopStartSample,
+                    loopEndSample);
             }
             finally
             {
                 DeleteTempFile(extractedWavFile);
-                DeleteTempFile(tempWavFile);
-                DeleteTempFile(tempLopusFile);
             }
         }
 
@@ -205,7 +153,6 @@ namespace Sma5hMusic.GUI.Services
             var tempId = Guid.NewGuid().ToString("N");
             var extractedWavFile = Path.Combine(GetTempPath(), $"{tempId}_source.wav");
             var normalizedWavFile = Path.Combine(GetTempPath(), $"{tempId}_normalized.wav");
-            var tempLopusFile = Path.Combine(GetTempPath(), $"{tempId}.lopus");
 
             try
             {
@@ -233,54 +180,18 @@ namespace Sma5hMusic.GUI.Services
                 //normalize WAV
                 NormalizeAudioToWav(extractedWavFile, normalizedWavFile, targetLufs, cancellationToken);
 
-                //WAV -> LOPUS
-                var encoderArguments = new List<string>
-                {
+                return EncodeAudioToNus3Audio(
+                    toneId,
                     normalizedWavFile,
-                    tempLopusFile
-                };
-
-                if (sourceInfo.HasLoopPoints)
-                {
-                    var loopStart48k = ConvertSampleRate(sourceInfo.LoopStartSample, sourceInfo.SampleRate);
-                    var loopEnd48k = ConvertSampleRate(sourceInfo.LoopEndSample, sourceInfo.SampleRate);
-
-                    _logger.LogInformation(
-                        "Encoding normalized NUS3AUDIO WAV to LOPUS with old loop points {LoopStart}-{LoopEnd}.",
-                        loopStart48k,
-                        loopEnd48k
-                    );
-
-                    encoderArguments.Add("-l");
-                    encoderArguments.Add($"{loopStart48k}-{loopEnd48k}");
-                }
-
-                encoderArguments.AddRange(new[]
-                {
-                    "--bitrate",
-                    "64000",
-                    "--cbr",
-                    "--opusheader",
-                    "namco"
-                });
-
-                var encoderOutput = RunTool(cancellationToken, GetVGAudioCliExe(), encoderArguments.ToArray());
-
-                EnsureLopusCreated(tempLopusFile, encoderOutput);
-
-                _logger.LogInformation("Creating normalized NUS3AUDIO {OutputFile}.", outputFile);
-
-                //LOPUS -> NUS3AUDIO
-                RunTool(cancellationToken, GetNus3AudioExe(), "-n", "-w", outputFile);
-                RunTool(cancellationToken, GetNus3AudioExe(), "-A", toneId, tempLopusFile, "-w", outputFile);
-
-                return outputFile;
+                    outputFile,
+                    sourceInfo.HasLoopPoints ? sourceInfo.LoopStartSample : null,
+                    sourceInfo.HasLoopPoints ? sourceInfo.LoopEndSample : null,
+                    cancellationToken);
             }
             finally
             {
                 DeleteTempFile(extractedWavFile);
                 DeleteTempFile(normalizedWavFile);
-                DeleteTempFile(tempLopusFile);
             }
         }
 
@@ -321,7 +232,12 @@ namespace Sma5hMusic.GUI.Services
                 {
                     SampleRate = sampleRate.Value,
                     TotalSamples = totalSamples.GetValueOrDefault(),
-                    HasLoopPoints = loopStart.HasValue && loopEnd.HasValue
+                    HasLoopPoints =
+                        loopStart.HasValue &&
+                        loopEnd.HasValue &&
+                        loopEnd.Value > 0 &&
+                        loopEnd.Value <= totalSamples.GetValueOrDefault() &&
+                        loopStart.Value <= loopEnd.Value
                 };
 
                 if (info.HasLoopPoints)

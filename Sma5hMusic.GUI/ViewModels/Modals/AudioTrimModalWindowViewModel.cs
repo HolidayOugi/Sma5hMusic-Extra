@@ -29,6 +29,9 @@ namespace Sma5hMusic.GUI.ViewModels
         private uint _previewSourceStartSample;
         private uint _previewLengthSamples;
         private IDisposable _previewProgressSubscription;
+        private readonly bool _hasOriginalLoopMarkers;
+        private readonly uint _originalLoopStartMarker;
+        private readonly uint _originalLoopEndMarker;
 
         public AudioTrimModalWindowViewModel(
             IAudioImportService audioImportService,
@@ -38,7 +41,9 @@ namespace Sma5hMusic.GUI.ViewModels
             string sourceWavFilename,
             uint sampleRate,
             uint totalSamples,
-            float[] waveformPeaks)
+            float[] waveformPeaks,
+            uint? loopStartSample = null,
+            uint? loopEndSample = null)
         {
             _audioImportService = audioImportService;
             _messageDialog = messageDialog;
@@ -49,6 +54,13 @@ namespace Sma5hMusic.GUI.ViewModels
             TotalSamples = totalSamples;
             TotalTimeMs = SamplesToMs(totalSamples);
             WaveformPeaks = waveformPeaks ?? Array.Empty<float>();
+            _hasOriginalLoopMarkers = loopStartSample.HasValue &&
+                loopEndSample.HasValue &&
+                loopEndSample.Value > 0 &&
+                loopEndSample.Value <= totalSamples &&
+                loopStartSample.Value <= loopEndSample.Value;
+            _originalLoopStartMarker = _hasOriginalLoopMarkers ? loopStartSample.Value : 0;
+            _originalLoopEndMarker = _hasOriginalLoopMarkers ? loopEndSample.Value : 0;
             TrimEndSample = totalSamples;
 
             this.ValidationRule(p => p.TrimStartSample,
@@ -86,6 +98,13 @@ namespace Sma5hMusic.GUI.ViewModels
                 .Subscribe(value => UpdateStartMs(value)));
             _subscriptions.Add(this.WhenAnyValue(p => p.TrimEndSample)
                 .Subscribe(value => UpdateEndMs(value)));
+            _subscriptions.Add(this.WhenAnyValue(p => p.TrimStartSample, p => p.TrimEndSample)
+                .Subscribe(_ =>
+                {
+                    this.RaisePropertyChanged(nameof(ShowLoopMarkers));
+                    this.RaisePropertyChanged(nameof(LoopStartMarker));
+                    this.RaisePropertyChanged(nameof(LoopEndMarker));
+                }));
             _subscriptions.Add(this.WhenAnyValue(p => p.TrimStartMs)
                 .Subscribe(value => UpdateStartSample(value)));
             _subscriptions.Add(this.WhenAnyValue(p => p.TrimEndMs)
@@ -126,6 +145,13 @@ namespace Sma5hMusic.GUI.ViewModels
         public uint TotalSamples { get; }
         public uint TotalTimeMs { get; }
         public float[] WaveformPeaks { get; }
+        public bool ShowLoopMarkers =>
+            _hasOriginalLoopMarkers &&
+            TrimStartSample < TrimEndSample &&
+            TrimStartSample < _originalLoopEndMarker &&
+            TrimEndSample > _originalLoopStartMarker;
+        public uint LoopStartMarker => ClampMarkerToTrimRange(_originalLoopStartMarker);
+        public uint LoopEndMarker => ClampMarkerToTrimRange(_originalLoopEndMarker);
 
         public string TrimRangeText => $"{FormatTrimTime(TrimStartMs)} / {FormatTrimTime(TrimEndMs)}";
 
@@ -440,6 +466,14 @@ namespace Sma5hMusic.GUI.ViewModels
 
             var samples = Math.Round(milliseconds * (double)SampleRate / 1000.0);
             return samples >= TotalSamples ? TotalSamples : (uint)Math.Max(0, samples);
+        }
+
+        //Loop markers
+        private uint ClampMarkerToTrimRange(uint marker)
+        {
+            var rangeStart = Math.Min(TrimStartSample, TrimEndSample);
+            var rangeEnd = Math.Max(TrimStartSample, TrimEndSample);
+            return Math.Min(rangeEnd, Math.Max(rangeStart, marker));
         }
 
         private static uint ComposeMilliseconds(uint minutes, uint seconds, uint milliseconds)

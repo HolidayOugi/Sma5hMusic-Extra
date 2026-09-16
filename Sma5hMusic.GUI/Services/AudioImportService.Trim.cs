@@ -151,6 +151,21 @@ namespace Sma5hMusic.GUI.Services
             });
         }
 
+        public Task<string> CreateNus3AudioFromTrimmedWav(
+            string toneId,
+            string wavFilename,
+            string outputFilename,
+            uint? loopStartSample,
+            uint? loopEndSample)
+        {
+            return Task.Run(() => EncodeAudioToNus3Audio(
+                toneId,
+                wavFilename,
+                outputFilename,
+                loopStartSample,
+                loopEndSample));
+        }
+
         private AudioImportInfo ValidateTrimRange(string wavFilename, uint startSample, uint endSample)
         {
             if (!File.Exists(wavFilename))

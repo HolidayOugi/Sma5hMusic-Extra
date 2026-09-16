@@ -24,6 +24,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using VGMMusic;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Sma5hMusic.GUI.ViewModels
@@ -40,7 +41,6 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IMessageDialog _messageDialog;
         private readonly IServiceProvider _serviceProvider;
         private readonly List<GameTitleEntryViewModel> _recentGameTitles;
-        private readonly HashSet<string> _pendingConvertedNus3AudioFiles;
         private readonly List<ComboItem> _recordTypes;
         private readonly List<ComboItem> _specialCategories;
         private readonly ReadOnlyObservableCollection<SeriesEntryViewModel> _series;
@@ -51,8 +51,8 @@ namespace Sma5hMusic.GUI.ViewModels
         private bool _isSaving;
         private string _originalGameTitleId;
         private string _originalFilename;
-        private string _pendingOriginalNus3AudioFile; //original nus3audio
-        private string _pendingStagedNus3AudioFile; //pending staged copy
+        private string _pendingTargetAudioFile;
+        private string _pendingStagedAudioFile;
 
         public IEnumerable<GameTitleEntryViewModel> RecentGameTitles { get { return _recentGameTitles; } }
         [Reactive]
@@ -98,6 +98,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<BgmPropertyEntryViewModel, Unit> ActionCalculateLoopCues { get; }
         public ReactiveCommand<Window, Unit> ActionPreviewLoops { get; }
         public ReactiveCommand<Window, Unit> ActionNormalizeSong { get; }
+        public ReactiveCommand<Window, Unit> ActionTrimAudio { get; }
         public ReactiveCommand<Window, Unit> ActionClosing { get; }
         public ReactiveCommand<Unit, Unit> ActionSetVolumeToAverage { get; }
         public ReactiveCommand<Unit, Unit> ActionSetVolumeToMedian { get; }
@@ -119,7 +120,6 @@ namespace Sma5hMusic.GUI.ViewModels
             _specialCategories = GetSpecialCategories();
             _whenNewRequestToAddGameEntry = new Subject<Window>();
             _recentGameTitles = new List<GameTitleEntryViewModel>();
-            _pendingConvertedNus3AudioFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             //Bind observables
             viewModelManager.ObservableSeries.Connect()
@@ -186,10 +186,11 @@ namespace Sma5hMusic.GUI.ViewModels
 
             ActionNewGame = ReactiveCommand.Create<Window>(AddNewGame);
             ActionChangeFile = ReactiveCommand.CreateFromTask<BgmPropertyEntryViewModel>(ChangeFile);
-            ActionCalculateLoopCues = ReactiveCommand.CreateFromTask<BgmPropertyEntryViewModel>(p => CalculateAudioCues(p, _pendingStagedNus3AudioFile));
+            ActionCalculateLoopCues = ReactiveCommand.CreateFromTask<BgmPropertyEntryViewModel>(p => CalculateAudioCues(p, _pendingStagedAudioFile));
             ActionPreviewLoops = ReactiveCommand.CreateFromTask<Window>(PreviewLoops);
             ActionNormalizeSong = ReactiveCommand.CreateFromTask<Window>(NormalizeSong);
-            ActionClosing = ReactiveCommand.Create<Window>(ClosingWindow);
+            ActionTrimAudio = ReactiveCommand.CreateFromTask<Window>(TrimSong);
+            ActionClosing = ReactiveCommand.CreateFromTask<Window>(ClosingWindow);
             ActionSetVolumeToAverage = ReactiveCommand.Create(SetVolumeToAverage);
             ActionSetVolumeToMedian = ReactiveCommand.Create(SetVolumeToMedian);
         }
@@ -264,23 +265,36 @@ namespace Sma5hMusic.GUI.ViewModels
             _whenNewRequestToAddGameEntry.OnNext(window);
         }
 
+        //new ChangeFile stages the new audio file, should not cause vgmstream errors
         private async Task ChangeFile(BgmPropertyEntryViewModel bgmPropertyEntryViewModel)
         {
             _logger.LogDebug("Clicked Change File");
             var filename = await _fileDialog.OpenFileDialogAudioSingle();
-            if (!string.IsNullOrEmpty(filename))
+            if (string.IsNullOrEmpty(filename))
+                return;
+
+            if (BgmPropertyViewModel.MusicPlayer != null)
+                await BgmPropertyViewModel.MusicPlayer.StopSong();
+
+            var tempPath = Path.Combine(_config.CurrentValue.TempPath, "AudioImport");
+            Directory.CreateDirectory(tempPath);
+
+            var stagedFilename = Path.Combine(tempPath, $"{Guid.NewGuid():N}{Path.GetExtension(filename)}");
+            File.Copy(filename, stagedFilename);
+
+            if (!await CalculateAudioCues(bgmPropertyEntryViewModel, stagedFilename))
             {
-                var oldFile = BgmPropertyViewModel.Filename;
-                BgmPropertyViewModel.Filename = filename;
-                if (await CalculateAudioCues(bgmPropertyEntryViewModel))
-                {
-                    await BgmPropertyViewModel.MusicPlayer?.ChangeFilename(filename);
-                }
-                else
-                {
-                    BgmPropertyViewModel.Filename = oldFile;
-                }
+                DeleteAudioFileIfExists(stagedFilename);
+                return;
             }
+
+            var targetFilename = Path.ChangeExtension(
+                _pendingTargetAudioFile ?? BgmPropertyViewModel.Filename,
+                Path.GetExtension(filename));
+
+            DiscardPendingAudioChanges();
+            AdoptStagedAudio(targetFilename, stagedFilename);
+            await BgmPropertyViewModel.MusicPlayer?.ChangeFilename(stagedFilename);
         }
 
         private async Task PreviewLoops(Window parentWindow)
@@ -288,6 +302,7 @@ namespace Sma5hMusic.GUI.ViewModels
             if (BgmPropertyViewModel == null)
                 return;
 
+            string sourceFilename = null;
             string previewFilename = null;
             ToneIdCreationModalWindowModel vmToneIdCreation = null;
 
@@ -295,15 +310,14 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 _logger.LogDebug("Clicked Preview Loops");
 
-                if (string.IsNullOrWhiteSpace(BgmPropertyViewModel.Filename) || !File.Exists(BgmPropertyViewModel.Filename))
+                sourceFilename = GetCurrentAudioFilename();
+                if (string.IsNullOrWhiteSpace(sourceFilename) || !File.Exists(sourceFilename))
                 {
                     await _messageDialog.ShowError("Preview Loops", "The song file could not be found.");
                     return;
                 }
 
-                previewFilename = _audioImportService.IsNus3Audio(BgmPropertyViewModel.Filename) || _audioImportService.IsGameAudio(BgmPropertyViewModel.Filename)
-                    ? await _audioImportService.ExtractAudioToTempWav(BgmPropertyViewModel.Filename)
-                    : BgmPropertyViewModel.Filename;
+                previewFilename = await _audioImportService.ExtractAudioToTempWav(sourceFilename);
 
                 var audioInfo = await _audioImportService.GetAudioInfo(previewFilename);
                 vmToneIdCreation = ActivatorUtilities.CreateInstance<ToneIdCreationModalWindowModel>(_serviceProvider);
@@ -327,67 +341,25 @@ namespace Sma5hMusic.GUI.ViewModels
                 var newLoopStartSample = vmToneIdCreation.LoopStartSample;
                 var newLoopEndSample = vmToneIdCreation.LoopEndSample;
 
-                if (_audioImportService.IsNus3Audio(BgmPropertyViewModel.Filename) || _audioImportService.IsGameAudio(BgmPropertyViewModel.Filename))
-                {
-                    if (BgmPropertyViewModel.MusicPlayer != null)
-                        await BgmPropertyViewModel.MusicPlayer.StopSong();
+                if (BgmPropertyViewModel.MusicPlayer != null)
+                    await BgmPropertyViewModel.MusicPlayer.StopSong();
 
-                    //check if the converted nus3audio already exists
-                    var previousFilename = BgmPropertyViewModel.Filename;
-                    var convertedOutputExists = false;
-                    if (!string.IsNullOrWhiteSpace(BgmPropertyViewModel.NameId) &&
-                        !string.IsNullOrWhiteSpace(previousFilename) &&
-                        !_audioImportService.IsNus3Audio(previousFilename))
-                    {
-                        var outputFile = Path.Combine(Path.GetDirectoryName(previousFilename) ?? string.Empty, $"{BgmPropertyViewModel.NameId}.nus3audio");
-                        convertedOutputExists = File.Exists(outputFile);
-                    }
+                var previousFilename = GetCurrentAudioFilename();
+                var updatedFile = await UpdateNus3AudioLoopPointsWithProgress(
+                    parentWindow,
+                    BgmPropertyViewModel.NameId,
+                    StageCurrentAudioFile(previousFilename),
+                    newLoopStartSample,
+                    newLoopEndSample
+                );
 
-                    var updatedFile = await UpdateNus3AudioLoopPointsWithProgress(
-                        parentWindow,
-                        BgmPropertyViewModel.NameId,
-                        StageExistingNus3Audio(previousFilename),
-                        newLoopStartSample,
-                        newLoopEndSample
-                    );
+                if (!string.Equals(updatedFile, _pendingStagedAudioFile, StringComparison.OrdinalIgnoreCase))
+                    AdoptStagedAudio(GetNus3AudioTargetFilename(), updatedFile);
 
-                    //if it doesn't add it to the list of pending nus3audios
-                    if (!string.Equals(updatedFile, previousFilename, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!string.IsNullOrWhiteSpace(previousFilename) &&
-                            !string.IsNullOrWhiteSpace(updatedFile) &&
-                            !convertedOutputExists &&
-                            !_audioImportService.IsNus3Audio(previousFilename) &&
-                            _audioImportService.IsNus3Audio(updatedFile))
-                        {
-                            try
-                            {
-                                _pendingConvertedNus3AudioFiles.Add(Path.GetFullPath(updatedFile));
-                            }
-                            catch
-                            {
-                                _pendingConvertedNus3AudioFiles.Add(updatedFile);
-                            }
-                        }
+                await CalculateAudioCues(BgmPropertyViewModel, updatedFile);
 
-                        if (!string.Equals(updatedFile, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase))
-                            BgmPropertyViewModel.Filename = GetRelativeDisplayPath(updatedFile);
-                    }
-
-                    await CalculateAudioCues(BgmPropertyViewModel, updatedFile);
-
-                    if (BgmPropertyViewModel.MusicPlayer != null)
-                        await BgmPropertyViewModel.MusicPlayer.ChangeFilename(updatedFile);
-                }
-                else
-                {
-                    BgmPropertyViewModel.LoopStartSample = vmToneIdCreation.LoopStartSample;
-                    BgmPropertyViewModel.LoopEndSample = vmToneIdCreation.LoopEndSample;
-                    BgmPropertyViewModel.LoopStartMs = vmToneIdCreation.LoopStartMs;
-                    BgmPropertyViewModel.LoopEndMs = vmToneIdCreation.LoopEndMs;
-                    BgmPropertyViewModel.TotalSamples = vmToneIdCreation.TotalSamples;
-                    BgmPropertyViewModel.TotalTimeMs = vmToneIdCreation.TotalTimeMs;
-                }
+                if (BgmPropertyViewModel.MusicPlayer != null)
+                    await BgmPropertyViewModel.MusicPlayer.ChangeFilename(updatedFile);
             }
             catch (Exception e)
             {
@@ -397,7 +369,7 @@ namespace Sma5hMusic.GUI.ViewModels
             finally
             {
                 vmToneIdCreation?.Dispose();
-                DeleteTemporaryPreviewFile(BgmPropertyViewModel.Filename, previewFilename);
+                DeleteTemporaryPreviewFile(sourceFilename, previewFilename);
             }
         }
 
@@ -461,6 +433,233 @@ namespace Sma5hMusic.GUI.ViewModels
             }
         }
 
+        private async Task TrimSong(Window parentWindow)
+        {
+            if (BgmPropertyViewModel == null)
+                return;
+
+            string preparedWav = null;
+            string trimmedWav = null;
+            string stagedNus3Audio = null;
+
+            try
+            {
+                _logger.LogDebug("Clicked Trim Audio");
+
+                var sourceFilename = GetCurrentAudioFilename();
+                if (string.IsNullOrWhiteSpace(sourceFilename) || !File.Exists(sourceFilename))
+                {
+                    await _messageDialog.ShowError("Trim Audio", "The song file could not be found.");
+                    return;
+                }
+
+                if (!_audioImportService.IsFfmpegConfigured())
+                {
+                    await _messageDialog.ShowInformation(
+                        "Trim Audio unavailable",
+                        "ffmpeg is not configured. Set its path in Global Settings before trimming audio.");
+                    return;
+                }
+
+                if (BgmPropertyViewModel.MusicPlayer != null)
+                    await BgmPropertyViewModel.MusicPlayer.StopSong();
+
+                preparedWav = await _audioImportService.ExtractAudioToTempWav(sourceFilename);
+
+                var audioInfo = await _audioImportService.GetAudioInfo(preparedWav);
+                var waveformPeaks = await _audioImportService.GetAudioWaveformPeaks(preparedWav, 1600);
+                var hasValidLoopPoints =
+                    BgmPropertyViewModel.LoopEndSample > 0 &&
+                    BgmPropertyViewModel.LoopEndSample <= audioInfo.TotalSamples &&
+                    BgmPropertyViewModel.LoopStartSample <= BgmPropertyViewModel.LoopEndSample;
+
+                var trimViewModel = new AudioTrimModalWindowViewModel(
+                    _audioImportService,
+                    _messageDialog,
+                    _serviceProvider.GetRequiredService<IVGMMusicPlayer>(),
+                    BgmPropertyViewModel.Filename,
+                    preparedWav,
+                    audioInfo.SampleRate,
+                    audioInfo.TotalSamples,
+                    waveformPeaks,
+                    hasValidLoopPoints ? BgmPropertyViewModel.LoopStartSample : null,
+                    hasValidLoopPoints ? BgmPropertyViewModel.LoopEndSample : null);
+                var trimWindow = new AudioTrimModalWindow { DataContext = trimViewModel };
+
+                // The trim modal owns and cleans up the prepared WAV after this point.
+                preparedWav = null;
+                trimmedWav = await trimWindow.ShowDialog<string>(parentWindow);
+                if (string.IsNullOrWhiteSpace(trimmedWav))
+                    return;
+
+                uint? newLoopStartSample = null;
+                uint? newLoopEndSample = null;
+                if (hasValidLoopPoints)
+                {
+                    var retainedStartSample = trimViewModel.TrimStartSample;
+                    var retainedEndSample = trimViewModel.TrimEndSample;
+                    var adjustedSourceLoopStart = Math.Max(BgmPropertyViewModel.LoopStartSample, retainedStartSample);
+                    var adjustedSourceLoopEnd = Math.Min(BgmPropertyViewModel.LoopEndSample, retainedEndSample);
+                    var startWasClipped = retainedStartSample > BgmPropertyViewModel.LoopStartSample;
+                    var endWasClipped = retainedEndSample < BgmPropertyViewModel.LoopEndSample;
+
+                    //update loop points only if selection contains at least some of the original loop interval
+                    if (adjustedSourceLoopStart < adjustedSourceLoopEnd)
+                    {
+                        newLoopStartSample = adjustedSourceLoopStart - retainedStartSample;
+                        newLoopEndSample = adjustedSourceLoopEnd - retainedStartSample;
+                    }
+
+                    if (startWasClipped || endWasClipped)
+                    {
+                        string warning;
+                        if (!newLoopStartSample.HasValue)
+                        {
+                            warning = "The trim selection removes the entire existing loop interval. The trimmed audio will be rebuilt without loop points.";
+                        }
+                        else if (startWasClipped && endWasClipped)
+                        {
+                            warning = "The trim selection cuts into both the start and end of the existing loop. Both loop points will be moved to the retained audio boundaries.";
+                        }
+                        else if (startWasClipped)
+                        {
+                            warning = "The trim selection cuts into the start of the existing loop. The loop start will be moved to the beginning of the retained audio.";
+                        }
+                        else
+                        {
+                            warning = "The trim selection cuts into the end of the existing loop. The loop end will be moved to the end of the retained audio.";
+                        }
+
+                        await _messageDialog.ShowWarning("Trim Audio - Loop points adjusted", warning);
+                    }
+                }
+
+                var targetFilename = GetNus3AudioTargetFilename();
+                stagedNus3Audio = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.nus3audio");
+                await RebuildTrimmedSongWithProgress(
+                    parentWindow,
+                    trimmedWav,
+                    stagedNus3Audio,
+                    newLoopStartSample,
+                    newLoopEndSample);
+
+                //update the BGM property view model to point to the new nus3audio file
+                AdoptStagedAudio(targetFilename, stagedNus3Audio);
+                stagedNus3Audio = null;
+
+                await CalculateAudioCues(BgmPropertyViewModel, _pendingStagedAudioFile);
+                if (BgmPropertyViewModel.MusicPlayer != null)
+                    await BgmPropertyViewModel.MusicPlayer.ChangeFilename(_pendingStagedAudioFile);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error while trimming song.");
+                await _messageDialog.ShowError("Trim Audio", e.Message, e);
+            }
+            finally
+            {
+                DeleteAudioFileIfExists(preparedWav);
+                DeleteAudioFileIfExists(trimmedWav);
+                DeleteAudioFileIfExists(stagedNus3Audio);
+            }
+        }
+
+        private async Task RebuildTrimmedSongWithProgress(
+            Window parentWindow,
+            string trimmedWav,
+            string outputFilename,
+            uint? loopStartSample,
+            uint? loopEndSample)
+        {
+            var progressVm = new AudioConversionProgressModalWindowViewModel();
+            progressVm.SetTrimming(Path.GetFileName(BgmPropertyViewModel.Filename));
+            var progressWindow = new AudioConversionProgressModalWindow { DataContext = progressVm };
+            var closingProgrammatically = false;
+            progressWindow.Closing += (sender, args) =>
+            {
+                if (!closingProgrammatically)
+                    args.Cancel = true;
+            };
+
+            var progressDialogTask = progressWindow.ShowDialog(parentWindow);
+            try
+            {
+                await _audioImportService.CreateNus3AudioFromTrimmedWav(
+                    BgmPropertyViewModel.NameId,
+                    trimmedWav,
+                    outputFilename,
+                    loopStartSample,
+                    loopEndSample);
+                progressVm.SetComplete();
+            }
+            finally
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    closingProgrammatically = true;
+                    if (progressWindow.IsVisible)
+                        progressWindow.Close();
+                });
+                await progressDialogTask;
+            }
+        }
+
+        private string GetCurrentAudioFilename()
+        {
+            return !string.IsNullOrWhiteSpace(_pendingStagedAudioFile) &&
+                   File.Exists(_pendingStagedAudioFile)
+                ? _pendingStagedAudioFile
+                : BgmPropertyViewModel.Filename;
+        }
+
+        private string GetNus3AudioTargetFilename()
+        {
+            var currentTargetFilename = _pendingTargetAudioFile ?? BgmPropertyViewModel.Filename;
+            if (_audioImportService.IsNus3Audio(currentTargetFilename))
+                return currentTargetFilename;
+
+            return Path.Combine(
+                Path.GetDirectoryName(currentTargetFilename) ?? string.Empty,
+                $"{BgmPropertyViewModel.NameId}.nus3audio");
+        }
+
+        private void AdoptStagedAudio(string targetFilename, string stagedFilename)
+        {
+            if (!string.IsNullOrWhiteSpace(_pendingStagedAudioFile) &&
+                !string.Equals(_pendingStagedAudioFile, stagedFilename, StringComparison.OrdinalIgnoreCase))
+            {
+                DeleteAudioFileIfExists(_pendingStagedAudioFile);
+            }
+
+            _pendingTargetAudioFile = targetFilename;
+            _pendingStagedAudioFile = stagedFilename;
+            BgmPropertyViewModel.Filename = targetFilename;
+        }
+
+        private void DeleteAudioFileIfExists(string filename)
+        {
+            if (string.IsNullOrWhiteSpace(filename))
+                return;
+
+            try
+            {
+                if (File.Exists(filename))
+                    File.Delete(filename);
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Could not delete audio file {Filename}.", filename);
+            }
+        }
+
+        private void DiscardPendingAudioChanges()
+        {
+            DeleteAudioFileIfExists(_pendingStagedAudioFile);
+
+            _pendingTargetAudioFile = null;
+            _pendingStagedAudioFile = null;
+        }
+
         private async Task NormalizeSong(Window parentWindow)
         {
             if (BgmPropertyViewModel == null)
@@ -470,7 +669,8 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 _logger.LogDebug("Clicked Normalize Song");
 
-                if (string.IsNullOrWhiteSpace(BgmPropertyViewModel.Filename) || !File.Exists(BgmPropertyViewModel.Filename))
+                var sourceFilename = GetCurrentAudioFilename();
+                if (string.IsNullOrWhiteSpace(sourceFilename) || !File.Exists(sourceFilename))
                 {
                     await _messageDialog.ShowError("Normalize Song", "The song file could not be found.");
                     return;
@@ -490,7 +690,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 await NormalizeSongWithProgress(parentWindow);
 
                 if (BgmPropertyViewModel.MusicPlayer != null)
-                    await BgmPropertyViewModel.MusicPlayer.ChangeFilename(_pendingStagedNus3AudioFile ?? BgmPropertyViewModel.Filename);
+                    await BgmPropertyViewModel.MusicPlayer.ChangeFilename(_pendingStagedAudioFile ?? BgmPropertyViewModel.Filename);
             }
             catch (Exception e)
             {
@@ -520,43 +720,14 @@ namespace Sma5hMusic.GUI.ViewModels
 
             try
             {
-                //check if the converted nus3audio already exists
-                var previousFilename = BgmPropertyViewModel.Filename;
-                var convertedOutputExists = false;
-                if (!string.IsNullOrWhiteSpace(BgmPropertyViewModel.NameId) &&
-                    !string.IsNullOrWhiteSpace(previousFilename) &&
-                    !_audioImportService.IsNus3Audio(previousFilename))
-                {
-                    var outputFile = Path.Combine(Path.GetDirectoryName(previousFilename) ?? string.Empty, $"{BgmPropertyViewModel.NameId}.nus3audio");
-                    convertedOutputExists = File.Exists(outputFile);
-                }
-
+                var previousFilename = GetCurrentAudioFilename();
                 var normalizedFile = await _audioImportService.NormalizeExistingNus3Audio(
                     BgmPropertyViewModel.NameId,
-                    StageExistingNus3Audio(previousFilename));
-                //update filename in bgmproperty window if changed
-                if (!string.Equals(normalizedFile, previousFilename, StringComparison.OrdinalIgnoreCase))
-                {
-                    //add it to the list of pending nus3audios if it doesn't already exist
-                    if (!string.IsNullOrWhiteSpace(previousFilename) &&
-                        !string.IsNullOrWhiteSpace(normalizedFile) &&
-                        !convertedOutputExists &&
-                        !_audioImportService.IsNus3Audio(previousFilename) &&
-                        _audioImportService.IsNus3Audio(normalizedFile))
-                    {
-                        try
-                        {
-                            _pendingConvertedNus3AudioFiles.Add(Path.GetFullPath(normalizedFile));
-                        }
-                        catch
-                        {
-                            _pendingConvertedNus3AudioFiles.Add(normalizedFile);
-                        }
-                    }
+                    StageCurrentAudioFile(previousFilename));
 
-                    if (!string.Equals(normalizedFile, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase))
-                        BgmPropertyViewModel.Filename = GetRelativeDisplayPath(normalizedFile);
-                }
+                if (!string.Equals(normalizedFile, _pendingStagedAudioFile, StringComparison.OrdinalIgnoreCase))
+                    AdoptStagedAudio(GetNus3AudioTargetFilename(), normalizedFile);
+
                 await CalculateAudioCues(BgmPropertyViewModel, normalizedFile);
                 progressVm.SetComplete();
             }
@@ -574,49 +745,28 @@ namespace Sma5hMusic.GUI.ViewModels
             }
         }
 
-        private string GetRelativeDisplayPath(string filename)
+        private string StageCurrentAudioFile(string filename)
         {
-            try
-            {
-                var fullFilename = Path.GetFullPath(filename);
-                var currentDirectory = Path.GetFullPath(Environment.CurrentDirectory)
-                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    + Path.DirectorySeparatorChar;
-
-                return fullFilename.StartsWith(currentDirectory, StringComparison.OrdinalIgnoreCase)
-                    ? Path.GetRelativePath(currentDirectory, fullFilename)
-                    : filename;
-            }
-            catch
-            {
-                return filename;
-            }
-        }
-
-        private string StageExistingNus3Audio(string filename)
-        {
-            if (!_audioImportService.IsNus3Audio(filename))
-                return filename;
-            
             //if already staged, return the staged file
-            if (!string.IsNullOrWhiteSpace(_pendingStagedNus3AudioFile) &&
-                (string.Equals(filename, _pendingOriginalNus3AudioFile, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(filename, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase)))
-                return _pendingStagedNus3AudioFile;
+            if (!string.IsNullOrWhiteSpace(_pendingStagedAudioFile) &&
+                (string.Equals(filename, _pendingTargetAudioFile, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(filename, _pendingStagedAudioFile, StringComparison.OrdinalIgnoreCase)))
+                return _pendingStagedAudioFile;
 
             //if filename changed, delete old staged file
-            if (!string.IsNullOrWhiteSpace(_pendingStagedNus3AudioFile))
+            if (!string.IsNullOrWhiteSpace(_pendingStagedAudioFile))
             {
-                File.Delete(_pendingStagedNus3AudioFile);
-                _pendingConvertedNus3AudioFiles.Remove(_pendingStagedNus3AudioFile);
+                File.Delete(_pendingStagedAudioFile);
             }
 
             //create new staged file
-            _pendingOriginalNus3AudioFile = filename;
-            _pendingStagedNus3AudioFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.nus3audio");
-            File.Copy(filename, _pendingStagedNus3AudioFile);
-            _pendingConvertedNus3AudioFiles.Add(_pendingStagedNus3AudioFile);
-            return _pendingStagedNus3AudioFile;
+            var tempPath = Path.Combine(_config.CurrentValue.TempPath, "AudioImport");
+            Directory.CreateDirectory(tempPath);
+
+            _pendingTargetAudioFile = filename;
+            _pendingStagedAudioFile = Path.Combine(tempPath, $"{Guid.NewGuid():N}{Path.GetExtension(filename)}");
+            File.Copy(filename, _pendingStagedAudioFile);
+            return _pendingStagedAudioFile;
         }
 
         private List<ComboItem> GetRecordTypes()
@@ -671,47 +821,36 @@ namespace Sma5hMusic.GUI.ViewModels
             }
         }
 
-        private void ClosingWindow(Window w)
+        private async Task ClosingWindow(Window w)
         {
-            //if we choose to save, we keep it
-            BgmPropertyViewModel?.MusicPlayer?.ChangeFilename(_originalFilename);
-            if (_isSaving)
-            {
-                _pendingConvertedNus3AudioFiles.Clear();
-                return;
-            }
-            
-            //else we delete it
-            foreach (var file in _pendingConvertedNus3AudioFiles.ToList())
-            {
-                try
-                {
-                    if (File.Exists(file))
-                        File.Delete(file);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogWarning(e, "Could not delete pending converted NUS3AUDIO file {Filename}.", file);
-                }
-            }
+            if (BgmPropertyViewModel?.MusicPlayer != null)
+                await BgmPropertyViewModel.MusicPlayer.ChangeFilename(_originalFilename);
 
-            _pendingConvertedNus3AudioFiles.Clear();
+            if (_isSaving)
+                return;
+
+            DiscardPendingAudioChanges();
         }
 
-        protected override Task<bool> SaveChanges()
+        protected override async Task<bool> SaveChanges()
         {
             _logger.LogDebug("Save Changes");
-            //replace the original nus3audio with the staged nus3audio if it was changed
-            if (!string.IsNullOrWhiteSpace(_pendingStagedNus3AudioFile))
+
+            if (BgmPropertyViewModel?.MusicPlayer != null)
+                await BgmPropertyViewModel.MusicPlayer.StopSong();
+
+            //replace the original audio with the staged audio if it was changed
+            if (!string.IsNullOrWhiteSpace(_pendingStagedAudioFile))
             {
-                if (string.Equals(BgmPropertyViewModel.Filename, _pendingOriginalNus3AudioFile, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(BgmPropertyViewModel.Filename, _pendingStagedNus3AudioFile, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(BgmPropertyViewModel.Filename, _pendingTargetAudioFile, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(BgmPropertyViewModel.Filename, _pendingStagedAudioFile, StringComparison.OrdinalIgnoreCase))
                 {
-                    File.Copy(_pendingStagedNus3AudioFile, _pendingOriginalNus3AudioFile, true);
-                    BgmPropertyViewModel.Filename = _pendingOriginalNus3AudioFile;
+                    File.Copy(_pendingStagedAudioFile, _pendingTargetAudioFile, true);
+                    BgmPropertyViewModel.Filename = _pendingTargetAudioFile;
                 }
-                File.Delete(_pendingStagedNus3AudioFile);
-                _pendingConvertedNus3AudioFiles.Remove(_pendingStagedNus3AudioFile);
+                File.Delete(_pendingStagedAudioFile);
+                _pendingTargetAudioFile = null;
+                _pendingStagedAudioFile = null;
             }
             _isSaving = true;
             if (BgmPropertyViewModel.AudioVolume < Constants.MinimumGameVolume)
@@ -737,7 +876,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 AddRecentGameTitle(SelectedGameTitleViewModel);
             }
 
-            return Task.FromResult(true);
+            return true;
         }
 
         private Dictionary<string, string> SaveMSBTValues(Dictionary<string, string> msbtValues)
@@ -768,9 +907,8 @@ namespace Sma5hMusic.GUI.ViewModels
             BgmPropertyViewModel = item?.BgmPropertyViewModel;
             _originalFilename = BgmPropertyViewModel?.Filename;
             _isSaving = false;
-            _pendingConvertedNus3AudioFiles.Clear();
-            _pendingOriginalNus3AudioFile = null;
-            _pendingStagedNus3AudioFile = null;
+            _pendingTargetAudioFile = null;
+            _pendingStagedAudioFile = null;
 
             IsModSong = item.MusicMod != null;
 
