@@ -120,7 +120,8 @@ namespace Sma5hMusic.GUI.Services
             string modPath,
             uint loopStartSample,
             uint loopEndSample,
-            bool applyNormalization = false)
+            bool applyNormalization = false,
+            bool noLoop = false)
         {
             return await Task.Run(() =>
             {
@@ -144,16 +145,21 @@ namespace Sma5hMusic.GUI.Services
                 try
                 {
                     var info = GetAudioInfo(soxInputFile).GetAwaiter().GetResult();
+                    var loopStart48k = 0u;
+                    var loopEnd48k = 0u;
 
-                    if (loopEndSample == 0 || loopEndSample > info.TotalSamples)
-                        throw new InvalidOperationException($"Loop end sample must be between 1 and {info.TotalSamples}.");
+                    if (!noLoop)
+                    {
+                        if (loopEndSample == 0 || loopEndSample > info.TotalSamples)
+                            throw new InvalidOperationException($"Loop end sample must be between 1 and {info.TotalSamples}.");
 
-                    if (loopStartSample > loopEndSample)
-                        throw new InvalidOperationException("Loop start sample must be lower than or equal to loop end sample.");
+                        if (loopStartSample > loopEndSample)
+                            throw new InvalidOperationException("Loop start sample must be lower than or equal to loop end sample.");
 
-                    //convert loop points to 48kHz
-                    var loopStart48k = ConvertSampleRate(loopStartSample, info.SampleRate);
-                    var loopEnd48k = ConvertSampleRate(loopEndSample, info.SampleRate);
+                        //convert loop points to 48kHz
+                        loopStart48k = ConvertSampleRate(loopStartSample, info.SampleRate);
+                        loopEnd48k = ConvertSampleRate(loopEndSample, info.SampleRate);
+                    }
 
                     if (applyNormalization)
                     {
@@ -187,23 +193,35 @@ namespace Sma5hMusic.GUI.Services
                         );
                     }
 
-                    //get new loop points after conversion to 48kHz WAV
-                    //needed because after conversion total sample count may have changed by a few samples
-                    (loopStart48k, loopEnd48k) = FitLoopPointsToWav(tempWavFile, loopStart48k, loopEnd48k);
-
-                    _logger.LogInformation("Encoding temporary LOPUS with loop {LoopStart}-{LoopEnd}.", loopStart48k, loopEnd48k);
-
                     //WAV -> LOPUS
-                    var encoderOutput = RunTool(
-                        GetVGAudioCliExe(),
+                    var encoderArguments = new List<string>
+                    {
                         tempWavFile,
-                        tempLopusFile,
-                        "-l", $"{loopStart48k}-{loopEnd48k}",
+                        tempLopusFile
+                    };
+
+                    if (noLoop)
+                    {
+                        _logger.LogInformation("Encoding temporary LOPUS without loop points.");
+                    }
+                    else
+                    {
+                        //get new loop points after conversion to 48kHz WAV
+                        //needed because after conversion total sample count may have changed by a few samples
+                        (loopStart48k, loopEnd48k) = FitLoopPointsToWav(tempWavFile, loopStart48k, loopEnd48k);
+                        _logger.LogInformation("Encoding temporary LOPUS with loop {LoopStart}-{LoopEnd}.", loopStart48k, loopEnd48k);
+                        encoderArguments.Add("-l");
+                        encoderArguments.Add($"{loopStart48k}-{loopEnd48k}");
+                    }
+
+                    encoderArguments.AddRange(new[]
+                    {
                         "--bitrate", "64000",
                         "--cbr",
-                        "--opusheader",
-                        "namco"
-                    );
+                        "--opusheader", "namco"
+                    });
+
+                    var encoderOutput = RunTool(GetVGAudioCliExe(), encoderArguments.ToArray());
 
                     EnsureLopusCreated(tempLopusFile, encoderOutput);
 

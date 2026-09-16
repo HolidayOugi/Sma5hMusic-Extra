@@ -42,6 +42,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private async Task CalculateAutoLoops()
         {
+            if (NoLoop)
+                return;
+
             try
             {
                 _logger.LogInformation("Calculate automatic loop points clicked. Filename={Filename}, SampleRate={SampleRate}, TotalSamples={TotalSamples}.",
@@ -53,6 +56,12 @@ namespace Sma5hMusic.GUI.ViewModels
                 StartAutoLoopStatusAnimation();
 
                 var loopPoints = await _audioImportService.CalculateAutoLoopPoints(Filename, SampleRate, TotalSamples);
+                if (NoLoop)
+                {
+                    ClearAutoLoopPoints();
+                    return;
+                }
+
                 if (loopPoints.Count == 0)
                 {
                     StopAutoLoopStatusAnimation();
@@ -108,7 +117,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private async Task PreviewAutoLoop(AutoLoopPoint loopPoint)
         {
-            if (loopPoint == null)
+            if (NoLoop || loopPoint == null)
                 return;
 
             _logger.LogInformation("Automatic loop preview clicked. Rank={Rank}, Start={Start}, End={End}, Score={Score}.",

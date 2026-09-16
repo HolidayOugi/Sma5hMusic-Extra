@@ -18,7 +18,7 @@ namespace Sma5hMusic.GUI.Interfaces
         Task<string> CreateAudioTrimPreview(string wavFilename, uint startSample, uint endSample, bool previewStart);
         Task<string> TrimAudioWav(string wavFilename, uint startSample, uint endSample);
         Task<string> ExtractAudioToTempWav(string filename);
-        Task<string> ConvertToNus3Audio(string toneId, string filename, string modPath, uint loopStartSample, uint loopEndSample, bool applyNormalization = false);
+        Task<string> ConvertToNus3Audio(string toneId, string filename, string modPath, uint loopStartSample, uint loopEndSample, bool applyNormalization = false, bool noLoop = false);
         bool IsNus3Audio(string filename);
         bool IsGameAudio(string filename);
         Task<string> NormalizeNus3Audio(string toneId, string filename, string modPath, CancellationToken cancellationToken = default);

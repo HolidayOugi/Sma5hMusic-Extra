@@ -117,39 +117,43 @@ namespace Sma5hMusic.GUI.ViewModels
                $"The ToneId already exists in the database");
 
             this.ValidationRule(p => p.LoopEndSample,
-                p => !IsAudioImport || p > 0,
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopEndSample,
+                    (isAudioImport, noLoop, loopEndSample) => !isAudioImport || noLoop || loopEndSample > 0),
                 "Loop end sample must be greater than 0.");
 
             this.ValidationRule(p => p.LoopStartSample,
-                this.WhenAnyValue(p => p.IsAudioImport, p => p.LoopStartSample, p => p.LoopEndSample,
-                    (isAudioImport, loopStartSample, loopEndSample) => !isAudioImport || loopStartSample <= loopEndSample),
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopStartSample, p => p.LoopEndSample,
+                    (isAudioImport, noLoop, loopStartSample, loopEndSample) => !isAudioImport || noLoop || loopStartSample <= loopEndSample),
                 "Loop start sample must be lower than or equal to loop end sample.");
 
             this.ValidationRule(p => p.LoopEndSample,
-                this.WhenAnyValue(p => p.IsAudioImport, p => p.LoopStartSample, p => p.LoopEndSample,
-                    (isAudioImport, loopStartSample, loopEndSample) => !isAudioImport || loopStartSample <= loopEndSample),
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopStartSample, p => p.LoopEndSample,
+                    (isAudioImport, noLoop, loopStartSample, loopEndSample) => !isAudioImport || noLoop || loopStartSample <= loopEndSample),
                 "Loop end sample must be greater than or equal to loop start sample.");
 
             this.ValidationRule(p => p.LoopEndSample,
-                p => !IsAudioImport || p <= TotalSamples,
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopEndSample, p => p.TotalSamples,
+                    (isAudioImport, noLoop, loopEndSample, totalSamples) => !isAudioImport || noLoop || loopEndSample <= totalSamples),
                 "Loop end sample cannot be greater than the total sample count.");
 
             this.ValidationRule(p => p.LoopEndMs,
-                p => !IsAudioImport || p > 0,
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopEndMs,
+                    (isAudioImport, noLoop, loopEndMs) => !isAudioImport || noLoop || loopEndMs > 0),
                 "Loop end ms must be greater than 0.");
 
             this.ValidationRule(p => p.LoopStartMs,
-                this.WhenAnyValue(p => p.IsAudioImport, p => p.LoopStartMs, p => p.LoopEndMs,
-                    (isAudioImport, loopStartMs, loopEndMs) => !isAudioImport || loopStartMs <= loopEndMs),
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopStartMs, p => p.LoopEndMs,
+                    (isAudioImport, noLoop, loopStartMs, loopEndMs) => !isAudioImport || noLoop || loopStartMs <= loopEndMs),
                 "Loop start ms must be lower than or equal to loop end ms.");
 
             this.ValidationRule(p => p.LoopEndMs,
-                this.WhenAnyValue(p => p.IsAudioImport, p => p.LoopStartMs, p => p.LoopEndMs,
-                    (isAudioImport, loopStartMs, loopEndMs) => !isAudioImport || loopStartMs <= loopEndMs),
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopStartMs, p => p.LoopEndMs,
+                    (isAudioImport, noLoop, loopStartMs, loopEndMs) => !isAudioImport || noLoop || loopStartMs <= loopEndMs),
                 "Loop end ms must be greater than or equal to loop start ms.");
 
             this.ValidationRule(p => p.LoopEndMs,
-                p => !IsAudioImport || p <= TotalTimeMs,
+                this.WhenAnyValue(p => p.IsAudioImport, p => p.NoLoop, p => p.LoopEndMs, p => p.TotalTimeMs,
+                    (isAudioImport, noLoop, loopEndMs, totalTimeMs) => !isAudioImport || noLoop || loopEndMs <= totalTimeMs),
                 "Loop end ms cannot be greater than the total length.");
 
             var canExecute = this.WhenAnyValue(x => x.ValidationContext.IsValid);
@@ -158,12 +162,18 @@ namespace Sma5hMusic.GUI.ViewModels
                 x => x.LoopStartSample,
                 x => x.LoopEndSample,
                 x => x.TotalSamples,
-                (isAudioImport, loopStartSample, loopEndSample, totalSamples) =>
+                x => x.NoLoop,
+                (isAudioImport, loopStartSample, loopEndSample, totalSamples, noLoop) =>
                     isAudioImport &&
+                    !noLoop &&
                     loopEndSample > 0 &&
                     loopStartSample <= loopEndSample &&
                     loopEndSample <= totalSamples);
-            var canCalculateAutoLoops = this.WhenAnyValue(x => x.IsAudioImport, x => x.IsCalculatingAutoLoops, (isAudioImport, isCalculating) => isAudioImport && !isCalculating);
+            var canCalculateAutoLoops = this.WhenAnyValue(
+                x => x.IsAudioImport,
+                x => x.IsCalculatingAutoLoops,
+                x => x.NoLoop,
+                (isAudioImport, isCalculating, noLoop) => isAudioImport && !isCalculating && !noLoop);
             ActionCancel = ReactiveCommand.Create<Window>(Cancel);
             ActionCancelAll = ReactiveCommand.Create<Window>(CancelAll);
             ActionCreate = ReactiveCommand.Create<Window>(Select, canExecute);
@@ -175,6 +185,13 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionCalculateAutoLoops = ReactiveCommand.CreateFromTask(CalculateAutoLoops, canCalculateAutoLoops);
             ActionLoadMoreAutoLoops = ReactiveCommand.Create(LoadMoreAutoLoops);
             ActionPreviewAutoLoop = ReactiveCommand.CreateFromTask<AutoLoopPoint>(PreviewAutoLoop);
+
+            _subscriptions.Add(this.WhenAnyValue(p => p.NoLoop)
+                .Subscribe(noLoop =>
+                {
+                    if (noLoop)
+                        _ = StopPreview();
+                }));
 
             _subscriptions.Add(this.WhenAnyValue(p => p.LoopStartSample)
                 .Subscribe(p => UpdateLoopStartMsFromSample(p)));

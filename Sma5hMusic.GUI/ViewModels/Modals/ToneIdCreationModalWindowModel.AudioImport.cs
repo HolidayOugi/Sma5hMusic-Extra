@@ -42,6 +42,9 @@ namespace Sma5hMusic.GUI.ViewModels
         public bool ApplyNormalization { get; set; }
 
         [Reactive]
+        public bool NoLoop { get; set; }
+
+        [Reactive]
         public uint SampleRate { get; set; }
 
         [Reactive]
@@ -95,6 +98,7 @@ namespace Sma5hMusic.GUI.ViewModels
             IsLoopPreviewOnly = false;
             IsImportingSong = true;
             ApplyNormalization = false;
+            NoLoop = false;
             CanApplyNormalization = true;
 
             WindowHeight = 950;
@@ -173,6 +177,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
                 //assign the trimmed file to the model and reload the audio import info
                 var applyNormalization = ApplyNormalization;
+                var noLoop = NoLoop;
                 CleanupTrimmedAudioFile();
                 _trimmedAudioFile = trimmedWav;
                 Filename = trimmedWav;
@@ -180,6 +185,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 var trimmedInfo = await _audioImportService.GetAudioInfo(trimmedWav);
                 LoadAudioImportInfo(trimmedInfo.SampleRate, trimmedInfo.TotalSamples);
                 ApplyNormalization = applyNormalization;
+                NoLoop = noLoop;
             }
             catch (Exception e)
             {
@@ -195,6 +201,7 @@ namespace Sma5hMusic.GUI.ViewModels
             IsLoopPreviewOnly = false;
             IsImportingSong = true;
             ApplyNormalization = false;
+            NoLoop = false;
             CanApplyNormalization = true;
 
             WindowHeight = 400;
@@ -218,6 +225,7 @@ namespace Sma5hMusic.GUI.ViewModels
             IsLoopPreviewOnly = false;
             IsImportingSong = false;
             ApplyNormalization = false;
+            NoLoop = false;
             CanApplyNormalization = false;
 
             WindowHeight = 400;
