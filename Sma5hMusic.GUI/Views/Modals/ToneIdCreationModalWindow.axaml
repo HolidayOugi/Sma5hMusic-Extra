@@ -236,7 +236,7 @@
               </DataGrid.Columns>
             </DataGrid>
 
-            <Button IsVisible="{Binding HasMoreAutoLoops}" Content="Load more" Command="{Binding ActionLoadMoreAutoLoops}" HorizontalAlignment="Center" Margin="0,8,0,0" />
+            <Button IsVisible="{Binding HasMoreAutoLoops}" Content="Load More" Command="{Binding ActionLoadMoreAutoLoops}" HorizontalAlignment="Center" Margin="0,8,0,0" />
             </StackPanel>
           </StackPanel>
         </StackPanel>

@@ -90,7 +90,7 @@ Standard audio files can also be trimmed during importing, to cut out unwanted p
 ![Audio Trim](https://elixi.re/i/ops0e.png)
 
 > [!TIP]
-> This feature can be used from the BGM Properties tab on songs that have already been added! If the songs have loop points, they'll be adjusted accordingly.
+> This feature can be used from the BGM Properties tab on songs that have already been added! If the songs have loop points, they'll be adjusted accordingly. After trimming, the songs will be converted to NUS3Audio if they were in a different format.
 
 ## Normalization of Songs
 
