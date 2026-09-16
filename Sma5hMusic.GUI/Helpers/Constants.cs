@@ -1,11 +1,18 @@
 ﻿using System.Collections.Generic;
 
+using System.Linq;
+using System.Reflection;
+
 namespace Sma5hMusic.GUI.Helpers
 {
     public static class Constants
     {
         public const string GUIVersion = "2.2";
         public const bool IsStable = false;
+        public static readonly string BuildTimestamp = typeof(Constants).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => attribute.Key == "BuildTimestamp")
+            ?.Value ?? "unknown";
 
         public const float DefaultVolume = 0.8f;
         public const float MinimumGameVolume = -20.0f;
