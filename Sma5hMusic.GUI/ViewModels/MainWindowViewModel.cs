@@ -295,7 +295,6 @@ namespace Sma5hMusic.GUI.ViewModels
         public async Task OnInitData(bool backupData = false)
         {
             IsLoading = true;
-            VMBgmFilters.IsLoadingData = true;
             await _buildDialog.Init(async (o) =>
             {
                 if (backupData)
@@ -325,7 +324,6 @@ namespace Sma5hMusic.GUI.ViewModels
                 Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} | Game v{_guiStateManager.GameVersion}";
 
                 IsLoading = false;
-                VMBgmFilters.IsLoadingData = false;
             }, (o) =>
             {
                 OnExit();

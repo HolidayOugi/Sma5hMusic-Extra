@@ -27,7 +27,6 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IChangeSet<ModEntryViewModel, string> _allModsChangeSet;
         private readonly IChangeSet<SeriesEntryViewModel, string> _allSeriesChangeSet;
         private readonly IChangeSet<GameTitleEntryViewModel, string> _allGameTitleChangeSet;
-        private readonly IObservableCache<BgmDbRootEntryViewModel, string> _filteredBgmEntries;
         private readonly IObservableCache<PlaylistEntryValueViewModel, string> _playlistTracks;
         private readonly object _playlistMembershipLock = new object();
         private HashSet<string> _playlistSongIds = new HashSet<string>();
@@ -62,8 +61,6 @@ namespace Sma5hMusic.GUI.ViewModels
         public bool SelectedCoreSongs { get; set; }
         [Reactive]
         public bool SelectedModSongs { get; set; }
-        [Reactive]
-        public bool IsLoadingData { get; set; }
 
         public IObservable<IChangeSet<BgmDbRootEntryViewModel, string>> WhenFiltersAreApplied { get; }
 
@@ -95,14 +92,13 @@ namespace Sma5hMusic.GUI.ViewModels
 
             var whenAnyPropertyChanged = this.WhenAnyPropertyChanged("SelectedSeries", "SelectedGame",
                 "SelectedRecordType", "SelectedPlaylistFilter", "SelectedMod", "SelectedShowInSoundTest", "SelectedShowHiddenSongs",
-                "SelectedCharacterVictorySongs", "SelectedPinchSongs", "SelectedCoreSongs", "SelectedModSongs", "SearchText", "IsLoadingData");
+                "SelectedCharacterVictorySongs", "SelectedPinchSongs", "SelectedCoreSongs", "SelectedModSongs", "SearchText");
             var whenFilterRefreshIsRequired = whenAnyPropertyChanged.Select((o) => Unit.Default)
                 .Merge(whenPlaylistMembershipChanged);
-            _filteredBgmEntries = observableBgmEntries
+            WhenFiltersAreApplied = observableBgmEntries
                 .AutoRefresh(p => p.TestDispOrder, TimeSpan.FromMilliseconds(50))
                 .AutoRefreshOnObservable(p => whenFilterRefreshIsRequired, changeSetBuffer: TimeSpan.FromMilliseconds(50), scheduler: RxApp.TaskpoolScheduler)
                 .Filter(p =>
-                    !IsLoadingData &&
                     (SelectedShowHiddenSongs || (!SelectedShowHiddenSongs && !p.HiddenInSoundTest)) &&
                     (SelectedShowInSoundTest || (!SelectedShowInSoundTest && p.HiddenInSoundTest)) &&
                     MatchesSongSourceFilter(p) &&
@@ -112,9 +108,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     (SelectedSeries == null || SelectedSeries.AllFlag || p.SeriesId == SelectedSeries.UiSeriesId) &&
                     (SelectedGame == null || SelectedGame.AllFlag || p.UiGameTitleId == SelectedGame.UiGameTitleId) &&
                     (string.IsNullOrEmpty(SearchText) || p.ToneId.Contains(SearchText, StringComparison.OrdinalIgnoreCase) || p.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-                )
-                .AsObservableCache();
-            WhenFiltersAreApplied = _filteredBgmEntries.Connect();
+                );
 
             var modsChanged = observableBgmEntries.WhenValueChanged(mod => mod.MusicModViewModel.Name);
             observableBgmEntries
@@ -162,7 +156,6 @@ namespace Sma5hMusic.GUI.ViewModels
             SelectedShowInSoundTest = true;
             SelectedModSongs = true;
             SelectedCoreSongs = false;
-            IsLoadingData = true;
             SelectedRecordType = _recordTypes[0];
             SelectedPlaylistFilter = _playlistFilters[0];
             this.WhenAnyValue(p => p.SelectedSeries).Subscribe((o) => SelectedGame = _allGameTitleChangeSet.First().Current);
