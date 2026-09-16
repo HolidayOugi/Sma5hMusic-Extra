@@ -85,7 +85,7 @@ The software can also automatically detect potential loop points, making it easy
 > [!NOTE]
 > Requires the download of [FFmpeg](https://www.ffmpeg.org/) and for its path to be set in the Global Settings.
 
-Standard audio files can also be trimmed during importing, to cut out unwanted parts such as silent intro or loud outros.
+Standard audio files can also be trimmed during importing, to cut out unwanted parts such as silent intros or loud outros.
 
 ![Audio Trim](https://elixi.re/i/ops0e.png)
 
