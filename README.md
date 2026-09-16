@@ -143,7 +143,7 @@ After importing, replaced songs will be denoted in the main window with gold tex
 ## Generate Victory Themes
 
 > [!NOTE]
-> Requires the latest [CSK Collection](https://gamebanana.com/mods/499008) update released in July 2026.
+> Requires [CSK Collection](https://gamebanana.com/mods/499008) update 5.0.6 or higher.
 
 Custom Victory Themes can now be generated from an option in the Extra submenu.
 
@@ -230,7 +230,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 - [x] Linux Support
 - [ ] Decouple CSK Build service from JSONs loading
 - [x] Allow editing of Color Picker color list
-- [ ] Add Trim function when importing from audio
+- [x] Add Trim function when importing from audio
 - [x] Add Filter to MainWindow for songs not in a playlist
 - [ ] Allow reverse importing of CSK Packs and/or XMSBT files
 - [ ] One Slot Victory Themes support
