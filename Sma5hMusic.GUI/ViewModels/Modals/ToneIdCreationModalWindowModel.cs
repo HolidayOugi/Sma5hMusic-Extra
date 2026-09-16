@@ -37,6 +37,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<Window, Unit> ActionCancelAll { get; }
         public ReactiveCommand<Window, Unit> ActionCreate { get; }
         public ReactiveCommand<Window, Unit> ActionReplaceCoreSong { get; }
+        public ReactiveCommand<Window, Unit> ActionTrimAudio { get; }
 
         [Reactive]
         public string Filename { get; set; }
@@ -83,10 +84,15 @@ namespace Sma5hMusic.GUI.ViewModels
                 {
                     this.RaisePropertyChanged(nameof(WindowTitle));
                     this.RaisePropertyChanged(nameof(ResetLoopButtonText));
+                    this.RaisePropertyChanged(nameof(CanTrimAudio));
                 }));
 
             _subscriptions.Add(this.WhenAnyValue(x => x.IsLoopPreviewOnly, x => x.IsImportingSong)
-                .Subscribe(_ => this.RaisePropertyChanged(nameof(CanReplaceCoreSong))));
+                .Subscribe(_ =>
+                {
+                    this.RaisePropertyChanged(nameof(CanReplaceCoreSong));
+                    this.RaisePropertyChanged(nameof(CanTrimAudio));
+                }));
 
             _subscriptions.Add(viewModelManager.ObservableBgmPropertyEntries.Connect()
                .ObserveOn(RxApp.MainThreadScheduler)
@@ -162,6 +168,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionCancelAll = ReactiveCommand.Create<Window>(CancelAll);
             ActionCreate = ReactiveCommand.Create<Window>(Select, canExecute);
             ActionReplaceCoreSong = ReactiveCommand.CreateFromTask<Window>(ReplaceCoreSong);
+            ActionTrimAudio = ReactiveCommand.CreateFromTask<Window>(TrimAudio);
             ActionPreviewLoop = ReactiveCommand.CreateFromTask(PreviewLoop, canPreview);
             ActionStopPreview = ReactiveCommand.CreateFromTask(StopPreview);
             ActionResetLoopDefaults = ReactiveCommand.Create(ResetLoopDefaults);
@@ -248,6 +255,7 @@ namespace Sma5hMusic.GUI.ViewModels
             _disposed = true;
             StopAutoLoopStatusAnimation();
             DisposePreviewProgressTimer();
+            CleanupTrimmedAudioFile();
             _subscriptions.Dispose();
         }
 

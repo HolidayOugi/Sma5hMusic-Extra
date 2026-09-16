@@ -1,0 +1,146 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:Sma5hMusic.GUI.Controls"
+        xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
+        mc:Ignorable="d"
+        d:DesignWidth="920"
+        d:DesignHeight="760"
+        Width="920"
+        Height="760"
+        MinWidth="860"
+        MinHeight="720"
+        x:Class="Sma5hMusic.GUI.Views.AudioTrimModalWindow"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Title="Trim Audio">
+  <DockPanel Classes="modal" LastChildFill="True">
+    <Border Classes="headerTitle" DockPanel.Dock="Top">
+      <TextBlock Classes="headerTitleText" Text="Trim Audio" HorizontalAlignment="Center" />
+    </Border>
+
+    <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="#404040" Padding="0,8">
+      <Grid ColumnDefinitions="*,Auto,*">
+        <Button Grid.Column="1"
+                Content="Trim"
+                Command="{Binding ActionConfirm}"
+                CommandParameter="{Binding $parent[Window]}" />
+        <Button Grid.Column="2"
+                Content="Cancel"
+                HorizontalAlignment="Right"
+                Margin="8,0,12,0"
+                Command="{Binding ActionCancel}"
+                CommandParameter="{Binding $parent[Window]}" />
+      </Grid>
+    </Border>
+
+    <StackPanel Classes="content" IsEnabled="{Binding !IsBusy}">
+      <fields:PropertyTextField Classes="jpnSupport"
+                                Label="Filename"
+                                Text="{Binding Filename, Mode=OneWay}"
+                                ToolTip="The source audio being trimmed."
+                                IsReadOnly="True" />
+
+      <controls:AudioTrimRangeControl Height="170"
+                                      Margin="8,12,8,0"
+                                      HorizontalAlignment="Stretch"
+                                      Minimum="0"
+                                      Maximum="{Binding TotalSamples}"
+                                      StartValue="{Binding TrimStartSample, Mode=TwoWay}"
+                                      EndValue="{Binding TrimEndSample, Mode=TwoWay}"
+                                      WaveformPeaks="{Binding WaveformPeaks}" />
+      <TextBlock Text="{Binding TrimRangeText}"
+                 HorizontalAlignment="Center"
+                 Margin="0,0,0,4" />
+
+      <StackPanel IsVisible="{Binding IsPreviewProgressVisible}" Margin="8,4,8,4">
+        <ProgressBar Minimum="0"
+                     Maximum="{Binding PreviewProgressMaximum}"
+                     Value="{Binding PreviewProgressValue}"
+                     Height="16" />
+        <TextBlock Text="{Binding PreviewProgressText}"
+                   HorizontalAlignment="Center"
+                   Margin="0,4,0,0" />
+      </StackPanel>
+
+      <TextBlock Margin="6,4,0,-5" Text="Start" />
+      <Grid ColumnDefinitions="1.35*,1.2*,*,*,*">
+        <fields:PropertyUIntField x:Name="TrimStartSample"
+                                  Grid.Column="0"
+                                  Label="Samples"
+                                  Value="{Binding TrimStartSample, Mode=TwoWay}"
+                                  ToolTip="First sample to keep." />
+        <fields:PropertyUIntField x:Name="TrimStartMs"
+                                  Grid.Column="1"
+                                  Margin="8,0,0,0"
+                                  Label="Total ms"
+                                  Value="{Binding TrimStartMs, Mode=TwoWay}"
+                                  ToolTip="Start of the selection in total milliseconds." />
+        <fields:PropertyUIntField Classes="fixedTimePart"
+                                  Grid.Column="2"
+                                  Margin="8,0,0,0"
+                                  Label="Min"
+                                  Value="{Binding TrimStartMinutes, Mode=TwoWay}"
+                                  ToolTip="Start of the selection in minutes."
+                                  HorizontalContentAlignment="Center" />
+        <fields:PropertyUIntField Classes="fixedTimePart"
+                                  Grid.Column="3"
+                                  Margin="8,0,0,0"
+                                  Label="Sec"
+                                  Value="{Binding TrimStartSeconds, Mode=TwoWay}"
+                                  ToolTip="Start of the selection in seconds."
+                                  HorizontalContentAlignment="Center" />
+        <fields:PropertyUIntField Classes="fixedTimePart"
+                                  Grid.Column="4"
+                                  Margin="8,0,0,0"
+                                  Label="Ms"
+                                  Value="{Binding TrimStartMilliseconds, Mode=TwoWay}"
+                                  ToolTip="Start of the selection in milliseconds."
+                                  HorizontalContentAlignment="Center" />
+      </Grid>
+
+      <TextBlock Margin="6,4,0,-5" Text="End" />
+      <Grid ColumnDefinitions="1.35*,1.2*,*,*,*">
+        <fields:PropertyUIntField x:Name="TrimEndSample"
+                                  Grid.Column="0"
+                                  Label="Samples"
+                                  Value="{Binding TrimEndSample, Mode=TwoWay}"
+                                  ToolTip="Last sample to keep." />
+        <fields:PropertyUIntField x:Name="TrimEndMs"
+                                  Grid.Column="1"
+                                  Margin="8,0,0,0"
+                                  Label="Total ms"
+                                  Value="{Binding TrimEndMs, Mode=TwoWay}"
+                                  ToolTip="End of the selection in total milliseconds." />
+        <fields:PropertyUIntField Classes="fixedTimePart"
+                                  Grid.Column="2"
+                                  Margin="8,0,0,0"
+                                  Label="Min"
+                                  ToolTip="End of the selection in minutes."
+                                  Value="{Binding TrimEndMinutes, Mode=TwoWay}"
+                                  HorizontalContentAlignment="Center" />
+        <fields:PropertyUIntField Classes="fixedTimePart"
+                                  Grid.Column="3"
+                                  Margin="8,0,0,0"
+                                  Label="Sec"
+                                  ToolTip="End of the selection in seconds."
+                                  Value="{Binding TrimEndSeconds, Mode=TwoWay}"
+                                  HorizontalContentAlignment="Center" />
+        <fields:PropertyUIntField Classes="fixedTimePart"
+                                  Grid.Column="4"
+                                  Margin="8,0,0,0"
+                                  Label="Ms"
+                                  Value="{Binding TrimEndMilliseconds, Mode=TwoWay}"
+                                  ToolTip="End of the selection in milliseconds."
+                                  HorizontalContentAlignment="Center" />
+      </Grid>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
+        <Button Content="Preview Start" Command="{Binding ActionPreviewStart}" />
+        <Button Content="Preview End" Command="{Binding ActionPreviewEnd}" />
+        <Button Content="Stop Preview" Command="{Binding ActionStopPreview}" />
+      </StackPanel>
+    </StackPanel>
+  </DockPanel>
+</Window>

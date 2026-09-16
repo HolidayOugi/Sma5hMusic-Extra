@@ -216,7 +216,7 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 songsRemaining--;
                 _vmToneIdCreation.LoadQueueStatus(songsRemaining);
-                _vmToneIdCreation.Filename = inputFile;
+                _vmToneIdCreation.LoadSourceFilename(inputFile);
                 _vmToneIdCreation.LoadToneId(Path.GetFileNameWithoutExtension(inputFile));
 
                 var requiresConversion = _audioImportService.RequiresConversion(inputFile);
@@ -251,12 +251,15 @@ namespace Sma5hMusic.GUI.ViewModels
                 var modalToneIdCreation = new ToneIdCreationModalWindow() { DataContext = _vmToneIdCreation };
                 var result = await modalToneIdCreation.ShowDialog<ToneIdCreationModalWindow>(_rootDialog.Window);
                 if (result == null && _vmToneIdCreation.IsCancelAllRequested)
+                {
+                    _vmToneIdCreation.CleanupTrimmedAudioFile();
                     break;
+                }
 
                 if (result != null)
                 {
                     string toneId = _vmToneIdCreation.ToneId;
-                    var importFile = inputFile;
+                    var importFile = _vmToneIdCreation.Filename;
                     var applyNormalization = _vmToneIdCreation.ApplyNormalization;
                     if (_vmToneIdCreation.CanApplyNormalization)
                         previousApplyNormalization = applyNormalization;
@@ -277,7 +280,7 @@ namespace Sma5hMusic.GUI.ViewModels
                         {
                             importFile = await ConvertAudioFileWithProgress(
                                 toneId,
-                                inputFile,
+                                importFile,
                                 managerMod.ModPath,
                                 _vmToneIdCreation.LoopStartSample,
                                 _vmToneIdCreation.LoopEndSample,
@@ -287,6 +290,10 @@ namespace Sma5hMusic.GUI.ViewModels
                         {
                             await _messageDialog.ShowError("Audio import failed", e.Message, e);
                             continue;
+                        }
+                        finally
+                        {
+                            _vmToneIdCreation.CleanupTrimmedAudioFile();
                         }
                     }
                     else if ((isNus3Audio || isGameAudio) && applyNormalization)
@@ -315,6 +322,8 @@ namespace Sma5hMusic.GUI.ViewModels
                         await EditBgmEntry(vmBgmDbRootEntry);
                     }
                 }
+
+                _vmToneIdCreation.CleanupTrimmedAudioFile();
             }
         }
 

@@ -13,6 +13,10 @@ namespace Sma5hMusic.GUI.Interfaces
         Task<IReadOnlyList<AutoLoopPoint>> CalculateAutoLoopPoints(string filename, uint sampleRate, uint totalSamples);
         Task<LoopPreviewInfo> CreateLoopPreview(string filename, uint loopStartSample, uint loopEndSample, uint totalSamples);
         void CleanupLoopPreviews();
+        Task<string> PrepareAudioTrimWav(string filename);
+        Task<float[]> GetAudioWaveformPeaks(string wavFilename, int pointCount);
+        Task<string> CreateAudioTrimPreview(string wavFilename, uint startSample, uint endSample, bool previewStart);
+        Task<string> TrimAudioWav(string wavFilename, uint startSample, uint endSample);
         Task<string> ExtractAudioToTempWav(string filename);
         Task<string> ConvertToNus3Audio(string toneId, string filename, string modPath, uint loopStartSample, uint loopEndSample, bool applyNormalization = false);
         bool IsNus3Audio(string filename);

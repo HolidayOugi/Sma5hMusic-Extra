@@ -1,6 +1,9 @@
 using ReactiveUI.Fody.Helpers;
 using Sma5hMusic.GUI.Interfaces;
+using Sma5hMusic.GUI.Views;
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using VGMMusic;
 
 namespace Sma5hMusic.GUI.ViewModels
@@ -13,6 +16,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private bool _isUpdatingLoopFields;
         private uint _initialLoopStartSample;
         private uint _initialLoopEndSample;
+        private string _trimmedAudioFile;
 
         [Reactive]
         public bool IsAudioImport { get; set; }
@@ -25,6 +29,8 @@ namespace Sma5hMusic.GUI.ViewModels
         public string ResetLoopButtonText => IsLoopPreviewOnly ? "Reset Changes" : "Reset to Defaults";
 
         public bool CanReplaceCoreSong => !IsLoopPreviewOnly && IsImportingSong;
+
+        public bool CanTrimAudio => IsAudioImport && !IsLoopPreviewOnly && IsImportingSong;
 
         [Reactive]
         public bool IsImportingSong { get; set; }
@@ -100,6 +106,87 @@ namespace Sma5hMusic.GUI.ViewModels
             LoopStartSample = 0;
             LoopEndSample = totalSamples;
             ClearAutoLoopPoints();
+        }
+
+        public void LoadSourceFilename(string filename)
+        {
+            CleanupTrimmedAudioFile();
+            Filename = filename;
+        }
+
+        public void CleanupTrimmedAudioFile()
+        {
+            if (string.IsNullOrEmpty(_trimmedAudioFile))
+                return;
+
+            try
+            {
+                if (File.Exists(_trimmedAudioFile))
+                    File.Delete(_trimmedAudioFile);
+            }
+            catch
+            {
+            }
+
+            _trimmedAudioFile = null;
+        }
+
+        private async Task TrimAudio(Avalonia.Controls.Window parentWindow)
+        {
+            if (!CanTrimAudio)
+                return;
+
+            // Hide and reset the Choose Loops preview before opening Audio Trim.
+            await StopPreview();
+
+            if (!_audioImportService.IsFfmpegConfigured())
+            {
+                await _messageDialog.ShowInformation(
+                    "Trim Audio unavailable",
+                    "ffmpeg is not configured. Set its path in Global Settings before trimming audio.");
+                return;
+            }
+
+            string preparedWav = null;
+            try
+            {
+                //convert to WAV and open the trim modal window
+                preparedWav = await _audioImportService.PrepareAudioTrimWav(Filename);
+                var audioInfo = await _audioImportService.GetAudioInfo(preparedWav);
+                var waveformPeaks = await _audioImportService.GetAudioWaveformPeaks(preparedWav, 1600);
+                var trimViewModel = new AudioTrimModalWindowViewModel(
+                    _audioImportService,
+                    _messageDialog,
+                    _musicPlayer,
+                    Filename,
+                    preparedWav,
+                    audioInfo.SampleRate,
+                    audioInfo.TotalSamples,
+                    waveformPeaks);
+                var trimWindow = new AudioTrimModalWindow { DataContext = trimViewModel };
+
+                // The trim view model owns the prepared WAV from this point onward.
+                preparedWav = null;
+                var trimmedWav = await trimWindow.ShowDialog<string>(parentWindow);
+                if (string.IsNullOrEmpty(trimmedWav))
+                    return;
+
+                //assign the trimmed file to the model and reload the audio import info
+                var applyNormalization = ApplyNormalization;
+                CleanupTrimmedAudioFile();
+                _trimmedAudioFile = trimmedWav;
+                Filename = trimmedWav;
+
+                var trimmedInfo = await _audioImportService.GetAudioInfo(trimmedWav);
+                LoadAudioImportInfo(trimmedInfo.SampleRate, trimmedInfo.TotalSamples);
+                ApplyNormalization = applyNormalization;
+            }
+            catch (Exception e)
+            {
+                if (!string.IsNullOrEmpty(preparedWav) && File.Exists(preparedWav))
+                    File.Delete(preparedWav);
+                await _messageDialog.ShowError("Audio trim failed", e.Message, e);
+            }
         }
 
         public void LoadNus3AudioImportInfo()
