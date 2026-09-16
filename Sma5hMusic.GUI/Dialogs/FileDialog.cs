@@ -46,7 +46,7 @@ namespace Sma5hMusic.GUI.Dialogs
                 {
                     Extensions = new List<string>()
                     {
-                        "brstm", "lopus", "idsp", "nus3audio", "mp3", "flac", "wav", "ogg", "m4a"
+                        "brstm", "lopus", "idsp", "nus3audio", "mp3", "flac", "wav", "ogg"
                     },
                     Name = "Songs"
                 }
@@ -65,6 +65,38 @@ namespace Sma5hMusic.GUI.Dialogs
             _logger.LogDebug("Selected {NbrItems} items", results?.Length);
 
             return results;
+        }
+
+        public async Task<string> OpenFileDialogAudioAnySingle(Window parent = null)
+        {
+            _logger.LogDebug("Opening FileDialog...");
+
+            _openFileDialog.AllowMultiple = false;
+            _openFileDialog.Directory = _savedDirectory;
+            _openFileDialog.Filters = new List<FileDialogFilter>()
+            {
+                new FileDialogFilter()
+                {
+                    Extensions = new List<string>()
+                    {
+                        "brstm", "lopus", "idsp", "nus3audio", "mp3", "flac", "wav", "ogg"
+                    },
+                    Name = "Songs"
+                }
+            };
+            _openFileDialog.Title = "Load Audio File";
+
+            var results = parent == null
+                ? await _openFileDialog.ShowAsync(_rootDialogWindow.Window)
+                : await _openFileDialog.ShowAsync(parent);
+
+            if (results?.Length > 0)
+            {
+                _savedDirectory = Path.GetDirectoryName(results[0]);
+                return results[0];
+            }
+
+            return null;
         }
 
         public async Task<string> OpenFileDialogAudioSingle(Window parent = null)

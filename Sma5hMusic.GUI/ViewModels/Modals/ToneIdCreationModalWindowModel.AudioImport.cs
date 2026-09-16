@@ -24,6 +24,9 @@ namespace Sma5hMusic.GUI.ViewModels
         [Reactive]
         public bool IsLoopPreviewOnly { get; set; }
 
+        [Reactive]
+        public bool IsToneIdVisible { get; set; } = true;
+
         public string WindowTitle => IsLoopPreviewOnly ? "Preview Loops" : IsAudioImport ? "Choose Loops" : "Choose a Tone ID";
 
         public string ResetLoopButtonText => IsLoopPreviewOnly ? "Reset Changes" : "Reset to Defaults";
@@ -96,6 +99,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             IsAudioImport = true;
             IsLoopPreviewOnly = false;
+            IsToneIdVisible = true;
             IsImportingSong = true;
             ApplyNormalization = false;
             NoLoop = false;
@@ -110,6 +114,14 @@ namespace Sma5hMusic.GUI.ViewModels
             LoopStartSample = 0;
             LoopEndSample = totalSamples;
             ClearAutoLoopPoints();
+        }
+
+        public void LoadVictoryThemeAudioImportInfo(uint sampleRate, uint totalSamples)
+        {
+            LoadAudioImportInfo(sampleRate, totalSamples);
+            IsToneIdVisible = false;
+            CanApplyNormalization = false;
+            ToneId = Guid.NewGuid().ToString("N");
         }
 
         public void LoadSourceFilename(string filename)
@@ -177,7 +189,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
                 //assign the trimmed file to the model and reload the audio import info
                 var applyNormalization = ApplyNormalization;
+                var canApplyNormalization = CanApplyNormalization;
                 var noLoop = NoLoop;
+                var isToneIdVisible = IsToneIdVisible;
                 CleanupTrimmedAudioFile();
                 _trimmedAudioFile = trimmedWav;
                 Filename = trimmedWav;
@@ -185,7 +199,9 @@ namespace Sma5hMusic.GUI.ViewModels
                 var trimmedInfo = await _audioImportService.GetAudioInfo(trimmedWav);
                 LoadAudioImportInfo(trimmedInfo.SampleRate, trimmedInfo.TotalSamples);
                 ApplyNormalization = applyNormalization;
+                CanApplyNormalization = canApplyNormalization;
                 NoLoop = noLoop;
+                IsToneIdVisible = isToneIdVisible;
             }
             catch (Exception e)
             {
@@ -199,6 +215,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             IsAudioImport = false;
             IsLoopPreviewOnly = false;
+            IsToneIdVisible = true;
             IsImportingSong = true;
             ApplyNormalization = false;
             NoLoop = false;
@@ -223,6 +240,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             IsAudioImport = false;
             IsLoopPreviewOnly = false;
+            IsToneIdVisible = true;
             IsImportingSong = false;
             ApplyNormalization = false;
             NoLoop = false;
@@ -253,6 +271,7 @@ namespace Sma5hMusic.GUI.ViewModels
             LoadAudioImportInfo(sampleRate, totalSamples);
 
             IsLoopPreviewOnly = true;
+            IsToneIdVisible = false;
             IsImportingSong = false;
             Filename = filename;
             ToneId = Guid.NewGuid().ToString("N");

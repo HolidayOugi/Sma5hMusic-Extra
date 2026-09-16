@@ -168,7 +168,7 @@ namespace Sma5hMusic.GUI.Services
                         );
 
                         //normalize audio
-                        NormalizeAudioToWav(soxInputFile, tempNormalizedWavFile, targetLufs);
+                        NormalizeAudioToWav(soxInputFile, tempNormalizedWavFile, targetLufs, info.SampleRate);
                         encoderInputFile = tempNormalizedWavFile;
                     }
 

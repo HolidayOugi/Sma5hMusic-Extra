@@ -58,7 +58,7 @@
                                   Label="Tone ID"
                                   Text="{Binding ToneId, Mode=TwoWay}"
                                   ToolTip="Choose a ToneId for this new song."
-                                  IsVisible="{Binding !IsLoopPreviewOnly}"
+                                  IsVisible="{Binding IsToneIdVisible}"
                                   ButtonContent="Replace Core Song"
                                   ButtonCommand="{Binding ActionReplaceCoreSong}"
                                   ButtonCommandParameter="{Binding $parent[Window]}"

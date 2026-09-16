@@ -129,8 +129,7 @@ namespace Sma5h.Mods.Music.Helpers
             ".mp3",
             ".flac",
             ".wav",
-            ".ogg",
-            ".m4a"
+            ".ogg"
         };
 
         public static string[] EXTENSIONS_NEED_CONVERSION = new string[]

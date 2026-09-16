@@ -1,5 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
@@ -7,6 +10,7 @@ using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
+using Sma5h.Mods.Music.Interfaces;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
 using Sma5hMusic.GUI.Views;
@@ -31,9 +35,14 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IMessageDialog _messageDialog;
         private readonly IBuildDialog _buildDialog;
         private readonly IVictoryThemeGeneratorService _victoryThemeGenerator;
+        private readonly IAudioImportService _audioImportService;
+        private readonly INus3AudioService _nus3AudioService;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IDialogWindow _rootDialog;
         private readonly ILogger _logger;
         private readonly float _defaultVolume;
         private readonly string _loadTempRoot;
+        private readonly string _audioImportTempRoot;
         private readonly string _outputRoot;
 
         public ObservableCollection<VictoryThemeEntryViewModel> Entries { get; }
@@ -54,6 +63,10 @@ namespace Sma5hMusic.GUI.ViewModels
             IMessageDialog messageDialog,
             IBuildDialog buildDialog,
             IVictoryThemeGeneratorService victoryThemeGenerator,
+            IAudioImportService audioImportService,
+            INus3AudioService nus3AudioService,
+            IServiceProvider serviceProvider,
+            IDialogWindow rootDialog,
             IOptionsMonitor<ApplicationSettings> config,
             ILogger<GenerateVictoryThemesModalWindowViewModel> logger)
         {
@@ -61,9 +74,14 @@ namespace Sma5hMusic.GUI.ViewModels
             _messageDialog = messageDialog;
             _buildDialog = buildDialog;
             _victoryThemeGenerator = victoryThemeGenerator;
+            _audioImportService = audioImportService;
+            _nus3AudioService = nus3AudioService;
+            _serviceProvider = serviceProvider;
+            _rootDialog = rootDialog;
             _logger = logger;
             _defaultVolume = RoundVolume((float)config.CurrentValue.Sma5hMusicGUI.DefaultSongVolume);
             _loadTempRoot = Path.GetFullPath(Path.Combine(config.CurrentValue.TempPath, "VictoryThemesLoad"));
+            _audioImportTempRoot = Path.GetFullPath(Path.Combine(config.CurrentValue.TempPath, "VictoryThemesAudioImport"));
             _outputRoot = Path.GetFullPath(Path.Combine(config.CurrentValue.OutputPath, "Victory Themes"));
 
             FighterOptions = CreateFighterTemplate();
@@ -104,12 +122,97 @@ namespace Sma5hMusic.GUI.ViewModels
             if (entry == null)
                 return;
 
-            var file = await _fileDialog.OpenFileDialogAudioSingle();
+            var parentWindow = GetOwningWindow();
+            var file = await _fileDialog.OpenFileDialogAudioAnySingle(parentWindow);
             if (string.IsNullOrWhiteSpace(file))
                 return;
 
-            entry.SourceFile = file;
-            entry.SourceFileName = "Selected";
+            string selectionDirectory = null;
+            try
+            {
+                var preparedFile = file;
+
+                //BRSTM, LOPUS, IDSP
+                if (_audioImportService.IsGameAudio(file))
+                {
+                    selectionDirectory = CreateAudioSelectionTempDirectory();
+                    preparedFile = await ConvertGameAudioToTempNus3Audio(file, selectionDirectory);
+                }
+                //WAV, MP3, FLAC, OGG
+                else if (_audioImportService.RequiresConversion(file))
+                {
+                    var audioInfo = await _audioImportService.GetAudioInfo(file);
+                    using var chooseLoopsViewModel = ActivatorUtilities.CreateInstance<ToneIdCreationModalWindowModel>(_serviceProvider);
+                    chooseLoopsViewModel.LoadQueueStatus(0);
+                    chooseLoopsViewModel.LoadSourceFilename(file);
+                    chooseLoopsViewModel.LoadVictoryThemeAudioImportInfo(audioInfo.SampleRate, audioInfo.TotalSamples);
+
+                    var chooseLoopsWindow = new ToneIdCreationModalWindow { DataContext = chooseLoopsViewModel };
+                    var result = await chooseLoopsWindow.ShowDialog<ToneIdCreationModalWindow>(parentWindow);
+                    if (result == null)
+                        return;
+
+                    selectionDirectory = CreateAudioSelectionTempDirectory();
+                    preparedFile = await _audioImportService.ConvertToNus3Audio(
+                        CreateTemporaryToneId(),
+                        chooseLoopsViewModel.Filename,
+                        selectionDirectory,
+                        chooseLoopsViewModel.LoopStartSample,
+                        chooseLoopsViewModel.LoopEndSample,
+                        false,
+                        chooseLoopsViewModel.NoLoop);
+                }
+                else if (!_audioImportService.IsNus3Audio(file))
+                {
+                    throw new InvalidOperationException($"The audio format '{Path.GetExtension(file)}' is not supported.");
+                }
+
+                entry.SourceFile = preparedFile;
+                entry.SourceFileName = "Selected";
+            }
+            catch (Exception e)
+            {
+                if (!string.IsNullOrWhiteSpace(selectionDirectory))
+                    DeleteDirectoryIfExists(selectionDirectory, _outputRoot);
+
+                _logger.LogError(e, "Could not prepare victory theme audio {AudioFile}.", file);
+                await _messageDialog.ShowError("Victory Theme Audio", e.Message, e);
+            }
+        }
+
+        private async Task<string> ConvertGameAudioToTempNus3Audio(string inputFile, string outputDirectory)
+        {
+            var toneId = CreateTemporaryToneId();
+            var outputFile = Path.Combine(outputDirectory, $"{toneId}.nus3audio");
+            var succeeded = await Task.Run(() => _nus3AudioService.GenerateNus3Audio(toneId, inputFile, outputFile));
+            if (!succeeded || !File.Exists(outputFile))
+                throw new InvalidOperationException($"Could not convert '{Path.GetFileName(inputFile)}' to NUS3AUDIO.");
+
+            return outputFile;
+        }
+
+        private string CreateAudioSelectionTempDirectory()
+        {
+            var directory = Path.Combine(_audioImportTempRoot, Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            return directory;
+        }
+
+        private static string CreateTemporaryToneId()
+        {
+            return $"victory_{Guid.NewGuid():N}";
+        }
+
+        private Window GetOwningWindow()
+        {
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var window = desktop.Windows.FirstOrDefault(p => ReferenceEquals(p.DataContext, this));
+                if (window != null)
+                    return window;
+            }
+
+            return _rootDialog.Window;
         }
 
         private async Task LoadVictoryThemes(Window window)
@@ -130,6 +233,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 if (loadedEntries.Count == 0)
                     throw new InvalidOperationException("No victory theme NUS3AUDIO files were found in the selected folder.");
 
+                DeleteDirectoryIfExists(_audioImportTempRoot, _outputRoot);
                 Entries.Clear();
                 foreach (var entry in loadedEntries)
                     Entries.Add(entry);
@@ -186,6 +290,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 var outputFolder = await _victoryThemeGenerator.Generate(entries, normalizationProgress);
                 await CloseProgressWindow();
                 DeleteDirectoryIfExists(_loadTempRoot, outputFolder);
+                DeleteDirectoryIfExists(_audioImportTempRoot, outputFolder);
                 await _messageDialog.ShowInformation("Victory Themes Generated", $"Generated files in:\r\n{outputFolder}");
                 window.Close(window);
             }
@@ -262,6 +367,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private void Cancel(Window window)
         {
             DeleteDirectoryIfExists(_loadTempRoot, _outputRoot);
+            DeleteDirectoryIfExists(_audioImportTempRoot, _outputRoot);
             window.Close();
         }
 

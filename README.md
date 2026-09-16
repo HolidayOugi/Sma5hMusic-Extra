@@ -57,7 +57,7 @@ Here's a rundown of the added features.
 
 ## Importing of Audio Files
 
-**Standard Audio files** (.mp3, .flac, .wav, .ogg, .m4a) can now be loaded directly into the software without prior conversion.
+**Standard Audio files** (.mp3, .flac, .wav, .ogg) can now be loaded directly into the software without prior conversion.
 
 When loaded, the loop points for the given song can be selected. They can then be previewed by playing the track itself slightly before and after each loop point. The audio file is finally converted using the chosen loop points.
 

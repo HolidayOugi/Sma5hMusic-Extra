@@ -178,7 +178,7 @@ namespace Sma5hMusic.GUI.Services
                 );
 
                 //normalize WAV
-                NormalizeAudioToWav(extractedWavFile, normalizedWavFile, targetLufs, cancellationToken);
+                NormalizeAudioToWav(extractedWavFile, normalizedWavFile, targetLufs, sourceInfo.SampleRate, cancellationToken);
 
                 return EncodeAudioToNus3Audio(
                     toneId,
@@ -276,7 +276,7 @@ namespace Sma5hMusic.GUI.Services
         }
 
         //normalize to LUFS using FFMpeg loudnorm filter
-        private void NormalizeAudioToWav(string inputFile, string outputFile, double targetLufs, CancellationToken cancellationToken = default)
+        private void NormalizeAudioToWav(string inputFile, string outputFile, double targetLufs, uint targetSampleRate, CancellationToken cancellationToken = default)
         {
             var outputDirectory = Path.GetDirectoryName(outputFile);
             if (!string.IsNullOrWhiteSpace(outputDirectory))
@@ -315,7 +315,7 @@ namespace Sma5hMusic.GUI.Services
                 "-y",
                 "-i", inputFile,
                 "-af", secondPassFilter,
-                "-ar", TargetSampleRate.ToString(CultureInfo.InvariantCulture),
+                "-ar", targetSampleRate.ToString(CultureInfo.InvariantCulture),
                 "-acodec", "pcm_s16le",
                 outputFile
             );

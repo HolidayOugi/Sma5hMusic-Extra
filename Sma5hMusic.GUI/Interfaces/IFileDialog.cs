@@ -6,6 +6,7 @@ namespace Sma5hMusic.GUI.Interfaces
     public interface IFileDialog
     {
         Task<string[]> OpenFileDialogAudioMultiple(Window parent = null);
+        Task<string> OpenFileDialogAudioAnySingle(Window parent = null);
         Task<string> OpenFileDialogAudioSingle(Window parent = null);
         Task<string> OpenFileDialogImageSingle(Window parent = null);
         Task<string> OpenFileDialogYtDlp(Window parent = null);
