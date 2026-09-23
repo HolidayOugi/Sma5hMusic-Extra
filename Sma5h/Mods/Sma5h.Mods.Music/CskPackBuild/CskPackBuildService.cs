@@ -26,6 +26,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private readonly ILogger _logger;
         private readonly AsyncLocal<string> _currentBuildLocale = new AsyncLocal<string>();
         private readonly AsyncLocal<HashSet<string>> _unavailableBgmNameIds = new AsyncLocal<HashSet<string>>();
+        private readonly AsyncLocal<Dictionary<string, HashSet<int>>> _playlistSettingIndices = new AsyncLocal<Dictionary<string, HashSet<int>>>();
 
         private enum CskPackBuildMode
         {
@@ -141,6 +142,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             {
                 var mods = GetMusicMods();
                 var buildResources = LoadBuildResources();
+                _playlistSettingIndices.Value = BuildPlaylistSettingIndexMap();
 
                 var contexts = LoadModContexts(mods);
                 var hasVanillaChanges = HasJsonValues(buildResources.RawCoreBgmOverride) || HasJsonValues(buildResources.RawPlaylistOverride);
@@ -203,6 +205,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             {
                 _currentBuildLocale.Value = null;
                 _unavailableBgmNameIds.Value = null;
+                _playlistSettingIndices.Value = null;
             }
         }
 

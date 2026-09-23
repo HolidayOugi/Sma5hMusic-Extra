@@ -37,10 +37,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     AddCoreBgmFromState(songData, uiBgmId, coreBgmOverride, orderOverride);
 
                     var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    for (var i = 0; i < 16; i++)
+                    foreach (var i in GetPlaylistSettingIndices(playlistId))
                     {
                         entry[$"order{i}"] = GetInt(track, $"o{i}", 0);
-                        entry[$"incidence{i}"] = GetInt(track, $"i{i}", 10000);
+                        entry[$"incidence{i}"] = GetInt(track, $"i{i}", DefaultPlaylistIncidence);
                     }
 
                     playlistEntries.Add(entry);
@@ -78,10 +78,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                     AddCoreBgmFromState(songData, uiBgmId, coreBgmOverride, orderOverride);
                     var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    for (var i = 0; i < 16; i++)
+                    foreach (var i in GetPlaylistSettingIndices(playlist.Name))
                     {
                         entry[$"order{i}"] = GetInt(track, "o0", 0);
-                        entry[$"incidence{i}"] = GetInt(track, "i0", 10000);
+                        entry[$"incidence{i}"] = GetInt(track, "i0", DefaultPlaylistIncidence);
                     }
                     entries.Add(entry);
                 }
@@ -196,7 +196,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return output;
         }
 
-        private static JObject NormalizePlaylistObject(string playlistId, JObject playlist)
+        private JObject NormalizePlaylistObject(string playlistId, JObject playlist)
         {
             return new JObject
             {
@@ -206,13 +206,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
             };
         }
 
-        private static JObject NormalizePlaylistTrack(JObject track)
+        private JObject NormalizePlaylistTrack(JObject track)
         {
             var output = new JObject { ["ui_bgm_id"] = GetString(track, "ui_bgm_id") };
             for (var i = 0; i < 16; i++)
             {
                 output[$"o{i}"] = GetInt(track, $"o{i}", GetInt(track, $"order{i}", 0));
-                output[$"i{i}"] = GetInt(track, $"i{i}", GetInt(track, $"incidence{i}", 10000));
+                output[$"i{i}"] = GetInt(track, $"i{i}", GetInt(track, $"incidence{i}", DefaultPlaylistIncidence));
             }
 
             return output;
@@ -221,6 +221,37 @@ namespace Sma5h.Mods.Music.CskPackBuild
         #endregion
 
         #region Playlist Helpers
+
+        private int DefaultPlaylistIncidence => _config.CurrentValue.Sma5hMusicGUI?.PlaylistIncidenceDefault ?? 0;
+
+        private Dictionary<string, HashSet<int>> BuildPlaylistSettingIndexMap()
+        {
+            var result = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var stage in _audioStateService.GetStagesEntries())
+            {
+                if (string.IsNullOrEmpty(stage.BgmSetId) || stage.BgmSettingNo < 0 || stage.BgmSettingNo >= 16)
+                    continue;
+
+                if (!result.TryGetValue(stage.BgmSetId, out var settingIndices))
+                {
+                    settingIndices = new HashSet<int>();
+                    result[stage.BgmSetId] = settingIndices;
+                }
+
+                settingIndices.Add(stage.BgmSettingNo);
+            }
+
+            return result;
+        }
+
+        private IEnumerable<int> GetPlaylistSettingIndices(string playlistId)
+        {
+            return _playlistSettingIndices.Value != null
+                && _playlistSettingIndices.Value.TryGetValue(playlistId, out var settingIndices)
+                    ? settingIndices.OrderBy(p => p)
+                    : Enumerable.Empty<int>();
+        }
 
         private int GetNextPlaylistOrder(string seriesName, JObject playlistData)
         {
@@ -262,12 +293,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var found = false;
             foreach (var playlistProperty in playlistOverride.Properties())
             {
-                //get vanilla playlists list
                 var playlistId = playlistProperty.Name;
-                var isVanillaPlaylist = SeriesToPlaylist.Values
-                    .SelectMany(p => p)
-                    .Concat(VanillaNonSeriesPlaylists)
-                    .Contains(playlistId, StringComparer.OrdinalIgnoreCase);
 
                 foreach (JObject track in GetArray(playlistProperty.Value, "tracks"))
                 {
@@ -282,14 +308,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         continue;
 
                     var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    var order0 = GetInt(track, "o0", orderCounter);
-                    var incidence0 = GetInt(track, "i0", 10000);
 
-                    for (var i = 0; i < 16; i++)
+                    foreach (var i in GetPlaylistSettingIndices(playlistId))
                     {
-                        //hacky fix for custom playlists TODO: handle properly
-                        entry[$"order{i}"] = isVanillaPlaylist ? GetInt(track, $"o{i}", orderCounter) : order0;
-                        entry[$"incidence{i}"] = isVanillaPlaylist ? GetInt(track, $"i{i}", 10000) : incidence0;
+                        entry[$"order{i}"] = GetInt(track, $"o{i}", orderCounter);
+                        entry[$"incidence{i}"] = GetInt(track, $"i{i}", DefaultPlaylistIncidence);
                     }
                     entries.Add(entry);
                 }
@@ -305,10 +328,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var entries = EnsurePlaylist(songData, fallbackPlaylistId);
                     var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    for (var i = 0; i < 16; i++)
+                    foreach (var i in GetPlaylistSettingIndices(fallbackPlaylistId))
                     {
                         entry[$"order{i}"] = orderCounter; //order counter used to order bgms in fallback playlists
-                        entry[$"incidence{i}"] = 10000;
+                        entry[$"incidence{i}"] = DefaultPlaylistIncidence;
                     }
 
                     entries.Add(entry);

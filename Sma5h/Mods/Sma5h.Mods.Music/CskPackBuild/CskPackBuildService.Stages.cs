@@ -1,4 +1,5 @@
 using Newtonsoft.Json.Linq;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Models;
 using System;
 using System.Collections.Generic;
@@ -82,17 +83,27 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                 foreach (var foundStage in foundStages)
                 {
+                    var bgmSettingNo = GetInt(foundStage.Value, "bgm_setting_no", 0);
+                    var hasNonDefaultBgmSet = HasNonDefaultBgmSet(foundStage.Name);
+                    var hasNonDefaultBgmSettingNo = HasNonDefaultBgmSettingNo(foundStage.Name, bgmSettingNo);
+                    if (!hasNonDefaultBgmSet && !hasNonDefaultBgmSettingNo)
+                        continue;
+
                     var stageEntries = songData["stage_database_entries"] as JArray;
                     if (stageEntries == null)
                         songData["stage_database_entries"] = stageEntries = new JArray();
                     if (stageEntries.Any(p => string.Equals(GetString(p, "ui_stage_id"), foundStage.Name, StringComparison.OrdinalIgnoreCase)))
                         continue;
 
-                    stageEntries.Add(new JObject
+                    var entry = new JObject
                     {
-                        ["ui_stage_id"] = foundStage.Name,
-                        ["bgm_set_id"] = playlistName
-                    });
+                        ["ui_stage_id"] = foundStage.Name
+                    };
+                    if (hasNonDefaultBgmSet)
+                        entry["bgm_set_id"] = playlistName;
+                    if (hasNonDefaultBgmSettingNo)
+                        entry["bgm_setting_no"] = bgmSettingNo;
+                    stageEntries.Add(entry);
                 }
             }
         }
@@ -149,6 +160,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 if (!validUiSeriesStage.Contains(uiSeriesIdCheck))
                     continue;
 
+                var bgmSettingNo = GetInt(stageData, "bgm_setting_no", 0);
+                var hasNonDefaultBgmSet = HasNonDefaultBgmSet(stageId);
+                var hasNonDefaultBgmSettingNo = HasNonDefaultBgmSettingNo(stageId, bgmSettingNo);
+                if (!hasNonDefaultBgmSet && !hasNonDefaultBgmSettingNo)
+                    continue;
+
                 var bgmSetId = GetString(stageData, "bgm_set_id");
                 if (string.IsNullOrEmpty(bgmSetId))
                     continue;
@@ -158,12 +175,33 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ? bgmSetId
                     : defaultPlaylistStage;
 
-                GetArray(songData, "stage_database_entries").Add(new JObject
+                var entry = new JObject
                 {
-                    ["ui_stage_id"] = stageId,
-                    ["bgm_set_id"] = chosenBgm
-                });
+                    ["ui_stage_id"] = stageId
+                };
+                if (hasNonDefaultBgmSet)
+                    entry["bgm_set_id"] = chosenBgm;
+                if (hasNonDefaultBgmSettingNo)
+                    entry["bgm_setting_no"] = bgmSettingNo;
+                GetArray(songData, "stage_database_entries").Add(entry);
             }
+        }
+
+        private bool HasNonDefaultBgmSet(string stageId)
+        {
+            var stage = _audioStateService.GetStagesEntries()
+                .FirstOrDefault(p => string.Equals(p.UiStageId, stageId, StringComparison.OrdinalIgnoreCase));
+            if (stage == null)
+                return false;
+
+            return !MusicConstants.DEFAULT_STAGE_BGM_SET_ID.TryGetValue(stage.UiStageId, out var defaultBgmSetId)
+                || !string.Equals(stage.BgmSetId, defaultBgmSetId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasNonDefaultBgmSettingNo(string stageId, int bgmSettingNo)
+        {
+            return !MusicConstants.DEFAULT_STAGE_BGM_SETTING_NO.TryGetValue(stageId, out var defaultBgmSettingNo)
+                || bgmSettingNo != defaultBgmSettingNo;
         }
 
         #endregion

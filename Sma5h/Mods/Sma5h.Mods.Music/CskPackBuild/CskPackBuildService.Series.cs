@@ -347,25 +347,25 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .Where(series => !string.IsNullOrEmpty(series.UiSeriesId))
                 .Where(series => !selectedSeriesIds.Contains(series.UiSeriesId));
 
-            //create series entries only when their sound order differs from the default
+            //create series entries only when their sound order and shown as series in directory differ from the vanilla defaults
             var seriesEntries = new List<JObject>();
             foreach (var series in unselectedVanillaSeries)
             {
                 var seriesObject = CreateSeriesObject(series);
                 var dispOrderSound = Math.Min(GetSeriesSoundOrder(seriesSoundOrder, seriesObject), 127);
 
-                if (!MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(
-                        series.UiSeriesId,
-                        out var defaultDispOrderSound) ||
-                    dispOrderSound == defaultDispOrderSound)
+                var effectiveSeries = GetEffectiveOverrideObject(seriesObject, coreSeriesOverride, "ui_series_id");
+                var shownAsSeriesInDirectory = GetBool(effectiveSeries, "0x1c38302364", false);
+                if (!MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(series.UiSeriesId, out var defaultDispOrderSound) ||
+                    !MusicConstants.DEFAULT_SERIES_SHOWN_AS_SERIES_IN_DIRECTORY.TryGetValue(series.UiSeriesId, out var defaultShownAsSeriesInDirectory) ||
+                    dispOrderSound != defaultDispOrderSound ||
+                    shownAsSeriesInDirectory != defaultShownAsSeriesInDirectory)
                 {
-                    continue;
+                    seriesEntries.Add(CreateSeriesDatabaseEntry(
+                        seriesObject,
+                        coreSeriesOverride,
+                        dispOrderSound));
                 }
-
-                seriesEntries.Add(CreateSeriesDatabaseEntry(
-                    seriesObject,
-                    coreSeriesOverride,
-                    dispOrderSound));
             }
 
             return seriesEntries

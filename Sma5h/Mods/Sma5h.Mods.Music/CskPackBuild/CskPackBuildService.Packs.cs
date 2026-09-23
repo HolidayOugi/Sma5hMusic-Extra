@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Models;
 using System;
 using System.Collections.Generic;
@@ -433,14 +434,22 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
 
             //get sound order
-            if (orderOverride != null || !VanillaSeries.Contains(seriesName) || seriesName.StartsWith("etc", StringComparison.OrdinalIgnoreCase))
-            {
-                var dispOrderSound = GetSeriesSoundOrder(seriesSoundOrder, series);
-                //clamp to 127, more is unsupported
-                if (dispOrderSound > 127)
-                    dispOrderSound = 127;
+            var dispOrderSound = GetSeriesSoundOrder(seriesSoundOrder, series);
+            //clamp to 127, more is unsupported
+            if (dispOrderSound > 127)
+                dispOrderSound = 127;
 
-                GetArray(songData, "series_database_entries").Add(CreateSeriesDatabaseEntry(series, coreSeriesOverride, dispOrderSound));
+            var uiSeriesId = GetString(series, "ui_series_id");
+            var effectiveSeries = GetEffectiveOverrideObject(series, coreSeriesOverride, "ui_series_id");
+            var shownAsSeriesInDirectory = GetBool(effectiveSeries, "0x1c38302364", false);
+            if (!IsVanillaSeries(seriesName) ||
+                !MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(uiSeriesId, out var defaultDispOrderSound) ||
+                !MusicConstants.DEFAULT_SERIES_SHOWN_AS_SERIES_IN_DIRECTORY.TryGetValue(uiSeriesId, out var defaultShownAsSeriesInDirectory) ||
+                dispOrderSound != defaultDispOrderSound ||
+                shownAsSeriesInDirectory != defaultShownAsSeriesInDirectory)
+            {
+                GetArray(songData, "series_database_entries").Add(
+                    CreateSeriesDatabaseEntry(series, coreSeriesOverride, dispOrderSound));
             }
 
             msgTitleEntries.Add(MakeEntry($"tit_series_snd_{seriesName}", seriesTitle));
