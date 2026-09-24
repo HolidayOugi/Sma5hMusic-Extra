@@ -1,4 +1,4 @@
-﻿using Sma5h.Mods.Music.Models;
+using Sma5h.Mods.Music.Models;
 using System.Collections.Generic;
 
 namespace Sma5h.Mods.Music.Interfaces
@@ -22,6 +22,7 @@ namespace Sma5h.Mods.Music.Interfaces
         IEnumerable<BgmPropertyEntry> GetModBgmPropertyEntries();
         IEnumerable<SeriesEntry> GetSeriesEntries();
         IEnumerable<GameTitleEntry> GetGameTitleEntries();
+        IEnumerable<GameTitleEntry> GetOriginalCoreGameTitleEntries();
         IEnumerable<StageEntry> GetStagesEntries();
         IEnumerable<string> GetLocales();
         IEnumerable<PlaylistEntry> GetPlaylists();

@@ -62,10 +62,15 @@ namespace Sma5h.Mods.Music
                     {
                         _logger.LogInformation("Overriding Core Series {SeriesId}...", coreSeries.UiSeriesId);
                         _mapper.Map(coreSeries, seriesEntries[coreSeries.UiSeriesId]);
+                        seriesEntries[coreSeries.UiSeriesId].SaveNo = ToSeriesSaveNo(coreSeries.SaveNo);
+                        seriesEntries[coreSeries.UiSeriesId].IsOverridden = true;
                     }
                     else
                     {
-                        _audioStateService.AddSeriesEntry(_mapper.Map(coreSeries, new SeriesEntry(coreSeries.UiSeriesId, EntrySource.Mod)));
+                        var seriesEntry = _mapper.Map(coreSeries, new SeriesEntry(coreSeries.UiSeriesId, EntrySource.Mod));
+                        seriesEntry.SaveNo = ToSeriesSaveNo(coreSeries.SaveNo);
+                        seriesEntry.IsOverridden = true;
+                        _audioStateService.AddSeriesEntry(seriesEntry);
                     }
                 }
             }
@@ -73,16 +78,24 @@ namespace Sma5h.Mods.Music
             if (_musicOverrideConfig.CoreGameOverrides != null)
             {
                 var gameTitleEntries = _audioStateService.GetGameTitleEntries().ToDictionary(p => p.UiGameTitleId, p => p);
+                var overrideOrder = 0;
                 foreach (var coreGameTitle in _musicOverrideConfig.CoreGameOverrides.Values)
                 {
+                    var currentOverrideOrder = overrideOrder++;
                     if (gameTitleEntries.ContainsKey(coreGameTitle.UiGameTitleId))
                     {
                         _logger.LogInformation("Overriding Core Game {GameId}...", coreGameTitle.UiGameTitleId);
-                        _mapper.Map(coreGameTitle, gameTitleEntries[coreGameTitle.UiGameTitleId]);
+                        var gameTitleEntry = gameTitleEntries[coreGameTitle.UiGameTitleId];
+                        _mapper.Map(coreGameTitle, gameTitleEntry);
+                        gameTitleEntry.IsOverridden = true;
+                        gameTitleEntry.OverrideOrder = currentOverrideOrder;
                     }
                     else
                     {
-                        _audioStateService.AddGameTitleEntry(_mapper.Map(coreGameTitle, new GameTitleEntry(coreGameTitle.UiGameTitleId, EntrySource.Mod)));
+                        var gameTitleEntry = _mapper.Map(coreGameTitle, new GameTitleEntry(coreGameTitle.UiGameTitleId, EntrySource.Mod));
+                        gameTitleEntry.IsOverridden = true;
+                        _audioStateService.AddGameTitleEntry(gameTitleEntry);
+                        gameTitleEntry.OverrideOrder = currentOverrideOrder;
                     }
                 }
             }
@@ -94,6 +107,9 @@ namespace Sma5h.Mods.Music
                 var coreDbRootOverrides = _musicOverrideConfig.CoreBgmOverrides.CoreBgmDbRootOverrides;
                 if (coreDbRootOverrides != null)
                 {
+                    var overrideOrders = coreDbRootOverrides.Keys
+                        .Select((id, index) => new { id, index })
+                        .ToDictionary(item => item.id, item => item.index);
                     foreach (var bgmDbRootEntry in _audioStateService.GetBgmDbRootEntries())
                     {
                         if (bgmDbRootEntry.Source == EntrySource.Core &&
@@ -101,6 +117,8 @@ namespace Sma5h.Mods.Music
                             coreDbRootOverrides.ContainsKey(bgmDbRootEntry.UiBgmId))
                         {
                             _mapper.Map(coreDbRootOverrides[bgmDbRootEntry.UiBgmId], bgmDbRootEntry);
+                            bgmDbRootEntry.IsOverridden = true;
+                            bgmDbRootEntry.OverrideOrder = overrideOrders[bgmDbRootEntry.UiBgmId];
                         }
                     }
                 }
@@ -114,8 +132,11 @@ namespace Sma5h.Mods.Music
                             bgmStreamSetEntry.MusicMod == null &&
                             coreStreamSetOverrides.ContainsKey(bgmStreamSetEntry.StreamSetId))
                         {
-                            var streamSetObj = GetUpdatedStreamSetConfig(coreStreamSetOverrides[bgmStreamSetEntry.StreamSetId]);
+                            var streamSetOverride = coreStreamSetOverrides[bgmStreamSetEntry.StreamSetId];
+                            var serializedSpecialCategory = streamSetOverride.SpecialCategory;
+                            var streamSetObj = GetUpdatedStreamSetConfig(streamSetOverride);
                             _mapper.Map(streamSetObj, bgmStreamSetEntry);
+                            bgmStreamSetEntry.SerializedSpecialCategory = serializedSpecialCategory;
                         }
                     }
                 }
@@ -227,6 +248,13 @@ namespace Sma5h.Mods.Music
             }
 
             return true;
+        }
+
+        private static sbyte ToSeriesSaveNo(short value)
+        {
+            if (value >= sbyte.MinValue && value <= byte.MaxValue)
+                return unchecked((sbyte)(byte)value);
+            return value < sbyte.MinValue ? sbyte.MinValue : sbyte.MaxValue;
         }
 
         public override bool Build(bool useCache)

@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
@@ -15,264 +14,23 @@ namespace Sma5h.Mods.Music.CskPackBuild
 {
     public partial class CskPackBuildService
     {
-        #region Generation
-
-        private void GenerateSeriesOrderPack(
-            List<CskModContext> contexts,
-            string outputRoot,
-            HashSet<string> selectedSeriesKeys,
-            Dictionary<string, int> seriesSoundOrder,
-            JObject coreSeriesOverride)
-        {
-            //# of series with no added entries
-            var seriesEntries = CreateVanillaSeriesOrderEntries(
-                contexts,
-                selectedSeriesKeys,
-                seriesSoundOrder,
-                coreSeriesOverride);
-
-            if (seriesEntries.Count == 0)
-                return;
-
-            var folderName = contexts.Count > 1
-                ? "CSK Packs - Series Order"
-                : SanitizePathSegment(
-                    $"{contexts.Select(p => p.SafePackName).FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)) ?? SinglePackFolderName} - Series Order",
-                    "Series Order",
-                    "series order folder name");
-            var databaseFolder = Path.Combine(outputRoot, folderName, "database");
-            Directory.CreateDirectory(databaseFolder);
-
-            var songData = CreateSeriesOrderSongData(seriesEntries);
-            var outputJsonPath = Path.Combine(databaseFolder, "series_order.json");
-            File.WriteAllText(outputJsonPath, JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
-            _logger.LogInformation("[CSK] Saved series order pack: {SavedPath}", outputJsonPath);
-        }
-
-        private void GenerateVanillaSongsChangesPack(
-            List<CskModContext> contexts,
-            string outputRoot,
-            HashSet<string> selectedSeriesKeys,
-            string generatedBgmFolder,
-            CskBuildResources buildResources,
-            bool includeAudio)
-        {
-            var folderName = contexts.Count == 1
-                ? SanitizePathSegment(
-                    $"{contexts.Select(p => p.SafePackName).FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)) ?? SinglePackFolderName} - Vanilla Songs Changes",
-                    "Vanilla Songs Changes",
-                    "vanilla songs changes folder name")
-                : "CSK Packs - Vanilla Songs Changes";
-            var packRoot = Path.Combine(outputRoot, folderName);
-            var songData = new JObject { ["bgm_database_entries"] = new JArray() };
-            var msgBgmEntries = new List<string>();
-            var msgTitleEntries = new List<string>();
-
-            if (!AddVanillaSongsChanges(contexts, selectedSeriesKeys, songData, msgBgmEntries, msgTitleEntries, packRoot, generatedBgmFolder, buildResources, includeAudio))
-                return;
-
-            if (GetArray(songData, "bgm_database_entries").Count > 0)
-            {
-                var databaseFolder = Path.Combine(packRoot, "database");
-                Directory.CreateDirectory(databaseFolder);
-                File.WriteAllText(
-                    Path.Combine(databaseFolder, "database.json"),
-                    JsonConvert.SerializeObject(songData, Formatting.Indented),
-                    new UTF8Encoding(false));
-            }
-
-            if (msgBgmEntries.Count > 0 || msgTitleEntries.Count > 0)
-            {
-                var uiFolder = Path.Combine(packRoot, "ui", "message");
-                Directory.CreateDirectory(uiFolder);
-                if (msgBgmEntries.Count > 0)
-                    WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_bgm.xmsbt"), msgBgmEntries);
-                if (msgTitleEntries.Count > 0)
-                    WriteCombinedXmsbt(Path.Combine(uiFolder, "msg_title.xmsbt"), msgTitleEntries);
-            }
-
-            _logger.LogInformation("[CSK] Saved vanilla songs changes pack: {SavedPath}", packRoot);
-        }
-
-        private bool AddVanillaSongsChanges(
-            List<CskModContext> contexts,
-            HashSet<string> selectedSeriesKeys,
-            JObject songData,
-            List<string> msgBgmEntries,
-            List<string> msgTitleEntries,
-            string packRoot,
-            string generatedBgmFolder,
-            CskBuildResources buildResources,
-            bool includeAudio)
-        {
-            var bgmCount = GetArray(songData, "bgm_database_entries").Count;
-            var stageCount = GetArray(songData, "stage_database_entries").Count;
-            var msgBgmCount = msgBgmEntries.Count;
-            var msgTitleCount = msgTitleEntries.Count;
-            var copiedAudio = false;
-            var selectedSeriesNames = GetSelectedSeriesNames(contexts, selectedSeriesKeys);
-            //populate playlists both vanilla and custom
-            foreach (var seriesName in VanillaSeries.Where(p => !selectedSeriesNames.Contains(p)))
-                PopulateVanillaPlaylists(songData, seriesName, buildResources.VanillaPlaylistDiff, buildResources.CoreBgmIds, buildResources.CoreBgmOverride, buildResources.OrderOverride);
-
-            var unselectedCoreSeriesNames = buildResources.CoreGameSeriesById.Values
-                .Where(p => !string.IsNullOrEmpty(p) && !selectedSeriesNames.Contains(p))
-                .Distinct(StringComparer.OrdinalIgnoreCase);
-            foreach (var seriesName in unselectedCoreSeriesNames)
-                PopulateCustomPlaylists(songData, seriesName, buildResources.PlaylistData, buildResources.CoreBgmOverride, buildResources.OrderOverride, buildResources.CoreGameSeriesById);
-
-            var selectedSeriesIds = contexts
-                .SelectMany(context => context.SeriesList.Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
-                .Select(series => GetString(series, "ui_series_id"))
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            PopulateCustomStageDatabaseEntries(songData, buildResources.StageOverride, selectedSeriesIds);
-
-            //get all games already covered by the selected series
-            var selectedGameTitleIds = GetSelectedGameTitleIds(contexts, selectedSeriesKeys ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-
-            var dbRoots = buildResources.CoreBgmOverride?["CoreBgmDbRootOverrides"] as JObject ?? new JObject();
-
-            foreach (var dbProperty in dbRoots.Properties())
-            {
-                var db = dbProperty.Value as JObject;
-                var uiBgmId = GetString(db, "ui_bgm_id", dbProperty.Name);
-                if (string.IsNullOrEmpty(uiBgmId))
-                    continue;
-
-                var uiGameTitleId = GetString(db, "ui_gametitle_id");
-                if (selectedGameTitleIds.Contains(uiGameTitleId))
-                    continue;
-
-                var bgmDbRootEntry = _audioStateService.GetBgmDbRootEntries()
-                    .Concat(_audioStateService.GetOriginalCoreBgmDbRootEntries())
-                    .Where(p => string.Equals(p.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(p.NameId))
-                    .FirstOrDefault();
-                var nameId = bgmDbRootEntry?.NameId;
-                if (string.IsNullOrEmpty(nameId) || _unavailableBgmNameIds.Value?.Contains(nameId) == true)
-                    continue;
-
-                GetArray(songData, "bgm_database_entries").Add(new JObject
-                {
-                    ["ui_bgm_id"] = uiBgmId,
-                    ["clone_from_ui_bgm_id"] = CloneBgmId,
-                    ["stream_set_id"] = GetString(db, "stream_set_id"),
-                    ["name_id"] = nameId,
-                    ["ui_gametitle_id"] = GetString(db, "ui_gametitle_id"),
-                    ["test_disp_order"] = bgmDbRootEntry.TestDispOrder <= 4 ? bgmDbRootEntry.TestDispOrder : bgmDbRootEntry.MenuValue, //for the first 5 songs get their test disp order
-                    ["record_type"] = GetString(db, "record_type", "record_original")
-                });
-
-                //create xmsbt
-                AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_title_{nameId}", db["msbt_title"]);
-                AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_author_{nameId}", db["msbt_author"]);
-                AddOptionalBgmMessageUnique(msgBgmEntries, $"bgm_copyright_{nameId}", db["msbt_copyright"]);
-
-                var game = buildResources.CoreGameOverride?[uiGameTitleId] as JObject;
-                var gameTitle = GetLocalizedString(game?["msbt_title"]);
-                if (!string.IsNullOrEmpty(gameTitle))
-                    AddUniqueMessage(msgTitleEntries, $"tit_{GetString(game, "name_id")}", gameTitle);
-
-                //add game title entry if custom
-                AddNonCoreGameTitleEntry(songData, msgTitleEntries, uiGameTitleId);
-            }
-
-            //write nus3bank for volume overrides
-            var volumeEntries = GetCoreVolumeOverrideEntries(buildResources)
-                .Where(p =>
-                {
-                    var db = GetOriginalCoreDbRootByNameId(p.NameId);
-                    return db != null &&
-                           !selectedGameTitleIds.Contains(db.UiGameTitleId);
-                })
-                .ToList();
-
-            if (includeAudio && volumeEntries.Count > 0 && !string.IsNullOrEmpty(generatedBgmFolder))
-            {
-                var destFolder = Path.Combine(packRoot, "stream;", "sound", "bgm");
-                Directory.CreateDirectory(generatedBgmFolder);
-                foreach (var entry in volumeEntries)
-                {
-                    var source = Path.Combine(generatedBgmFolder, string.Format(MusicConstants.GameResources.NUS3BANK_FILE, entry.NameId));
-                    if (!File.Exists(source))
-                        _nus3AudioService.GenerateNus3Bank(entry.NameId, entry.Volume, source);
-
-                    CopyIfExists(source, Path.Combine(destFolder, Path.GetFileName(source)));
-                    copiedAudio = true;
-                }
-            }
-
-            return GetArray(songData, "bgm_database_entries").Count > bgmCount ||
-                   GetArray(songData, "stage_database_entries").Count > stageCount ||
-                   msgBgmEntries.Count > msgBgmCount ||
-                   msgTitleEntries.Count > msgTitleCount ||
-                   copiedAudio;
-        }
-
-        private void AddNonCoreGameTitleEntry(
-            JObject songData,
-            List<string> msgTitleEntries,
-            string uiGameTitleId)
-        {
-            if (string.IsNullOrEmpty(uiGameTitleId))
-                return;
-
-            var gameEntry = _audioStateService.GetGameTitleEntries()
-                .FirstOrDefault(p => string.Equals(p.UiGameTitleId, uiGameTitleId, StringComparison.OrdinalIgnoreCase));
-            if (gameEntry == null || gameEntry.Source == EntrySource.Core)
-                return;
-
-            if (!(songData["gametitle_database_entries"] is JArray))
-                songData["gametitle_database_entries"] = new JArray();
-
-            var game = CreateGameObject(gameEntry);
-            if (!GetArray(songData, "gametitle_database_entries")
-                .Any(p => string.Equals(GetString(p, "ui_gametitle_id"), uiGameTitleId, StringComparison.OrdinalIgnoreCase)))
-            {
-                AddGameTitleEntry(songData, game);
-            }
-
-            var gameName = GetString(game, "name_id");
-            if (!string.IsNullOrEmpty(gameName))
-                AddUniqueMessage(msgTitleEntries, $"tit_{gameName}", GetLocalizedString(game["msbt_title"], gameName));
-        }
-
-        private HashSet<string> GetSelectedGameTitleIds(IEnumerable<CskModContext> contexts, HashSet<string> selectedSeriesKeys)
-        {
-            var selectedSeriesIds = contexts
-                .SelectMany(context => context.SeriesList
-                    .Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series))))
-                .Select(series => GetString(series, "ui_series_id"))
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            return _audioStateService.GetGameTitleEntries()
-                .Where(p => !string.IsNullOrEmpty(p.UiGameTitleId) &&
-                            !string.IsNullOrEmpty(p.UiSeriesId) &&
-                            selectedSeriesIds.Contains(p.UiSeriesId))
-                .Select(p => p.UiGameTitleId)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        }
-
-        #endregion
-
         #region Series Options
 
-        private CskPackSeriesOption CreateSeriesOption(CskModContext context, JObject series)
+        private CskPackSeriesOption CreateSeriesOption(CskModContext context, SeriesEntry series)
         {
             return new CskPackSeriesOption
             {
                 Key = CreateSeriesKey(context.Mod, series),
                 DisplayName = GetSeriesDisplayName(series),
-                NameId = GetString(series, "name_id"),
-                UiSeriesId = GetString(series, "ui_series_id"),
+                NameId = series.NameId,
+                UiSeriesId = series.UiSeriesId,
                 ModName = context.Mod.Name
             };
         }
 
-        private static string CreateSeriesKey(IMusicMod mod, JObject series)
+        private static string CreateSeriesKey(IMusicMod mod, SeriesEntry series)
         {
-            return $"{CreateModKey(mod)}|{GetString(series, "ui_series_id")}|{GetString(series, "name_id")}";
+            return $"{CreateModKey(mod)}|{series.UiSeriesId}|{series.NameId}";
         }
 
         private static string CreateModKey(IMusicMod mod)
@@ -280,337 +38,275 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return Path.GetFullPath(mod.ModPath);
         }
 
-        private string GetSeriesDisplayName(JObject series)
+        private string GetSeriesDisplayName(SeriesEntry series)
         {
-            var seriesName = GetString(series, "name_id");
-            var title = GetLocalizedString(series["msbt_title"]);
-            if (string.IsNullOrWhiteSpace(title))
-                title = GetLocalizedString(series["title"]);
-
-            return string.IsNullOrWhiteSpace(title) ? seriesName : title;
-        }
-
-        #endregion
-
-        #region Effective Series Data
-
-        private JObject BuildEffectiveCoreSeriesData(JObject coreSeriesOverride)
-        {
-            var seriesData = new JObject();
-
-            foreach (var series in _audioStateService.GetSeriesEntries().Where(p => !string.IsNullOrEmpty(p.UiSeriesId)))
-                seriesData[series.UiSeriesId] = CreateSeriesObject(series);
-
-            OverlayProperties(seriesData, coreSeriesOverride);
-            return seriesData;
-        }
-
-        private static JObject CreateSeriesObject(SeriesEntry series)
-        {
-            return new JObject
-            {
-                ["ui_series_id"] = series.UiSeriesId,
-                ["name_id"] = series.NameId,
-                ["disp_order"] = series.DispOrder,
-                ["disp_order_sound"] = series.DispOrderSound,
-                ["save_no"] = series.SaveNo,
-                ["0x1c38302364"] = series.Unk1,
-                ["is_dlc"] = series.IsDlc,
-                ["is_patch"] = series.IsPatch,
-                ["dlc_chara_id"] = series.DlcCharaId,
-                ["is_use_amiibo_bg"] = series.IsUseAmiiboBg,
-                ["msbt_title"] = CreateLocalizedObject(series.MSBTTitle)
-            };
-        }
-
-        #endregion
-
-        #region Series Entries
-
-        private List<JObject> CreateVanillaSeriesOrderEntries(
-            IEnumerable<CskModContext> contexts,
-            HashSet<string> selectedSeriesKeys,
-            Dictionary<string, int> seriesSoundOrder,
-            JObject coreSeriesOverride)
-        {
-            //get all series selected
-            var selectedSeriesIds = contexts
-                .SelectMany(context => context.SeriesList
-                    .Where(series => selectedSeriesKeys.Contains(CreateSeriesKey(context.Mod, series)))
-                    .Select(series => GetString(series, "ui_series_id")))
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            //get all vanilla series that are not selected
-            var unselectedVanillaSeries = _audioStateService.GetSeriesEntries()
-                .Where(series => IsVanillaSeries(series.NameId))
-                .Where(series => !string.IsNullOrEmpty(series.UiSeriesId))
-                .Where(series => !selectedSeriesIds.Contains(series.UiSeriesId));
-
-            //create series entries only when their sound order and shown as series in directory differ from the vanilla defaults
-            var seriesEntries = new List<JObject>();
-            foreach (var series in unselectedVanillaSeries)
-            {
-                var seriesObject = CreateSeriesObject(series);
-                var dispOrderSound = Math.Min(GetSeriesSoundOrder(seriesSoundOrder, seriesObject), 127);
-
-                var effectiveSeries = GetEffectiveOverrideObject(seriesObject, coreSeriesOverride, "ui_series_id");
-                var shownAsSeriesInDirectory = GetBool(effectiveSeries, "0x1c38302364", false);
-                if (!MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(series.UiSeriesId, out var defaultDispOrderSound) ||
-                    !MusicConstants.DEFAULT_SERIES_SHOWN_AS_SERIES_IN_DIRECTORY.TryGetValue(series.UiSeriesId, out var defaultShownAsSeriesInDirectory) ||
-                    dispOrderSound != defaultDispOrderSound ||
-                    shownAsSeriesInDirectory != defaultShownAsSeriesInDirectory)
-                {
-                    seriesEntries.Add(CreateSeriesDatabaseEntry(
-                        seriesObject,
-                        coreSeriesOverride,
-                        dispOrderSound));
-                }
-            }
-
-            return seriesEntries
-                .OrderBy(entry => GetInt(entry, "disp_order_sound", 0))
-                .ThenBy(entry => GetString(entry, "name_id"), StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        private static bool IsVanillaSeries(string seriesName)
-        {
-            return !string.IsNullOrEmpty(seriesName) &&
-                   VanillaSeries.Contains(seriesName);
-        }
-
-        private static JObject CreateSeriesOrderSongData(IEnumerable<JObject> seriesEntries)
-        {
-            return new JObject
-            {
-                ["series_database_entries"] = new JArray(seriesEntries)
-            };
-        }
-
-        private static void AddSeriesOrderEntries(JObject songData, IEnumerable<JObject> seriesEntries)
-        {
-            var entries = GetArray(songData, "series_database_entries");
-
-            foreach (var entry in seriesEntries)
-                entries.Add((JObject)entry.DeepClone());
+            return GetLocalizedString(series.MSBTTitle, series.NameId);
         }
 
         #endregion
 
         #region Sound Order
 
-        private Dictionary<string, int> BuildSeriesSoundOrder(IEnumerable<JObject> seriesList, JObject orderOverride)
+        private Dictionary<string, int> BuildSeriesSoundOrder(IEnumerable<SeriesEntry> contextSeries, CskBuildState state)
         {
-            var allSeries = seriesList.ToList();
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             //get order from the audio state
-            var seriesOrder = BuildSeriesSoundOrderFromAudioState(orderOverride);
-            //fallback, audio state might fail (TODO: investigate why)
-            var metadataOrder = BuildSeriesSoundOrderFromMetadata(allSeries, orderOverride);
-
-            foreach (var series in allSeries)
-            {
-                var uiSeriesId = GetString(series, "ui_series_id");
-                var nameId = GetString(series, "name_id");
-
-                if (!string.IsNullOrEmpty(uiSeriesId) && seriesOrder.ContainsKey(uiSeriesId))
-                    SetSeriesOrderKey(seriesOrder, nameId, seriesOrder[uiSeriesId]);
-                else if (!string.IsNullOrEmpty(nameId) && seriesOrder.ContainsKey(nameId))
-                    SetSeriesOrderKey(seriesOrder, uiSeriesId, seriesOrder[nameId]);
-            }
-
-            foreach (var fallbackOrder in metadataOrder)
-                SetSeriesOrderKey(seriesOrder, fallbackOrder.Key, fallbackOrder.Value);
-
-            return seriesOrder;
-        }
-
-        //get series order based on the min(test_disp_order) of the bgms for each series
-        private Dictionary<string, int> BuildSeriesSoundOrderFromAudioState(JObject orderOverride)
-        {
-            var output = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var seriesEntries = _audioStateService.GetSeriesEntries()
-                .Where(p => p.DispOrderSound > -1 && !string.IsNullOrEmpty(p.UiSeriesId))
-                .GroupBy(p => p.UiSeriesId, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(p => p.Key, p => p.First(), StringComparer.OrdinalIgnoreCase);
-            var gameEntries = _audioStateService.GetGameTitleEntries()
-                .Where(p => !string.IsNullOrEmpty(p.UiGameTitleId) && !string.IsNullOrEmpty(p.UiSeriesId))
-                .GroupBy(p => p.UiGameTitleId, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(p => p.Key, p => p.First(), StringComparer.OrdinalIgnoreCase);
-            var sortedGames = _audioStateService.GetBgmDbRootEntries()
-                .Where(p => !string.IsNullOrEmpty(p.UiGameTitleId))
-                .Select(p => new
-                {
-                    p.UiGameTitleId,
-                    Order = GetInt(orderOverride, p.UiBgmId, p.TestDispOrder)
-                })
-                .Where(p => p.Order >= 0)
-                .OrderBy(p => p.Order)
-                .GroupBy(p => p.UiGameTitleId, StringComparer.OrdinalIgnoreCase)
-                .Select(p => p.First().UiGameTitleId)
-                .ToList();
-
+            var sortedGames = state.BgmDbRoots.Values
+                .Where(db => !string.IsNullOrEmpty(db.UiGameTitleId) && db.TestDispOrder >= 0)
+                .OrderBy(db => db.TestDispOrder)
+                .GroupBy(db => db.UiGameTitleId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Key);
             var index = GetStartingOrderForSeries();
             foreach (var gameId in sortedGames)
             {
-                if (!gameEntries.ContainsKey(gameId))
+                if (!state.Games.TryGetValue(gameId, out var game) || !state.Series.TryGetValue(game.UiSeriesId ?? string.Empty, out var series) ||
+                    series.DispOrderSound < 0 || result.ContainsKey(series.UiSeriesId))
                     continue;
-
-                var uiSeriesId = gameEntries[gameId].UiSeriesId;
-                if (!seriesEntries.ContainsKey(uiSeriesId) || output.ContainsKey(uiSeriesId))
-                    continue;
-
-                SetSeriesOrderKey(output, uiSeriesId, index);
-                SetSeriesOrderKey(output, seriesEntries[uiSeriesId].NameId, index);
-                if (index != sbyte.MaxValue)
+                SetSeriesOrder(result, series, index);
+                if (index < sbyte.MaxValue)
                     index++;
             }
 
-            return output;
-        }
-
-        //legacy method from python script
-        private Dictionary<string, int> BuildSeriesSoundOrderFromMetadata(List<JObject> allSeries, JObject orderOverride)
-        {
-            if (orderOverride != null && orderOverride.HasValues)
-            {
-                var seriesMinOverride = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                var aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var series in allSeries)
-                {
-                    var uiSeriesId = GetString(series, "ui_series_id");
-                    var nameId = GetString(series, "name_id");
-                    var bgmIdsToCheck = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    int? minValue = null;
-
-                    foreach (JObject game in GetArray(series, "games"))
-                    {
-                        foreach (JObject bgm in GetArray(game, "bgms"))
-                        {
-                            var dbRoot = bgm["db_root"] as JObject;
-                            var uiBgmId = GetString(dbRoot, "ui_bgm_id");
-                            if (!string.IsNullOrEmpty(uiBgmId))
-                                bgmIdsToCheck.Add(uiBgmId);
-                        }
-                    }
-
-                    foreach (var uiBgmId in bgmIdsToCheck)
-                    {
-                        var value = GetInt(orderOverride, uiBgmId, int.MinValue);
-                        if (value == int.MinValue || value == -1)
-                            continue;
-
-                        if (!minValue.HasValue || value < minValue.Value)
-                            minValue = value;
-                    }
-
-                    SetMinSeriesOrder(seriesMinOverride, nameId, minValue ?? int.MaxValue);
-                    if (!string.IsNullOrEmpty(uiSeriesId) && !string.IsNullOrEmpty(nameId))
-                        aliases[uiSeriesId] = nameId;
-                }
-
-                var ranked = seriesMinOverride
-                    .OrderBy(p => p.Value)
-                    .ThenBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
-                    .Select((p, i) => new { p.Key, Index = GetStartingOrderForSeries() + i })
-                    .ToDictionary(p => p.Key, p => p.Index, StringComparer.OrdinalIgnoreCase);
-
-                foreach (var alias in aliases)
-                {
-                    if (ranked.ContainsKey(alias.Value))
-                        ranked[alias.Key] = ranked[alias.Value];
-                }
-
-                return ranked;
-            }
-
             var firstCustomOrder = 39;
-
-            return allSeries
-                .Where(p => !VanillaSeries.Contains(GetString(p, "name_id")))
-                .OrderBy(p => GetSeriesDisplayName(p).ToLowerInvariant())
-                .Select((p, i) => new
-                {
-                    NameId = GetString(p, "name_id"),
-                    UiSeriesId = GetString(p, "ui_series_id"),
-                    Order = firstCustomOrder + i
-                })
-                .SelectMany(p => new[]
-                {
-                    new { Key = p.NameId, p.Order },
-                    new { Key = p.UiSeriesId, p.Order }
-                })
-                .Where(p => !string.IsNullOrEmpty(p.Key))
-                .GroupBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(p => p.Key, p => p.First().Order, StringComparer.OrdinalIgnoreCase);
+            foreach (var series in contextSeries
+                .Where(series => !VanillaSeries.Contains(series.NameId))
+                .OrderBy(GetSeriesDisplayName, StringComparer.OrdinalIgnoreCase))
+            {
+                if (!result.ContainsKey(series.UiSeriesId))
+                    SetSeriesOrder(result, series, firstCustomOrder++);
+            }
+            return result;
         }
 
-        #endregion
-
-        #region Helpers
-
-        private int GetSeriesSoundOrder(Dictionary<string, int> seriesSoundOrder, JObject series)
+        private static void SetSeriesOrder(Dictionary<string, int> order, SeriesEntry series, int value)
         {
-            var uiSeriesId = GetString(series, "ui_series_id");
-            if (!string.IsNullOrEmpty(uiSeriesId) && seriesSoundOrder.ContainsKey(uiSeriesId))
-                return seriesSoundOrder[uiSeriesId];
+            if (!string.IsNullOrEmpty(series.UiSeriesId) && !order.ContainsKey(series.UiSeriesId))
+                order[series.UiSeriesId] = value;
+            if (!string.IsNullOrEmpty(series.NameId) && !order.ContainsKey(series.NameId))
+                order[series.NameId] = value;
+        }
 
-            var nameId = GetString(series, "name_id");
-            if (!string.IsNullOrEmpty(nameId) && seriesSoundOrder.ContainsKey(nameId))
-                return seriesSoundOrder[nameId];
-
+        private int GetSeriesSoundOrder(Dictionary<string, int> order, SeriesEntry series)
+        {
+            if (!string.IsNullOrEmpty(series.UiSeriesId) && order.TryGetValue(series.UiSeriesId, out var value))
+                return value;
+            if (!string.IsNullOrEmpty(series.NameId) && order.TryGetValue(series.NameId, out value))
+                return value;
             return GetStartingOrderForSeries();
         }
 
         private int GetStartingOrderForSeries()
         {
-            var value = _config.CurrentValue.Sma5hMusicGUI?.StartingOrderForSeries ?? 1;
-            return Math.Clamp(value, 0, 39);
+            return Math.Clamp(_config.CurrentValue.Sma5hMusicGUI?.StartingOrderForSeries ?? 1, 0, 39);
         }
 
-        private static void SetSeriesOrderKey(Dictionary<string, int> seriesOrder, string key, int value)
+        #endregion
+
+        #region Series Entries
+
+        private static JObject CreateSeriesDatabaseEntry(SeriesEntry series, int dispOrderSound)
         {
-            if (string.IsNullOrEmpty(key) || seriesOrder.ContainsKey(key))
-                return;
-
-            seriesOrder[key] = value;
-        }
-
-        private static void SetMinSeriesOrder(Dictionary<string, int> seriesOrder, string seriesName, int value)
-        {
-            if (string.IsNullOrEmpty(seriesName))
-                return;
-
-            if (!seriesOrder.TryGetValue(seriesName, out var currentValue) || value < currentValue)
-                seriesOrder[seriesName] = value;
-        }
-
-        private static JObject CreateSeriesDatabaseEntry(JObject series, JObject coreSeriesOverride, int dispOrderSound)
-        {
-            var uiSeriesId = GetString(series, "ui_series_id");
-            var seriesName = GetString(series, "name_id");
-            var effectiveSeries = GetEffectiveOverrideObject(series, coreSeriesOverride, "ui_series_id");
-            var isDlcSeries = MusicConstants.DLC_SERIES.Contains(uiSeriesId, StringComparer.OrdinalIgnoreCase);
-            var entry = new JObject
+            var isDlc = MusicConstants.DLC_SERIES.Contains(series.UiSeriesId, StringComparer.OrdinalIgnoreCase);
+            var output = new JObject
             {
-                ["ui_series_id"] = GetString(effectiveSeries, "ui_series_id", uiSeriesId),
-                ["clone_from_series_id"] = CloneSeriesId,
-                ["name_id"] = GetString(effectiveSeries, "name_id", seriesName),
-                ["disp_order"] = GetInt(effectiveSeries, "disp_order", 0),
-                ["disp_order_sound"] = dispOrderSound,
-                ["save_no"] = GetInt(effectiveSeries, "save_no", 0),
-                ["shown_as_series_in_directory"] = GetBool(effectiveSeries, "0x1c38302364", false),
-                ["is_dlc"] = GetBool(effectiveSeries, "is_dlc", isDlcSeries),
-                ["is_patch"] = GetBool(effectiveSeries, "is_patch", isDlcSeries),
-                ["is_use_amiibo_bg"] = GetBool(effectiveSeries, "is_use_amiibo_bg", false)
+                ["ui_series_id"] = series.UiSeriesId, ["clone_from_series_id"] = CloneSeriesId,
+                ["name_id"] = series.NameId, ["disp_order"] = series.DispOrder,
+                ["disp_order_sound"] = dispOrderSound, ["save_no"] = series.SaveNo,
+                ["shown_as_series_in_directory"] = series.Unk1,
+                ["is_dlc"] = series.IsDlc || isDlc, ["is_patch"] = series.IsPatch || isDlc,
+                ["is_use_amiibo_bg"] = series.IsUseAmiiboBg
             };
+            if (!string.IsNullOrEmpty(series.DlcCharaId))
+                output["dlc_chara_id"] = series.DlcCharaId;
+            return output;
+        }
 
-            var dlcCharaId = GetString(effectiveSeries, "dlc_chara_id");
-            if (!string.IsNullOrEmpty(dlcCharaId))
-                entry["dlc_chara_id"] = dlcCharaId;
+        private void GenerateSeriesOrderPack(List<CskModContext> contexts, string outputRoot, HashSet<string> selectedKeys, Dictionary<string, int> order, CskBuildState state)
+        {
+            var selectedIds = GetSelectedSeriesIds(contexts, selectedKeys);
+            var entries = state.Series.Values
+                .Where(series => VanillaSeries.Contains(series.NameId) && !selectedIds.Contains(series.UiSeriesId))
+                .Select(series => new { Series = series, Order = Math.Min(GetSeriesSoundOrder(order, series), 127) })
+                .Where(item =>
+                    !MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(item.Series.UiSeriesId, out var defaultOrder) ||
+                    !MusicConstants.DEFAULT_SERIES_SHOWN_AS_SERIES_IN_DIRECTORY.TryGetValue(item.Series.UiSeriesId, out var defaultShown) ||
+                    item.Order != defaultOrder || item.Series.Unk1 != defaultShown)
+                .OrderBy(item => item.Order)
+                .ThenBy(item => item.Series.NameId, StringComparer.OrdinalIgnoreCase)
+                .Select(item => CreateSeriesDatabaseEntry(item.Series, item.Order))
+                .ToList();
+            if (entries.Count == 0)
+                return;
+            var folderName = contexts.Count > 1 ? "CSK Packs - Series Order" : SanitizePathSegment(
+                $"{contexts.Select(context => context.SafePackName).FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)) ?? SinglePackFolderName} - Series Order",
+                "Series Order", "series order folder name");
+            var databaseFolder = Path.Combine(outputRoot, folderName, "database");
+            Directory.CreateDirectory(databaseFolder);
+            var json = new JObject { ["series_database_entries"] = new JArray(entries) };
+            var output = Path.Combine(databaseFolder, "series_order.json");
+            File.WriteAllText(output, JsonConvert.SerializeObject(json, Formatting.Indented), new UTF8Encoding(false));
+            _logger.LogInformation("[CSK] Saved series order pack: {SavedPath}", output);
+        }
 
-            return entry;
+        private void AddSeriesOrderEntries(JObject songData, IEnumerable<JObject> entries)
+        {
+            foreach (var entry in entries)
+                GetArray(songData, "series_database_entries").Add(entry);
+        }
+
+        private IEnumerable<JObject> CreateVanillaSeriesOrderEntries(List<CskModContext> contexts, HashSet<string> selectedKeys, Dictionary<string, int> order, CskBuildState state)
+        {
+            //get all series selected
+            var selectedIds = GetSelectedSeriesIds(contexts, selectedKeys);
+            //get all vanilla series that are not selected
+            return state.Series.Values
+                .Where(series => VanillaSeries.Contains(series.NameId) && !selectedIds.Contains(series.UiSeriesId))
+                .Select(series => new { Series = series, Order = Math.Min(GetSeriesSoundOrder(order, series), 127) })
+                .Where(item =>
+                    //create series entries only when their sound order and shown as series in directory differ from the vanilla defaults
+                    !MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(item.Series.UiSeriesId, out var defaultOrder) ||
+                    !MusicConstants.DEFAULT_SERIES_SHOWN_AS_SERIES_IN_DIRECTORY.TryGetValue(item.Series.UiSeriesId, out var defaultShown) ||
+                    item.Order != defaultOrder || item.Series.Unk1 != defaultShown)
+                .OrderBy(item => item.Order)
+                .ThenBy(item => item.Series.NameId, StringComparer.OrdinalIgnoreCase)
+                .Select(item => CreateSeriesDatabaseEntry(item.Series, item.Order));
+        }
+
+        private HashSet<string> GetSelectedSeriesIds(IEnumerable<CskModContext> contexts, HashSet<string> selectedKeys)
+        {
+            return contexts.SelectMany(context => context.SeriesList
+                    .Where(series => selectedKeys.Contains(CreateSeriesKey(context.Mod, series)))
+                    .Select(series => series.UiSeriesId))
+                .Where(id => !string.IsNullOrEmpty(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private HashSet<string> GetSelectedSeriesNames(IEnumerable<CskModContext> contexts, HashSet<string> selectedKeys)
+        {
+            return contexts.SelectMany(context => context.SeriesList
+                    .Where(series => selectedKeys.Contains(CreateSeriesKey(context.Mod, series)))
+                    .Select(series => series.NameId))
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private HashSet<string> GetSelectedGameTitleIds(IEnumerable<CskModContext> contexts, HashSet<string> selectedKeys, CskBuildState state)
+        {
+            var selectedSeries = GetSelectedSeriesIds(contexts, selectedKeys);
+            return state.Games.Values
+                .Where(game => selectedSeries.Contains(game.UiSeriesId))
+                .Select(game => game.UiGameTitleId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        #endregion
+
+        #region Generation
+
+        private void GenerateVanillaSongsChangesPack(List<CskModContext> contexts, string outputRoot, HashSet<string> selectedKeys, string generatedBgmFolder, CskBuildState state, bool includeAudio)
+        {
+            var folderName = contexts.Count == 1
+                ? SanitizePathSegment($"{contexts[0].SafePackName} - Vanilla Songs Changes", "Vanilla Songs Changes", "vanilla songs changes folder name")
+                : "CSK Packs - Vanilla Songs Changes";
+            var packRoot = Path.Combine(outputRoot, folderName);
+            var songData = new JObject { ["bgm_database_entries"] = new JArray() };
+            var bgmMessages = new List<string>();
+            var titleMessages = new List<string>();
+            if (!AddVanillaSongsChanges(contexts, selectedKeys, songData, bgmMessages, titleMessages, packRoot, generatedBgmFolder, state, includeAudio))
+                return;
+            if (songData["stage_database_entries"] is JArray stageEntries && stageEntries.Count == 0)
+                songData.Remove("stage_database_entries");
+            if (GetArray(songData, "bgm_database_entries").Count > 0)
+            {
+                var database = Path.Combine(packRoot, "database");
+                Directory.CreateDirectory(database);
+                File.WriteAllText(Path.Combine(database, "database.json"), JsonConvert.SerializeObject(songData, Formatting.Indented), new UTF8Encoding(false));
+            }
+            if (bgmMessages.Count > 0 || titleMessages.Count > 0)
+            {
+                var messages = Path.Combine(packRoot, "ui", "message");
+                Directory.CreateDirectory(messages);
+                if (bgmMessages.Count > 0) WriteCombinedXmsbt(Path.Combine(messages, "msg_bgm.xmsbt"), bgmMessages);
+                if (titleMessages.Count > 0) WriteCombinedXmsbt(Path.Combine(messages, "msg_title.xmsbt"), titleMessages);
+            }
+            _logger.LogInformation("[CSK] Saved vanilla songs changes pack: {SavedPath}", packRoot);
+        }
+
+        private bool AddVanillaSongsChanges(
+            List<CskModContext> contexts,
+            HashSet<string> selectedKeys,
+            JObject songData,
+            List<string> bgmMessages,
+            List<string> titleMessages,
+            string packRoot,
+            string generatedBgmFolder,
+            CskBuildState state,
+            bool includeAudio)
+        {
+            var before = GetArray(songData, "bgm_database_entries").Count + GetArray(songData, "stage_database_entries").Count + bgmMessages.Count + titleMessages.Count;
+            var selectedNames = GetSelectedSeriesNames(contexts, selectedKeys);
+            //populate playlists both vanilla and custom
+            foreach (var name in VanillaSeries.Where(name => !selectedNames.Contains(name)))
+                PopulateVanillaPlaylists(songData, name, state, true);
+            foreach (var name in state.CoreGameSeriesById.Values.Where(name => !string.IsNullOrEmpty(name) && !selectedNames.Contains(name)).Distinct(StringComparer.OrdinalIgnoreCase))
+                PopulateCustomPlaylists(songData, name, state);
+            PopulateCustomStageDatabaseEntries(songData, state, GetSelectedSeriesIds(contexts, selectedKeys));
+            if (GetArray(songData, "stage_database_entries").Count == 0)
+                songData.Remove("stage_database_entries");
+
+            //get all games already covered by the selected series
+            var selectedGames = GetSelectedGameTitleIds(contexts, selectedKeys, state);
+            foreach (var bgmId in state.OverriddenCoreBgmIds)
+            {
+                if (!state.BgmDbRoots.TryGetValue(bgmId, out var db) || selectedGames.Contains(db.UiGameTitleId) ||
+                    string.IsNullOrEmpty(db.NameId) || _unavailableBgmNameIds.Value?.Contains(db.NameId) == true)
+                    continue;
+                GetArray(songData, "bgm_database_entries").Add(new JObject
+                {
+                    ["ui_bgm_id"] = db.UiBgmId, ["clone_from_ui_bgm_id"] = CloneBgmId,
+                    ["stream_set_id"] = db.StreamSetId, ["name_id"] = db.NameId,
+                    ["ui_gametitle_id"] = db.UiGameTitleId,
+                    ["test_disp_order"] = db.TestDispOrder <= 4 ? db.TestDispOrder : db.MenuValue,
+                    ["record_type"] = string.IsNullOrEmpty(db.RecordType) ? "record_original" : db.RecordType
+                });
+                if (state.Games.TryGetValue(db.UiGameTitleId ?? string.Empty, out var game))
+                {
+                    var gameTitle = GetLocalizedString(game.MSBTTitle);
+                    if (!string.IsNullOrEmpty(gameTitle))
+                        AddUniqueMessage(titleMessages, $"tit_{game.NameId}", gameTitle);
+                    //add game title entry if custom
+                    if (game.Source != EntrySource.Core && !HasEntry(songData, "gametitle_database_entries", "ui_gametitle_id", game.UiGameTitleId))
+                        GetArray(songData, "gametitle_database_entries").Add(CreateGameEntry(game));
+                }
+            }
+
+            foreach (var bgmId in state.OverriddenCoreBgmIds)
+            {
+                if (!state.BgmDbRoots.TryGetValue(bgmId, out var db) || selectedGames.Contains(db.UiGameTitleId))
+                    continue;
+                AddCoreBgmTextChanges(db, bgmMessages);
+            }
+
+            //write nus3bank for volume overrides
+            var copiedAudio = false;
+            if (includeAudio && !string.IsNullOrEmpty(generatedBgmFolder))
+            {
+                var destination = Path.Combine(packRoot, "stream;", "sound", "bgm");
+                foreach (var entry in state.CoreVolumeChanges.Where(entry =>
+                {
+                    var db = FindOriginalCoreDbRootByNameId(entry.NameId, state);
+                    return db != null && !selectedGames.Contains(db.UiGameTitleId);
+                }))
+                {
+                    var source = Path.Combine(generatedBgmFolder, $"bgm_{entry.NameId}.nus3bank");
+                    if (!File.Exists(source))
+                        _nus3AudioService.GenerateNus3Bank(entry.NameId, entry.Volume, source);
+                    CopyIfExists(source, Path.Combine(destination, Path.GetFileName(source)));
+                    copiedAudio = true;
+                }
+            }
+            var after = GetArray(songData, "bgm_database_entries").Count + GetArray(songData, "stage_database_entries").Count + bgmMessages.Count + titleMessages.Count;
+            return after > before || copiedAudio;
         }
 
         #endregion

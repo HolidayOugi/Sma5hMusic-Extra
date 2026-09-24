@@ -35,6 +35,7 @@ namespace Sma5h.Mods.Music.Services
         private readonly HashSet<string> _localesEntries;
         private readonly Dictionary<string, SeriesEntry> _seriesEntries;
         private readonly Dictionary<string, GameTitleEntry> _gameTitleEntries;
+        private readonly Dictionary<string, GameTitleEntry> _originalCoreGameTitleEntries;
         private readonly Dictionary<string, BgmDbRootEntry> _bgmDbRootEntries;
         private readonly Dictionary<string, BgmStreamSetEntry> _bgmStreamSetEntries;
         private readonly Dictionary<string, BgmAssignedInfoEntry> _bgmAssignedInfoEntries;
@@ -62,6 +63,7 @@ namespace Sma5h.Mods.Music.Services
             //_deletedBgmEntries = new Dictionary<string, BgmDbRootEntry>();
             _seriesEntries = new Dictionary<string, SeriesEntry>();
             _gameTitleEntries = new Dictionary<string, GameTitleEntry>();
+            _originalCoreGameTitleEntries = new Dictionary<string, GameTitleEntry>();
             _localesEntries = new HashSet<string>();
             _bgmDbRootEntries = new Dictionary<string, BgmDbRootEntry>();
             _bgmStreamSetEntries = new Dictionary<string, BgmStreamSetEntry>();
@@ -164,6 +166,11 @@ namespace Sma5h.Mods.Music.Services
         {
             return _gameTitleEntries.Values;
         }
+        public IEnumerable<GameTitleEntry> GetOriginalCoreGameTitleEntries()
+        {
+            return _originalCoreGameTitleEntries.Values;
+        }
+
 
         public IEnumerable<StageEntry> GetStagesEntries()
         {
@@ -783,6 +790,7 @@ namespace Sma5h.Mods.Music.Services
             _originalCoreBgmPropertyEntries.Clear();
             //_deletedBgmEntries.Clear();
             _gameTitleEntries.Clear();
+            _originalCoreGameTitleEntries.Clear();
             _seriesEntries.Clear();
             _localesEntries.Clear();
             _playlistsEntries.Clear();
@@ -924,6 +932,9 @@ namespace Sma5h.Mods.Music.Services
 
         private void SnapshotOriginalCoreBgmEntries()
         {
+            foreach (var entry in _gameTitleEntries.Values)
+                _originalCoreGameTitleEntries[entry.UiGameTitleId] = _mapper.Map(entry, new GameTitleEntry(entry.UiGameTitleId));
+
             foreach (var entry in _bgmDbRootEntries.Values)
                 _originalCoreBgmDbRootEntries[entry.UiBgmId] = _mapper.Map(entry, new BgmDbRootEntry(entry.UiBgmId));
 

@@ -42,7 +42,7 @@ namespace Sma5h.Mods.Music.MusicMods
             SaveMusicModConfig();
         }
 
-        public MusicModEntries GetMusicModEntries()
+        public MusicModEntries GetMusicModEntries(bool logEntries = true)
         {
             var output = new MusicModEntries();
 
@@ -50,36 +50,52 @@ namespace Sma5h.Mods.Music.MusicMods
                 return output;
 
             //Process audio mods
-            _logger.LogInformation("Mod {MusicMod} by '{Author}' - {NbrSongs} song(s)", _musicModConfig.Name, _musicModConfig.Author, _musicModConfig.Series.Sum(s => s.Games.Sum(p => p.Bgms.Count)));
+            if (logEntries)
+                _logger.LogInformation("Mod {MusicMod} by '{Author}' - {NbrSongs} song(s)", _musicModConfig.Name, _musicModConfig.Author, _musicModConfig.Series.Sum(s => s.Games.Sum(p => p.Bgms.Count)));
 
             foreach (var series in _musicModConfig.Series)
             {
-                output.SeriesEntries.Add(_mapper.Map(series, new SeriesEntry(series.UiSeriesId, EntrySource.Mod)));
+                var seriesEntry = _mapper.Map(series, new SeriesEntry(series.UiSeriesId, EntrySource.Mod));
+                output.SeriesEntries.Add(seriesEntry);
+                var orderedSeries = new MusicModSeriesEntries(seriesEntry);
+                output.OrderedSeries.Add(orderedSeries);
 
                 foreach (var game in series.Games)
                 {
-                    output.GameTitleEntries.Add(_mapper.Map(game, new GameTitleEntry(game.UiGameTitleId, EntrySource.Mod)));
+                    var gameEntry = _mapper.Map(game, new GameTitleEntry(game.UiGameTitleId, EntrySource.Mod));
+                    output.GameTitleEntries.Add(gameEntry);
+                    var orderedGame = new MusicModGameEntries(gameEntry);
+                    orderedSeries.Games.Add(orderedGame);
 
                     foreach (var bgm in game.Bgms)
                     {
                         string filename = Path.Combine(ModPath, bgm.Filename);
-                        if (!File.Exists(filename))
-                        {
+                        var audioFileExists = File.Exists(filename);
+                        if (!audioFileExists && logEntries)
                             _logger.LogError("Mod {MusicMod}: Song {Song} ({ToneId}) doesn't exist.", _musicModConfig.Name, filename, bgm.ToneId);
-                            continue;
-                        }
 
-                        GetUpdatedBgmAssignedInfoConfig(bgm.AssignedInfo);
-                        GetUpdatedStreamSetConfig(bgm.StreamSet);
-
-                        _logger.LogInformation("Mod {MusicMod}: Adding song {Song} ({ToneId})", _musicModConfig.Name, filename, bgm.ToneId);
                         var bgmDbRootEntry = _mapper.Map(bgm.DbRoot, new BgmDbRootEntry(bgm.DbRoot.UiBgmId, this));
                         bgmDbRootEntry.UiGameTitleId = game.UiGameTitleId; //Enforce
+                        var streamPropertyEntry = _mapper.Map(bgm.StreamProperty, new BgmStreamPropertyEntry(bgm.StreamProperty.StreamId, this));
+                        var bgmPropertyEntry = _mapper.Map(bgm.BgmProperties, new BgmPropertyEntry(bgm.BgmProperties.NameId, filename, this) { AudioVolume = bgm.NUS3BankConfig.AudioVolume });
+                        var orderedStreamSetEntry = _mapper.Map(bgm.StreamSet, new BgmStreamSetEntry(bgm.StreamSet.StreamSetId, this));
+                        var orderedAssignedInfoEntry = _mapper.Map(bgm.AssignedInfo, new BgmAssignedInfoEntry(bgm.AssignedInfo.InfoId, this));
+                        orderedGame.Bgms.Add(new MusicModBgmEntries(
+                            bgmDbRootEntry, orderedStreamSetEntry, orderedAssignedInfoEntry, streamPropertyEntry, bgmPropertyEntry));
+                        if (!audioFileExists)
+                            continue;
+
+                        if (logEntries)
+                            _logger.LogInformation("Mod {MusicMod}: Adding song {Song} ({ToneId})", _musicModConfig.Name, filename, bgm.ToneId);
+                        var streamSetEntry = GetUpdatedStreamSetEntry(
+                            _mapper.Map(bgm.StreamSet, new BgmStreamSetEntry(bgm.StreamSet.StreamSetId, this)));
+                        var assignedInfoEntry = GetUpdatedBgmAssignedInfoEntry(
+                            _mapper.Map(bgm.AssignedInfo, new BgmAssignedInfoEntry(bgm.AssignedInfo.InfoId, this)));
                         output.BgmDbRootEntries.Add(bgmDbRootEntry);
-                        output.BgmStreamSetEntries.Add(_mapper.Map(bgm.StreamSet, new BgmStreamSetEntry(bgm.StreamSet.StreamSetId, this)));
-                        output.BgmAssignedInfoEntries.Add(_mapper.Map(bgm.AssignedInfo, new BgmAssignedInfoEntry(bgm.AssignedInfo.InfoId, this)));
-                        output.BgmStreamPropertyEntries.Add(_mapper.Map(bgm.StreamProperty, new BgmStreamPropertyEntry(bgm.StreamProperty.StreamId, this)));
-                        output.BgmPropertyEntries.Add(_mapper.Map(bgm.BgmProperties, new BgmPropertyEntry(bgm.BgmProperties.NameId, filename, this) { AudioVolume = bgm.NUS3BankConfig.AudioVolume }));
+                        output.BgmStreamSetEntries.Add(streamSetEntry);
+                        output.BgmAssignedInfoEntries.Add(assignedInfoEntry);
+                        output.BgmStreamPropertyEntries.Add(streamPropertyEntry);
+                        output.BgmPropertyEntries.Add(bgmPropertyEntry);
                     }
                 }
             }
@@ -635,29 +651,29 @@ namespace Sma5h.Mods.Music.MusicMods
             return v4ModConfig;
         }
 
-        private BgmStreamSetConfig GetUpdatedStreamSetConfig(BgmStreamSetConfig bgmStreamSetConfig)
+        private BgmStreamSetEntry GetUpdatedStreamSetEntry(BgmStreamSetEntry bgmStreamSetEntry)
         {
-            if (!string.IsNullOrEmpty(bgmStreamSetConfig.SpecialCategory) && bgmStreamSetConfig.SpecialCategory.StartsWith("0x") &&
-                MusicConstants.SPECIAL_CATEGORY_LABELS.ContainsKey(bgmStreamSetConfig.SpecialCategory))
+            if (!string.IsNullOrEmpty(bgmStreamSetEntry.SpecialCategory) && bgmStreamSetEntry.SpecialCategory.StartsWith("0x") &&
+                MusicConstants.SPECIAL_CATEGORY_LABELS.ContainsKey(bgmStreamSetEntry.SpecialCategory))
             {
-                bgmStreamSetConfig.SpecialCategory = MusicConstants.SPECIAL_CATEGORY_LABELS[bgmStreamSetConfig.SpecialCategory];
+                bgmStreamSetEntry.SpecialCategory = MusicConstants.SPECIAL_CATEGORY_LABELS[bgmStreamSetEntry.SpecialCategory];
             }
-            return bgmStreamSetConfig;
+            return bgmStreamSetEntry;
         }
 
-        private BgmAssignedInfoConfig GetUpdatedBgmAssignedInfoConfig(BgmAssignedInfoConfig bgmAssignedInfoConfig)
+        private BgmAssignedInfoEntry GetUpdatedBgmAssignedInfoEntry(BgmAssignedInfoEntry bgmAssignedInfoEntry)
         {
-            if (!string.IsNullOrEmpty(bgmAssignedInfoConfig.Condition) && bgmAssignedInfoConfig.Condition.StartsWith("0x") &&
-                MusicConstants.SOUND_CONDITION_LABELS.ContainsKey(bgmAssignedInfoConfig.Condition))
+            if (!string.IsNullOrEmpty(bgmAssignedInfoEntry.Condition) && bgmAssignedInfoEntry.Condition.StartsWith("0x") &&
+                MusicConstants.SOUND_CONDITION_LABELS.ContainsKey(bgmAssignedInfoEntry.Condition))
             {
-                bgmAssignedInfoConfig.Condition = MusicConstants.SOUND_CONDITION_LABELS[bgmAssignedInfoConfig.Condition];
+                bgmAssignedInfoEntry.Condition = MusicConstants.SOUND_CONDITION_LABELS[bgmAssignedInfoEntry.Condition];
             }
-            if (!string.IsNullOrEmpty(bgmAssignedInfoConfig.ConditionProcess) && bgmAssignedInfoConfig.ConditionProcess.StartsWith("0x") &&
-                MusicConstants.SOUND_CONDITION_PROCESS_LABELS.ContainsKey(bgmAssignedInfoConfig.ConditionProcess))
+            if (!string.IsNullOrEmpty(bgmAssignedInfoEntry.ConditionProcess) && bgmAssignedInfoEntry.ConditionProcess.StartsWith("0x") &&
+                MusicConstants.SOUND_CONDITION_PROCESS_LABELS.ContainsKey(bgmAssignedInfoEntry.ConditionProcess))
             {
-                bgmAssignedInfoConfig.ConditionProcess = MusicConstants.SOUND_CONDITION_PROCESS_LABELS[bgmAssignedInfoConfig.ConditionProcess];
+                bgmAssignedInfoEntry.ConditionProcess = MusicConstants.SOUND_CONDITION_PROCESS_LABELS[bgmAssignedInfoEntry.ConditionProcess];
             }
-            return bgmAssignedInfoConfig;
+            return bgmAssignedInfoEntry;
         }
     }
 

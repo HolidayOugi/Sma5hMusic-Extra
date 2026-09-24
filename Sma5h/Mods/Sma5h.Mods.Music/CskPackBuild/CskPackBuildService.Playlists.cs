@@ -10,40 +10,61 @@ namespace Sma5h.Mods.Music.CskPackBuild
 {
     public partial class CskPackBuildService
     {
+        #region Playlist Resources
+
+        private static readonly HashSet<string> VanillaSeries = new HashSet<string>(new[]
+        {
+            "mario", "mariokart", "donkeykong", "zelda", "metroid", "yoshi", "kirby", "starfox", "pokemon", "fzero",
+            "mother", "fireemblem", "gamewatch", "palutena", "wario", "pikmin", "doubutsu", "wiifit", "punchout",
+            "xenoblade", "metalgear", "sonic", "rockman", "pacman", "streetfighter", "finalfantasy", "bayonetta",
+            "splatoon", "castlevania", "smashbros", "arms", "persona", "dragonquest", "banjokazooie", "fatalfury",
+            "minecraft", "tekken", "kingdomhearts", "etc"
+        }, StringComparer.OrdinalIgnoreCase);
+
+        private static readonly HashSet<string> VanillaNonSeriesPlaylists = new HashSet<string>(new[]
+        {
+            "bgmsmashmenu", "bgmplaylist", "bgmboss", "bgmsmashmode", "bgmadventure", "bgmstageedit"
+        }, StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, List<string>> SeriesToPlaylist = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["doubutsu"] = new() { "bgmanimal" }, ["bayonetta"] = new() { "bgmbeyo" }, ["dragonquest"] = new() { "bgmbrave" },
+            ["banjokazooie"] = new() { "bgmbuddy" }, ["tekken"] = new() { "bgmdemon" }, ["donkeykong"] = new() { "bgmdk" },
+            ["fatalfury"] = new() { "bgmdolly" }, ["castlevania"] = new() { "bgmdracula" },
+            ["finalfantasy"] = new() { "bgmedge", "bgmff" }, ["xenoblade"] = new() { "bgmelement", "bgmxenoblade" },
+            ["fireemblem"] = new() { "bgmfe", "bgmmaster" }, ["starfox"] = new() { "bgmfox" }, ["fzero"] = new() { "bgmfzero" },
+            ["gamewatch"] = new() { "bgmgamewatch" }, ["palutena"] = new() { "bgmicaros" }, ["persona"] = new() { "bgmjack" },
+            ["kirby"] = new() { "bgmkirby" }, ["mario"] = new() { "bgmmario" }, ["metalgear"] = new() { "bgmmetalgear" },
+            ["metroid"] = new() { "bgmmetroid" }, ["mariokart"] = new() { "bgmmkart" }, ["mother"] = new() { "bgmmother" },
+            ["etc"] = new() { "bgmother" }, ["pacman"] = new() { "bgmpacman" }, ["minecraft"] = new() { "bgmpickel" },
+            ["pikmin"] = new() { "bgmpikmin" }, ["pokemon"] = new() { "bgmpokemon" }, ["punchout"] = new() { "bgmpunchout" },
+            ["rockman"] = new() { "bgmrockman" }, ["streetfighter"] = new() { "bgmsf" }, ["smashbros"] = new() { "bgmsmashbtl" },
+            ["sonic"] = new() { "bgmsonic" }, ["splatoon"] = new() { "bgmspla" }, ["arms"] = new() { "bgmtantan" },
+            ["kingdomhearts"] = new() { "bgmtrail" }, ["wario"] = new() { "bgmwario" }, ["wiifit"] = new() { "bgmwiifit" },
+            ["yoshi"] = new() { "bgmyoshi" }, ["zelda"] = new() { "bgmzelda" }
+        };
+
+        private int DefaultPlaylistIncidence => _config.CurrentValue.Sma5hMusicGUI?.PlaylistIncidenceDefault ?? 0;
+
+        #endregion
+
         #region Vanilla Playlists
 
-        private void PopulateVanillaPlaylists(JObject songData, string seriesName, JObject playlistData, HashSet<string> coreBgmIds, JObject coreBgmOverride, JObject orderOverride)
+        private void PopulateVanillaPlaylists(JObject songData, string seriesName, CskBuildState state, bool changedOnly = false)
         {
-            if (!VanillaSeries.Contains(seriesName))
+            if (!VanillaSeries.Contains(seriesName) || !SeriesToPlaylist.TryGetValue(seriesName, out var playlistIds))
                 return;
-
-            var playlists = SeriesToPlaylist.ContainsKey(seriesName.ToLowerInvariant())
-                ? SeriesToPlaylist[seriesName.ToLowerInvariant()]
-                : new List<string>();
-
-            foreach (var playlistId in playlists)
+            foreach (var playlistId in playlistIds)
             {
-                var playlist = playlistData[playlistId];
-                if (playlist == null)
+                if (changedOnly && !state.ChangedPlaylistIds.Contains(playlistId))
                     continue;
-
-                var playlistEntries = EnsurePlaylist(songData, playlistId);
-                foreach (JObject track in GetArray(playlist, "tracks"))
+                if (!state.Playlists.TryGetValue(playlistId, out var playlist))
+                    continue;
+                var entries = EnsurePlaylist(songData, playlistId);
+                foreach (var track in playlist.Tracks.Where(track => state.CoreBgmIds.Contains(track.UiBgmId)))
                 {
-                    var uiBgmId = GetString(track, "ui_bgm_id");
-                    if (!coreBgmIds.Contains(uiBgmId))
-                        continue;
-
-                    AddCoreBgmFromState(songData, uiBgmId, coreBgmOverride, orderOverride);
-
-                    var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    foreach (var i in GetPlaylistSettingIndices(playlistId))
-                    {
-                        entry[$"order{i}"] = GetInt(track, $"o{i}", 0);
-                        entry[$"incidence{i}"] = GetInt(track, $"i{i}", DefaultPlaylistIncidence);
-                    }
-
-                    playlistEntries.Add(entry);
+                    AddOriginalCoreBgm(songData, track.UiBgmId, state);
+                    entries.Add(CreatePlaylistOutputTrack(track, playlistId));
                 }
             }
         }
@@ -51,236 +72,103 @@ namespace Sma5h.Mods.Music.CskPackBuild
         #endregion
 
         //adds entries for any core bgm that are part of a custom playlist
-        private void PopulateCustomPlaylists(JObject songData, string seriesName, JObject playlistData, JObject coreBgmOverride, JObject orderOverride, Dictionary<string, string> coreGameSeriesById)
-        {   
+        private void PopulateCustomPlaylists(JObject songData, string seriesName, CskBuildState state)
+        {
             //get all core bgms that are part of the series
-            var seriesCoreBgmIds = _audioStateService.GetOriginalCoreBgmDbRootEntries()
-                .Where(p => !string.IsNullOrEmpty(p.UiBgmId)
-                            && !string.IsNullOrEmpty(p.UiGameTitleId)
-                            && coreGameSeriesById.TryGetValue(p.UiGameTitleId, out var bgmSeries)
-                            && string.Equals(bgmSeries, seriesName, StringComparison.OrdinalIgnoreCase))
-                .Select(p => p.UiBgmId)
+            var seriesCoreBgmIds = state.OriginalBgmDbRoots.Values
+                .Where(db => state.CoreGameSeriesById.TryGetValue(db.UiGameTitleId ?? string.Empty, out var bgmSeries) &&
+                             string.Equals(bgmSeries, seriesName, StringComparison.OrdinalIgnoreCase))
+                .Select(db => db.UiBgmId)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var vanillaPlaylistIds = SeriesToPlaylist.Values.SelectMany(p => p).Concat(VanillaNonSeriesPlaylists);
-
+            var vanillaIds = SeriesToPlaylist.Values.SelectMany(ids => ids).Concat(VanillaNonSeriesPlaylists).ToHashSet(StringComparer.OrdinalIgnoreCase);
             //for every custom playlist, check if any of the tracks are part of the series and add them to the song data if they are
-            foreach (var playlist in playlistData.Properties().Where(p => !vanillaPlaylistIds.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
+            foreach (var playlist in state.Playlists.Values.Where(playlist => !vanillaIds.Contains(playlist.Id)))
             {
-                foreach (JObject track in GetArray(playlist.Value, "tracks"))
+                foreach (var track in playlist.Tracks.Where(track => seriesCoreBgmIds.Contains(track.UiBgmId)))
                 {
-                    var uiBgmId = GetString(track, "ui_bgm_id");
-                    if (!seriesCoreBgmIds.Contains(uiBgmId))
+                    var entries = EnsurePlaylist(songData, playlist.Id);
+                    if (entries.Any(entry => string.Equals((string)entry["ui_bgm_id"], track.UiBgmId, StringComparison.OrdinalIgnoreCase)))
                         continue;
-
-                    var entries = EnsurePlaylist(songData, playlist.Name);
-                    if (entries.Any(p => string.Equals(GetString(p, "ui_bgm_id"), uiBgmId, StringComparison.OrdinalIgnoreCase)))
-                        continue;
-
-                    AddCoreBgmFromState(songData, uiBgmId, coreBgmOverride, orderOverride);
-                    var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    foreach (var i in GetPlaylistSettingIndices(playlist.Name))
+                    AddOriginalCoreBgm(songData, track.UiBgmId, state);
+                    var output = new JObject { ["ui_bgm_id"] = track.UiBgmId };
+                    foreach (var setting in GetPlaylistSettingIndices(playlist.Id))
                     {
-                        entry[$"order{i}"] = GetInt(track, "o0", 0);
-                        entry[$"incidence{i}"] = GetInt(track, "i0", DefaultPlaylistIncidence);
+                        output[$"order{setting}"] = track.Order0;
+                        output[$"incidence{setting}"] = track.Incidence0;
                     }
-                    entries.Add(entry);
+                    entries.Add(output);
                 }
             }
         }
-
-        #region Effective Playlist Data
-
-        //creates a diff of the vanilla playlists, only including playlists that have been modified by the override
-        private JObject BuildVanillaPlaylistDiff(JObject playlistOverride)
-        {
-            var diff = new JObject();
-            if (playlistOverride == null)
-                return diff;
-
-            var originalPlaylists = _audioStateService.GetOriginalCorePlaylists()
-                .ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
-            var vanillaPlaylistIds = SeriesToPlaylist.Values.SelectMany(p => p).Concat(VanillaNonSeriesPlaylists);
-
-            foreach (var playlist in playlistOverride.Properties().Where(p => vanillaPlaylistIds.Contains(p.Name, StringComparer.OrdinalIgnoreCase)))
-            {
-                var normalized = NormalizePlaylistObject(playlist.Name, (JObject)playlist.Value);
-                if (!originalPlaylists.TryGetValue(playlist.Name, out var original))
-                {
-                    diff[playlist.Name] = normalized;
-                    continue;
-                }
-
-                var originalTracks = new JArray(original.Tracks.Select(CreatePlaylistTrack));
-                for (var i = 0; i < 16; i++)
-                {   
-                    //replicate behaviour of playlist_override.json in GUI
-                    //the order ids are set based on their appeareance in GUI
-                    var orderId = $"o{i}";
-                    var visibleTracks = originalTracks
-                        .OfType<JObject>()
-                        .Where(p => GetInt(p, orderId, -1) != -1)
-                        .OrderBy(p => GetInt(p, orderId, -1))
-                        .ToList();
-
-                    for (var order = 0; order < visibleTracks.Count; order++)
-                        visibleTracks[order][orderId] = order;
-                }
-
-                if (!JToken.DeepEquals(normalized["tracks"], originalTracks))
-                    diff[playlist.Name] = normalized;
-            }
-
-            return diff;
-        }
-
-        private JObject BuildEffectivePlaylistData(JObject playlistOverride)
-        {
-            var playlistData = new JObject();
-
-            foreach (var playlist in _audioStateService.GetPlaylists())
-                playlistData[playlist.Id] = CreatePlaylistObject(playlist);
-
-            if (playlistOverride == null)
-                return playlistData;
-
-            foreach (var playlistProperty in playlistOverride.Properties())
-            {
-                var overridePlaylist = playlistProperty.Value as JObject;
-                if (overridePlaylist == null)
-                    continue;
-
-                playlistData[playlistProperty.Name] = NormalizePlaylistObject(playlistProperty.Name, overridePlaylist);
-            }
-
-            return playlistData;
-        }
-
-        #endregion
-
-        #region Playlist Resources
-
-        private static JObject CreatePlaylistObject(PlaylistEntry playlist)
-        {
-            return new JObject
-            {
-                ["id"] = playlist.Id,
-                ["title"] = playlist.Title,
-                ["tracks"] = new JArray(playlist.Tracks.Select(CreatePlaylistTrack))
-            };
-        }
-
-        private static JObject CreatePlaylistTrack(PlaylistValueEntry track)
-        {
-            var orders = new[]
-            {
-                track.Order0, track.Order1, track.Order2, track.Order3,
-                track.Order4, track.Order5, track.Order6, track.Order7,
-                track.Order8, track.Order9, track.Order10, track.Order11,
-                track.Order12, track.Order13, track.Order14, track.Order15
-            };
-            var incidences = new[]
-            {
-                track.Incidence0, track.Incidence1, track.Incidence2, track.Incidence3,
-                track.Incidence4, track.Incidence5, track.Incidence6, track.Incidence7,
-                track.Incidence8, track.Incidence9, track.Incidence10, track.Incidence11,
-                track.Incidence12, track.Incidence13, track.Incidence14, track.Incidence15
-            };
-
-            var output = new JObject { ["ui_bgm_id"] = track.UiBgmId };
-            for (var i = 0; i < 16; i++)
-            {
-                output[$"o{i}"] = orders[i];
-                output[$"i{i}"] = incidences[i];
-            }
-
-            return output;
-        }
-
-        private JObject NormalizePlaylistObject(string playlistId, JObject playlist)
-        {
-            return new JObject
-            {
-                ["id"] = GetString(playlist, "id", playlistId),
-                ["title"] = GetString(playlist, "title"),
-                ["tracks"] = new JArray(GetArray(playlist, "tracks").OfType<JObject>().Select(NormalizePlaylistTrack))
-            };
-        }
-
-        private JObject NormalizePlaylistTrack(JObject track)
-        {
-            var output = new JObject { ["ui_bgm_id"] = GetString(track, "ui_bgm_id") };
-            for (var i = 0; i < 16; i++)
-            {
-                output[$"o{i}"] = GetInt(track, $"o{i}", GetInt(track, $"order{i}", 0));
-                output[$"i{i}"] = GetInt(track, $"i{i}", GetInt(track, $"incidence{i}", DefaultPlaylistIncidence));
-            }
-
-            return output;
-        }
-
-        #endregion
 
         #region Playlist Helpers
 
-        private int DefaultPlaylistIncidence => _config.CurrentValue.Sma5hMusicGUI?.PlaylistIncidenceDefault ?? 0;
+        private void AddOriginalCoreBgm(JObject songData, string uiBgmId, CskBuildState state)
+        {
+            if (!state.OriginalBgmDbRoots.TryGetValue(uiBgmId, out var original))
+                return;
+            state.BgmDbRoots.TryGetValue(uiBgmId, out var current);
+            if (state.OverriddenCoreBgmIds.Contains(uiBgmId) || current?.MusicMod != null ||
+                HasEntry(songData, "bgm_database_entries", "ui_bgm_id", uiBgmId))
+                return;
+            var order = current?.TestDispOrder ?? original.TestDispOrder;
+            GetArray(songData, "bgm_database_entries").Add(new JObject
+            {
+                ["ui_bgm_id"] = original.UiBgmId, ["clone_from_ui_bgm_id"] = CloneBgmId,
+                ["stream_set_id"] = original.StreamSetId, ["name_id"] = original.NameId,
+                ["ui_gametitle_id"] = original.UiGameTitleId, ["test_disp_order"] = order,
+                ["record_type"] = original.RecordType
+            });
+        }
+
+        private JObject CreatePlaylistOutputTrack(PlaylistValueEntry track, string playlistId)
+        {
+            var output = new JObject { ["ui_bgm_id"] = track.UiBgmId };
+            foreach (var setting in GetPlaylistSettingIndices(playlistId))
+            {
+                output[$"order{setting}"] = GetTrackOrder(track, setting);
+                output[$"incidence{setting}"] = GetTrackIncidence(track, setting);
+            }
+            return output;
+        }
 
         private Dictionary<string, HashSet<int>> BuildPlaylistSettingIndexMap()
         {
             var result = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase);
-
             foreach (var stage in _audioStateService.GetStagesEntries())
             {
-                if (string.IsNullOrEmpty(stage.BgmSetId) || stage.BgmSettingNo < 0 || stage.BgmSettingNo >= 16)
+                if (string.IsNullOrEmpty(stage.BgmSetId) || stage.BgmSettingNo >= 16)
                     continue;
-
-                if (!result.TryGetValue(stage.BgmSetId, out var settingIndices))
-                {
-                    settingIndices = new HashSet<int>();
-                    result[stage.BgmSetId] = settingIndices;
-                }
-
-                settingIndices.Add(stage.BgmSettingNo);
+                if (!result.TryGetValue(stage.BgmSetId, out var settings))
+                    result[stage.BgmSetId] = settings = new HashSet<int>();
+                settings.Add(stage.BgmSettingNo);
             }
-
             return result;
         }
 
         private IEnumerable<int> GetPlaylistSettingIndices(string playlistId)
         {
-            return _playlistSettingIndices.Value != null
-                && _playlistSettingIndices.Value.TryGetValue(playlistId, out var settingIndices)
-                    ? settingIndices.OrderBy(p => p)
-                    : Enumerable.Empty<int>();
+            return _playlistSettingIndices.Value != null && _playlistSettingIndices.Value.TryGetValue(playlistId, out var settings)
+                ? settings.OrderBy(value => value)
+                : Enumerable.Empty<int>();
         }
 
-        private int GetNextPlaylistOrder(string seriesName, JObject playlistData)
+        private int GetNextPlaylistOrder(string seriesName, CskBuildState state)
         {
-            var playlistIds = GetFallbackPlaylistIds(seriesName);
-            if (playlistIds.Count == 0)
-                return 0;
-
-            var maxOrder = -1;
-            foreach (var playlistId in playlistIds)
-            {
-                foreach (JObject track in GetArray(playlistData[playlistId], "tracks"))
-                {
-                    for (var i = 0; i < 16; i++)
-                        maxOrder = Math.Max(maxOrder, GetInt(track, $"o{i}", -1));
-                }
-            }
-
-            return maxOrder + 1;
+            var max = -1;
+            foreach (var playlistId in GetFallbackPlaylistIds(seriesName))
+                if (state.Playlists.TryGetValue(playlistId, out var playlist))
+                    foreach (var track in playlist.Tracks)
+                        for (var setting = 0; setting < 16; setting++)
+                            max = Math.Max(max, GetTrackOrder(track, setting));
+            return max + 1;
         }
 
         private static List<string> GetFallbackPlaylistIds(string seriesName)
         {
             if (!VanillaSeries.Contains(seriesName))
                 return new List<string> { MusicConstants.InternalIds.PLAYLIST_SMASH_BATTLE };
-
-            var seriesKey = seriesName.ToLowerInvariant();
-            return SeriesToPlaylist.ContainsKey(seriesKey)
-                ? SeriesToPlaylist[seriesKey]
-                : new List<string> { $"bgm{seriesName}" };
+            return SeriesToPlaylist.TryGetValue(seriesName, out var ids) ? ids : new List<string> { $"bgm{seriesName}" };
         }
 
         private bool IsManualPlaylistGeneration()
@@ -288,58 +176,63 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return _config.CurrentValue.Sma5hMusic?.PlaylistMapping?.GenerationMode == Sma5hMusicOptions.PlaylistGeneration.Manual;
         }
 
-        private int AddToPlaylists(string uiBgmId, JObject songData, JObject playlistOverride, string seriesName, int orderCounter)
+        private int AddToPlaylists(string uiBgmId, JObject songData, string seriesName, int orderCounter, CskBuildState state)
         {
             var found = false;
-            foreach (var playlistProperty in playlistOverride.Properties())
+            foreach (var playlist in state.Playlists.Values)
             {
-                var playlistId = playlistProperty.Name;
-
-                foreach (JObject track in GetArray(playlistProperty.Value, "tracks"))
-                {
-                    if (GetString(track, "ui_bgm_id") != uiBgmId)
-                        continue;
-
+                var track = playlist.Tracks.FirstOrDefault(item => string.Equals(item.UiBgmId, uiBgmId, StringComparison.OrdinalIgnoreCase));
+                if (track == null)
+                    continue;
+                found = true;
+                var entries = EnsurePlaylist(songData, playlist.Id);
+                if (!entries.Any(entry => string.Equals((string)entry["ui_bgm_id"], uiBgmId, StringComparison.OrdinalIgnoreCase)))
                     //bgm found in playlist, adds it to playlist entries
-
-                    found = true;
-                    var entries = EnsurePlaylist(songData, playlistId);
-                    if (entries.Any(p => GetString(p, "ui_bgm_id") == uiBgmId))
-                        continue;
-
-                    var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-
-                    foreach (var i in GetPlaylistSettingIndices(playlistId))
-                    {
-                        entry[$"order{i}"] = GetInt(track, $"o{i}", orderCounter);
-                        entry[$"incidence{i}"] = GetInt(track, $"i{i}", DefaultPlaylistIncidence);
-                    }
-                    entries.Add(entry);
-                }
+                    entries.Add(CreatePlaylistOutputTrack(track, playlist.Id));
             }
 
-            var currentEntry = GetArray(songData, "bgm_database_entries")
-                .FirstOrDefault(p => GetString(p, "ui_bgm_id") == uiBgmId) as JObject;
-
+            var current = GetArray(songData, "bgm_database_entries").OfType<JObject>()
+                .FirstOrDefault(entry => string.Equals((string)entry["ui_bgm_id"], uiBgmId, StringComparison.OrdinalIgnoreCase));
             //if bgm not found we try to add it to a fallback playlist (bgmseries for vanilla, battlefield for custom)
-            if (!found && !IsManualPlaylistGeneration() && currentEntry != null && GetInt(currentEntry, "test_disp_order", -1) != -1)
+            if (!found && !IsManualPlaylistGeneration() && current != null && (int?)current["test_disp_order"] != -1)
             {
-                foreach (var fallbackPlaylistId in GetFallbackPlaylistIds(seriesName))
+                foreach (var playlistId in GetFallbackPlaylistIds(seriesName))
                 {
-                    var entries = EnsurePlaylist(songData, fallbackPlaylistId);
-                    var entry = new JObject { ["ui_bgm_id"] = uiBgmId };
-                    foreach (var i in GetPlaylistSettingIndices(fallbackPlaylistId))
+                    var output = new JObject { ["ui_bgm_id"] = uiBgmId };
+                    foreach (var setting in GetPlaylistSettingIndices(playlistId))
                     {
-                        entry[$"order{i}"] = orderCounter; //order counter used to order bgms in fallback playlists
-                        entry[$"incidence{i}"] = DefaultPlaylistIncidence;
+                        output[$"order{setting}"] = orderCounter;
+                        output[$"incidence{setting}"] = DefaultPlaylistIncidence;
                     }
-
-                    entries.Add(entry);
+                    EnsurePlaylist(songData, playlistId).Add(output);
                     orderCounter++;
                 }
             }
-
             return orderCounter;
+        }
+
+        private static int GetTrackOrder(PlaylistValueEntry track, int setting)
+        {
+            return setting switch
+            {
+                0 => track.Order0, 1 => track.Order1, 2 => track.Order2, 3 => track.Order3,
+                4 => track.Order4, 5 => track.Order5, 6 => track.Order6, 7 => track.Order7,
+                8 => track.Order8, 9 => track.Order9, 10 => track.Order10, 11 => track.Order11,
+                12 => track.Order12, 13 => track.Order13, 14 => track.Order14, 15 => track.Order15,
+                _ => -1
+            };
+        }
+
+        private static int GetTrackIncidence(PlaylistValueEntry track, int setting)
+        {
+            return setting switch
+            {
+                0 => track.Incidence0, 1 => track.Incidence1, 2 => track.Incidence2, 3 => track.Incidence3,
+                4 => track.Incidence4, 5 => track.Incidence5, 6 => track.Incidence6, 7 => track.Incidence7,
+                8 => track.Incidence8, 9 => track.Incidence9, 10 => track.Incidence10, 11 => track.Incidence11,
+                12 => track.Incidence12, 13 => track.Incidence13, 14 => track.Incidence14, 15 => track.Incidence15,
+                _ => 0
+            };
         }
 
         #endregion

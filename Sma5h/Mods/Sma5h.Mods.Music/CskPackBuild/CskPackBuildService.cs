@@ -36,6 +36,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
             Single
         }
 
+        #region Public
+
         public CskPackBuildService(
             IOptionsMonitor<CskPackBuildOptions> config,
             IMusicModManagerService musicModManagerService,
@@ -49,8 +51,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
             _audioStateService = audioStateService;
             _logger = logger;
         }
-
-        #region Public
 
         public Task Build(string locale = null)
         {
@@ -82,79 +82,64 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         public Task<IReadOnlyList<CskPackModOption>> GetAvailableMods(string locale = null)
         {
-            return Task.Run<IReadOnlyList<CskPackModOption>>(() =>
-            {
-                _currentBuildLocale.Value = locale;
-                try
-                {
-                    return LoadModContexts(GetMusicMods())
-                        .Where(context => context.SeriesList.Count > 0)
-                        .Select(context => new CskPackModOption
-                        {
-                            Key = CreateModKey(context.Mod),
-                            DisplayName = context.Mod.Name
-                        })
-                        .OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-                }
-                finally
-                {
-                    _currentBuildLocale.Value = null;
-                }
-            });
+            return Task.Run<IReadOnlyList<CskPackModOption>>(() => WithLocale(locale, () =>
+                LoadModContexts(GetMusicMods())
+                    .Where(context => context.SeriesList.Count > 0)
+                    .Select(context => new CskPackModOption
+                    {
+                        Key = CreateModKey(context.Mod),
+                        DisplayName = context.Mod.Name
+                    })
+                    .OrderBy(option => option.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ToList()));
         }
 
         //get all series from all mods
         public Task<IReadOnlyList<CskPackSeriesOption>> GetAvailableSeries(string locale = null)
         {
-            return Task.Run<IReadOnlyList<CskPackSeriesOption>>(() =>
-            {
-                //get the build locale from GUI
-                _currentBuildLocale.Value = locale;
-                try
-                {
-                    var mods = GetMusicMods();
-                    var contexts = LoadModContexts(mods);
-
-                    //returns all series from all mods
-                    return contexts
-                        .SelectMany(context => context.SeriesList.Select(series => CreateSeriesOption(context, series)))
-                        .OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(p => p.ModName, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                }
-                finally
-                {
-                    _currentBuildLocale.Value = null;
-                }
-            });
+            return Task.Run<IReadOnlyList<CskPackSeriesOption>>(() => WithLocale(locale, () =>
+                LoadModContexts(GetMusicMods())
+                    .SelectMany(context => context.SeriesList.Select(series => CreateSeriesOption(context, series)))
+                    .OrderBy(option => option.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(option => option.ModName, StringComparer.OrdinalIgnoreCase)
+                    .ToList()));
         }
 
         #endregion
 
         #region Build
 
-        private void BuildInternal(HashSet<string> selectedSeriesKeys, CskPackBuildMode buildMode, string locale, HashSet<string> selectedModKeys = null)
+        private T WithLocale<T>(string locale, Func<T> action)
         {
             _currentBuildLocale.Value = locale;
+            try
+            {
+                return action();
+            }
+            finally
+            {
+                _currentBuildLocale.Value = null;
+            }
+        }
 
+        private void BuildInternal(HashSet<string> selectedSeriesKeys, CskPackBuildMode mode, string locale, HashSet<string> selectedModKeys = null)
+        {
+            _currentBuildLocale.Value = locale;
             try
             {
                 var mods = GetMusicMods();
-                var buildResources = LoadBuildResources();
+                var contexts = LoadModContexts(mods);
+                var state = CaptureBuildState();
                 _playlistSettingIndices.Value = BuildPlaylistSettingIndexMap();
 
-                var contexts = LoadModContexts(mods);
-                var hasVanillaChanges = HasJsonValues(buildResources.RawCoreBgmOverride) || HasJsonValues(buildResources.RawPlaylistOverride);
-                if (contexts.Count == 0 && !hasVanillaChanges)
+                if (contexts.Count == 0 && !state.HasCoreChanges)
                 {
                     if (mods.Count == 0)
                         throw new InvalidOperationException("No music mods were found.");
-
-                    throw new InvalidOperationException("No metadata_mod.json files were found in the currently loaded music mods.");
+                    throw new InvalidOperationException("No music entries were found in the currently loaded music mods.");
                 }
 
-                if (buildMode == CskPackBuildMode.ModularByMod)
+                if (mode == CskPackBuildMode.ModularByMod)
                 {
                     selectedSeriesKeys = contexts
                         .Where(context => selectedModKeys != null && selectedModKeys.Contains(CreateModKey(context.Mod)))
@@ -173,27 +158,23 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
                 var outputRoot = PrepareOutputRoot();
                 var tempRoot = Path.Combine(outputRoot, CskTempFolder);
-
                 try
                 {
-                    var contextList = contexts.ToList();
                     //for metadata only builds
-                    var includeAudio = buildMode != CskPackBuildMode.MetadataOnly;
-                    _unavailableBgmNameIds.Value = includeAudio
-                        ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                        : null;
+                    var includeAudio = mode != CskPackBuildMode.MetadataOnly;
+                    _unavailableBgmNameIds.Value = includeAudio ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
                     var generatedBgmFolder = includeAudio
-                        ? GenerateBgmFiles(contextList, tempRoot, selectedSeriesKeys, buildResources)
+                        ? GenerateBgmFiles(contexts, tempRoot, selectedSeriesKeys, state)
                         : null;
 
-                    if (contextList.Count == 0)
-                        GenerateVanillaSongsChangesPack(contextList, outputRoot, selectedSeriesKeys, generatedBgmFolder, buildResources, includeAudio);
-                    else if (buildMode == CskPackBuildMode.Single)
-                        GenerateSingleCskPack(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
-                    else if (buildMode == CskPackBuildMode.ModularByMod)
-                        GenerateCskPacksByMod(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
+                    if (contexts.Count == 0)
+                        GenerateVanillaSongsChangesPack(contexts, outputRoot, selectedSeriesKeys, generatedBgmFolder, state, includeAudio);
+                    else if (mode == CskPackBuildMode.Single)
+                        GenerateSingleCskPack(contexts, generatedBgmFolder, outputRoot, selectedSeriesKeys, state, includeAudio);
+                    else if (mode == CskPackBuildMode.ModularByMod)
+                        GenerateCskPacksByMod(contexts, generatedBgmFolder, outputRoot, selectedSeriesKeys, state, includeAudio);
                     else
-                        GenerateCskPacks(contextList, generatedBgmFolder, outputRoot, selectedSeriesKeys, buildResources, includeAudio);
+                        GenerateCskPacks(contexts, generatedBgmFolder, outputRoot, selectedSeriesKeys, state, includeAudio);
                 }
                 finally
                 {
@@ -210,6 +191,5 @@ namespace Sma5h.Mods.Music.CskPackBuild
         }
 
         #endregion
-
     }
 }
