@@ -68,7 +68,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private List<CskModContext> LoadModContexts(IEnumerable<IMusicMod> mods)
         {
-            var seriesState = IndexBy(_audioStateService.GetSeriesEntries(), item => item.UiSeriesId);
             var gameState = IndexBy(_audioStateService.GetGameTitleEntries(), item => item.UiGameTitleId);
             var contexts = new List<CskModContext>();
 
@@ -77,7 +76,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 var entries = mod.GetMusicModEntries(false);
                 var series = entries.SeriesEntries
                     .Where(item => !string.IsNullOrEmpty(item.UiSeriesId))
-                    .Select(item => seriesState.TryGetValue(item.UiSeriesId, out var current) && current.IsOverridden ? current : item)
                     .GroupBy(item => item.UiSeriesId, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
                     .ToList();
@@ -368,7 +366,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             for (var i = 0; i < infos.Length; i++)
                 if (!string.IsNullOrEmpty(infos[i]))
                     entry[$"info{i}"] = infos[i];
-            var specialCategory = streamSet.SerializedSpecialCategory ?? streamSet.SpecialCategory;
+            var specialCategory = streamSet.SpecialCategory;
             if (!string.IsNullOrWhiteSpace(specialCategory) &&
                 (!string.Equals(specialCategory, "sf_situationlink", StringComparison.OrdinalIgnoreCase) || !string.IsNullOrWhiteSpace(streamSet.Info1)))
                 entry["special_category"] = specialCategory;

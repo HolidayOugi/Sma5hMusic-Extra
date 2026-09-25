@@ -195,14 +195,17 @@ namespace Sma5h.Mods.Music.CskPackBuild
             CskBuildState state)
         {
             var orderCounter = GetNextPlaylistOrder(series.NameId, state);
+            var metadataSeries = state.Series.TryGetValue(series.UiSeriesId, out var currentSeries) && currentSeries.IsOverridden
+                ? currentSeries
+                : series;
             //get sound order
             var dispOrderSound = Math.Min(GetSeriesSoundOrder(order, series), 127);
             if (!VanillaSeries.Contains(series.NameId) ||
                 !MusicConstants.DEFAULT_SERIES_DISP_ORDER_SOUND.TryGetValue(series.UiSeriesId, out var defaultOrder) ||
                 !MusicConstants.DEFAULT_SERIES_SHOWN_AS_SERIES_IN_DIRECTORY.TryGetValue(series.UiSeriesId, out var defaultShown) ||
-                dispOrderSound != defaultOrder || series.Unk1 != defaultShown)
-                GetArray(songData, "series_database_entries").Add(CreateSeriesDatabaseEntry(series, dispOrderSound));
-            var seriesTitle = GetLocalizedString(series.MSBTTitle, series.NameId);
+                dispOrderSound != defaultOrder || metadataSeries.Unk1 != defaultShown)
+                GetArray(songData, "series_database_entries").Add(CreateSeriesDatabaseEntry(metadataSeries, dispOrderSound));
+            var seriesTitle = GetLocalizedString(metadataSeries.MSBTTitle, series.NameId);
             titleMessages.Add(MakeEntry($"tit_series_snd_{series.NameId}", seriesTitle));
             titleMessages.Add(MakeEntry($"tit_series_{series.NameId}", seriesTitle));
 

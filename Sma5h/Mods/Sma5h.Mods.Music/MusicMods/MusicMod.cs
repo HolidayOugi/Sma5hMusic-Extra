@@ -73,6 +73,8 @@ namespace Sma5h.Mods.Music.MusicMods
                         var audioFileExists = File.Exists(filename);
                         if (!audioFileExists && logEntries)
                             _logger.LogError("Mod {MusicMod}: Song {Song} ({ToneId}) doesn't exist.", _musicModConfig.Name, filename, bgm.ToneId);
+                        if (!audioFileExists)
+                            continue;
 
                         var bgmDbRootEntry = _mapper.Map(bgm.DbRoot, new BgmDbRootEntry(bgm.DbRoot.UiBgmId, this));
                         bgmDbRootEntry.UiGameTitleId = game.UiGameTitleId; //Enforce
@@ -82,8 +84,6 @@ namespace Sma5h.Mods.Music.MusicMods
                         var orderedAssignedInfoEntry = _mapper.Map(bgm.AssignedInfo, new BgmAssignedInfoEntry(bgm.AssignedInfo.InfoId, this));
                         orderedGame.Bgms.Add(new MusicModBgmEntries(
                             bgmDbRootEntry, orderedStreamSetEntry, orderedAssignedInfoEntry, streamPropertyEntry, bgmPropertyEntry));
-                        if (!audioFileExists)
-                            continue;
 
                         if (logEntries)
                             _logger.LogInformation("Mod {MusicMod}: Adding song {Song} ({ToneId})", _musicModConfig.Name, filename, bgm.ToneId);

@@ -6,7 +6,6 @@ namespace Sma5h.Mods.Music.Models
     {
         public string StreamSetId { get; }
         public string SpecialCategory { get; set; }
-        public string SerializedSpecialCategory { get; set; }
         public string Info0 { get; set; }
         public string Info1 { get; set; }
         public string Info2 { get; set; }

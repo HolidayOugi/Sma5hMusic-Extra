@@ -133,10 +133,8 @@ namespace Sma5h.Mods.Music
                             coreStreamSetOverrides.ContainsKey(bgmStreamSetEntry.StreamSetId))
                         {
                             var streamSetOverride = coreStreamSetOverrides[bgmStreamSetEntry.StreamSetId];
-                            var serializedSpecialCategory = streamSetOverride.SpecialCategory;
                             var streamSetObj = GetUpdatedStreamSetConfig(streamSetOverride);
                             _mapper.Map(streamSetObj, bgmStreamSetEntry);
-                            bgmStreamSetEntry.SerializedSpecialCategory = serializedSpecialCategory;
                         }
                     }
                 }
