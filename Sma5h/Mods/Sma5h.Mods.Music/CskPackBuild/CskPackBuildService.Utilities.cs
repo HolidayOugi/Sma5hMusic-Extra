@@ -55,15 +55,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
         }
 
-        private void CopyGeneratedBgmFiles(string generatedBgmFolder, string destinationFolder)
-        {
-            if (string.IsNullOrEmpty(generatedBgmFolder) || !Directory.Exists(generatedBgmFolder))
-                return;
-            Directory.CreateDirectory(destinationFolder);
-            foreach (var file in Directory.GetFiles(generatedBgmFolder, "bgm_*.nus3*", SearchOption.TopDirectoryOnly))
-                CopyIfExists(file, Path.Combine(destinationFolder, Path.GetFileName(file)));
-        }
-
         private void CopyCoreVolumeBanks(string seriesName, string packFolderName, string outputRoot, string generatedBgmFolder, CskBuildState state)
         {
             if (string.IsNullOrEmpty(generatedBgmFolder) || !Directory.Exists(generatedBgmFolder))

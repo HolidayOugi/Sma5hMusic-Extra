@@ -121,17 +121,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
         }
 
-        private IEnumerable<string> GetContextBgmIdsForSeries(
-            CskModContext context,
-            string destinationSeriesId,
-            CskBuildState state)
-        {
-            foreach (var game in GetContextGamesForSeries(context, destinationSeriesId, state))
-                foreach (var bgmId in game.Bgms.Select(bgm => bgm.Database.UiBgmId))
-                    if (state.BgmDbRoots.ContainsKey(bgmId))
-                        yield return bgmId;
-        }
-
         #endregion
 
         #region Audio State Objects
@@ -180,14 +169,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             state.CoreVolumeChanges = BuildCoreVolumeChanges(state);
             return state;
-        }
-
-        private static bool DictionaryEquals(Dictionary<string, string> current, Dictionary<string, string> original)
-        {
-            current ??= new Dictionary<string, string>();
-            original ??= new Dictionary<string, string>();
-            return current.Count == original.Count && current.All(pair =>
-                original.TryGetValue(pair.Key, out var value) && string.Equals(pair.Value, value, StringComparison.Ordinal));
         }
 
         private static Dictionary<string, T> IndexBy<T>(IEnumerable<T> entries, Func<T, string> keySelector)
@@ -424,17 +405,6 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 ["loop_end_sample"] = entry.LoopEndSample == uint.MaxValue ? 0 : entry.LoopEndSample, ["duration_ms"] = entry.TotalTimeMs,
                 ["duration_sample"] = entry.TotalSamples
             };
-        }
-
-        private static void AddCoreBgmDatabaseEntry(JObject songData, BgmDbRootEntry db)
-        {
-            AddOrReplaceByKey(songData, "bgm_database_entries", "ui_bgm_id", db.UiBgmId, new JObject
-            {
-                ["ui_bgm_id"] = db.UiBgmId, ["clone_from_ui_bgm_id"] = CloneBgmId,
-                ["stream_set_id"] = db.StreamSetId, ["name_id"] = db.NameId,
-                ["ui_gametitle_id"] = db.UiGameTitleId, ["test_disp_order"] = db.TestDispOrder,
-                ["record_type"] = string.IsNullOrEmpty(db.RecordType) ? "record_original" : db.RecordType
-            });
         }
 
         #endregion
