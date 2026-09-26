@@ -35,6 +35,25 @@ namespace Sma5h.Mods.Music.Services
             return ResizeRgba(source, input.Width, input.Height, iconSize, iconSize);
         }
 
+        //check alpha channel for transparent pixels
+        //returns false if the image is fully opaque
+        public static bool HasTransparentPixels(string sourcePngPath)
+        {
+            using var decoded = SKBitmap.Decode(sourcePngPath);
+            if (decoded == null)
+                throw new InvalidDataException("The selected file could not be decoded as an image.");
+
+            using var input = decoded.Copy(SKColorType.Rgba8888);
+            if (input == null)
+                throw new InvalidDataException("The selected image could not be converted to RGBA.");
+
+            var rgba = ReadRgbaFromBitmap(input);
+            for (var index = 3; index < rgba.Length; index += 4)
+                if (rgba[index] < byte.MaxValue)
+                    return true;
+
+            return false;
+        }
         //read BNTX and convert to RGBA
         public static (byte[] Rgba, int SourceWidth, int SourceHeight) LoadRgbaFromBntx(string bntxPath, int iconSize)
         {
@@ -90,9 +109,14 @@ namespace Sma5h.Mods.Music.Services
         public static void WritePreviewFromBntx(string bntxPath, string previewPath)
         {
             var icon = LoadRgbaFromBntx(bntxPath, SeriesIconSize);
-            WritePng(icon.Rgba, SeriesIconSize, SeriesIconSize, previewPath);
+            WritePng(CreateAlphaPreview(icon.Rgba), SeriesIconSize, SeriesIconSize, previewPath);
         }
 
+        public static void WritePreviewFromPng(string pngPath, string previewPath)
+        {
+            var rgba = LoadResizedRgba(pngPath, SeriesIconSize);
+            WritePng(CreateAlphaPreview(rgba), SeriesIconSize, SeriesIconSize, previewPath);
+        }
         #endregion
 
         #region Encoding
@@ -345,6 +369,20 @@ namespace Sma5h.Mods.Music.Services
             return rgba;
         }
 
+        //alpha preview for showing appearance in Music Select / Sound Test
+        private static byte[] CreateAlphaPreview(byte[] rgba)
+        {
+            var preview = new byte[rgba.Length];
+            for (var index = 0; index < rgba.Length; index += 4)
+            {
+                preview[index] = byte.MaxValue;
+                preview[index + 1] = byte.MaxValue;
+                preview[index + 2] = byte.MaxValue;
+                preview[index + 3] = rgba[index + 3];
+            }
+
+            return preview;
+        }
         private static void WritePng(byte[] rgba, int width, int height, string outputPath)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
