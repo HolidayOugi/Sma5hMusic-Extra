@@ -28,6 +28,17 @@
       <Setter Property="HorizontalContentAlignment" Value="Center"/>
       <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
+    <Style Selector="Button#AppendGameTitleButton">
+      <Setter Property="Width" Value="28"/>
+      <Setter Property="MinWidth" Value="28"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0,1,0,0"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
   </UserControl.Styles>
   <StackPanel>
     <StackPanel x:Name="MsbtToolbar" Orientation="Horizontal" Spacing="6">
@@ -66,9 +77,10 @@
     </StackPanel>
     <TextBox IsVisible="{Binding !EnableColorFormatting}" Classes="jpnSupport" Text="{Binding CurrentLocalizedValue}" AcceptsReturn="{Binding AcceptsReturn}"/>
     <StackPanel IsVisible="{Binding EnableColorFormatting}" Spacing="4">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBox x:Name="RichTextEditor" Grid.Column="0" Classes="jpnSupport" AcceptsReturn="{Binding AcceptsReturn}"/>
-        <Button x:Name="SmallTextMarkerButton" Grid.Column="1" Content="S" IsVisible="{Binding EnableColorFormatting}"/>
+        <Button x:Name="SmallTextMarkerButton" Grid.Column="1" Content="S" IsVisible="{Binding EnableColorFormatting}" ToolTip.Tip="Mark the selected text as small"/>
+        <Button x:Name="AppendGameTitleButton" Grid.Column="2" Content="G" IsVisible="{Binding ShowGameTitleButton}" Command="{Binding ActionAppendGameTitle}" ToolTip.Tip="Append the selected game title"/>
       </Grid>
       <TextBlock x:Name="DisplayedTitleLabel" Text="Displayed Title"/>
       <Border x:Name="RichTextEditorFrame" BorderBrush="#777" BorderThickness="1" CornerRadius="2"

@@ -145,7 +145,9 @@ namespace Sma5hMusic.GUI.ViewModels
             MSBTTitleEditor = new MSBTFieldViewModel()
             {
                 SelectedLocale = defaultLocaleItem,
-                EnableColorFormatting = true
+                EnableColorFormatting = true,
+                ShowGameTitleButton = true,
+                GameTitleTextProvider = () => SelectedGameTitleViewModel?.Title
             };
             MSBTAuthorEditor = new MSBTFieldViewModel()
             {

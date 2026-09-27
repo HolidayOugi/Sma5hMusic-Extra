@@ -27,6 +27,8 @@ namespace Sma5hMusic.GUI.ViewModels
 
         public bool AcceptsReturn { get; set; }
         public bool EnableColorFormatting { get; set; }
+        public bool ShowGameTitleButton { get; set; }
+        public Func<string> GameTitleTextProvider { get; set; }
         public ObservableCollection<MsbtTextColor> TextColorOptions { get; }
 
         public IEnumerable<ComboItem> CopyActions { get { return _copyActions; } }
@@ -74,6 +76,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReactiveCommand<ComboItem, Unit> ActionChangeLocale { get; }
         public ReactiveCommand<Unit, Unit> ActionCopyToAll { get; }
         public ReactiveCommand<Unit, Unit> ActionCopyToEmptyLanguages { get; }
+        public ReactiveCommand<Unit, Unit> ActionAppendGameTitle { get; }
 
         public MSBTFieldViewModel()
         {
@@ -87,6 +90,7 @@ namespace Sma5hMusic.GUI.ViewModels
             ActionChangeLocale = ReactiveCommand.Create<ComboItem>(ChangeLocale);
             ActionCopyToAll = ReactiveCommand.Create(CopyToAllLanguages);
             ActionCopyToEmptyLanguages = ReactiveCommand.Create(CopyToEmptyLanguages);
+            ActionAppendGameTitle = ReactiveCommand.Create(AppendGameTitle);
 
             this.WhenAnyValue(p => p.SelectedRecentAction).Subscribe(o => HandleRecentAction(o));
             this.WhenAnyValue(p => p.SelectedCopyAction).Subscribe(o => HandleCopyAction(o));
@@ -154,6 +158,13 @@ namespace Sma5hMusic.GUI.ViewModels
                     _msbtValues.Add(locale.Id, string.Empty);
                 MSBTValues[locale.Id] = CurrentLocalizedValue;
             }
+        }
+
+        private void AppendGameTitle()
+        {
+            var gameTitle = GameTitleTextProvider?.Invoke();
+            if (!string.IsNullOrEmpty(gameTitle))
+                CurrentLocalizedValue = $"{CurrentLocalizedValue} - {gameTitle}";
         }
 
         private void InitMsbtArray()
