@@ -218,7 +218,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     !string.Equals(coreSeriesName, series.NameId, StringComparison.OrdinalIgnoreCase))
                     if (!HasEntry(songData, "gametitle_database_entries", "ui_gametitle_id", game.UiGameTitleId))
                         GetArray(songData, "gametitle_database_entries").Add(CreateGameEntry(game));
-                titleMessages.Add(MakeEntry($"tit_{game.NameId}", GetLocalizedString(game.MSBTTitle, game.NameId)));
+                titleMessages.Add(MakeEntry(GetGameTitleMessageLabel(game, state), GetLocalizedString(game.MSBTTitle, game.NameId)));
                 //process bgms for this game
                 foreach (var bgm in item.Bgms)
                 {
@@ -260,8 +260,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 orderCounter = AddBgmToPack(db, songData, bgmMessages, series.NameId, packFolder, outputRoot, generatedBgmFolder,
                         writtenModBgms, includeAudio, true, false, null, orderCounter, state);
                 var gameTitle = GetLocalizedString(game.MSBTTitle);
-                if (overrideGameTitles.Add(game.NameId) && !string.IsNullOrEmpty(gameTitle))
-                    titleMessages.Add(MakeEntry($"tit_{game.NameId}", gameTitle));
+                var gameTitleLabel = GetGameTitleMessageLabel(game, state);
+                if (overrideGameTitles.Add(gameTitleLabel) && !string.IsNullOrEmpty(gameTitle))
+                    titleMessages.Add(MakeEntry(gameTitleLabel, gameTitle));
             }
 
             foreach (var bgmId in state.OverriddenCoreBgmIds)
@@ -272,6 +273,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     continue;
                 AddCoreBgmTextChanges(db, bgmMessages);
             }
+
+            AddCoreGameTitleChanges(state.ChangedCoreGameTitleIds.Where(gameId =>
+                state.Games.TryGetValue(gameId, out var game) &&
+                string.Equals(game.UiSeriesId, series.UiSeriesId, StringComparison.OrdinalIgnoreCase)), state, titleMessages);
 
             if (!VanillaSeries.Contains(series.NameId))
             {

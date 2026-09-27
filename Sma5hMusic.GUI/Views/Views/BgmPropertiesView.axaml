@@ -33,7 +33,7 @@
           <TreeView.DataTemplates>
             <TreeDataTemplate DataType="models:OrderItemTreeViewModel" ItemsSource="{Binding Items}">
               <StackPanel Orientation="Horizontal">
-                <TextBlock Foreground="#c2c2c2" Margin="0,0,10,0" Text="{Binding Label, Mode=OneWay}" />
+                <TextBlock Foreground="#c2c2c2" Margin="0,0,10,0" Text="{Binding Label, Mode=OneWay, Converter={StaticResource LabelValueConverter}}" />
                 <TextBlock Foreground="#8f8f8f" Text="{Binding NbrBgms, Mode=OneWay}" />
               </StackPanel>
             </TreeDataTemplate>
@@ -44,7 +44,7 @@
         <StackPanel Classes="content" HorizontalAlignment="Stretch">
           <fields:PropertyTextField Label="Tone ID" Text="{Binding SelectedBgmEntry.ToneId, Mode=OneWay}" ToolTip="Unique ID of the song" IsReadOnly="True" />
           <fields:PropertyTextField Classes="jpnSupport" Label="Series" Text="{Binding SelectedBgmEntry.SeriesViewModel.Title, Mode=OneWay}" ToolTip="Series of the song in the current locale" IsReadOnly="True" />
-          <fields:PropertyTextField Classes="jpnSupport" Label="Game" Text="{Binding SelectedBgmEntry.GameTitleViewModel.Title, Mode=OneWay}" ToolTip="Game of the song in the current locale" IsReadOnly="True" />
+          <fields:PropertyTextField Classes="jpnSupport" Label="Game" Text="{Binding SelectedBgmEntry.GameTitleViewModel.Title, Mode=OneWay, Converter={StaticResource LabelValueConverter}}" ToolTip="Game of the song in the current locale" IsReadOnly="True" />
           <fields:PropertyTextField Classes="jpnSupport" Label="Title" Text="{Binding SelectedBgmEntry.Title, Mode=OneWay, Converter={StaticResource LabelValueConverter}}" ToolTip="Title of the song in the current locale" IsReadOnly="True" />
           <fields:PropertyTextField Classes="jpnSupport" Label="Author" Text="{Binding SelectedBgmEntry.Author, Mode=OneWay}" ToolTip="Author of the song in the current locale" IsReadOnly="True" />
           <fields:PropertyTextField Classes="jpnSupport" Label="Copyright" Text="{Binding SelectedBgmEntry.Copyright, Mode=OneWay}" ToolTip="Copyright of the song in the current locale" IsReadOnly="True" />

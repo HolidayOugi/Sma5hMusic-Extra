@@ -90,7 +90,8 @@ namespace Sma5hMusic.GUI.ViewModels
             {
                 //Locales = Locales,
                 SelectedLocale = defaultLocaleItem,
-                CurrentLocalizedValue = string.Empty
+                CurrentLocalizedValue = string.Empty,
+                EnableColorFormatting = true
             };
 
             //Validation
@@ -132,7 +133,8 @@ namespace Sma5hMusic.GUI.ViewModels
                 }
                 else
                 {
-                    NameId = Regex.Replace(gameId.Replace(" ", "_"), REGEX_REPLACE, string.Empty).ToLower();
+                    var plainGameId = MsbtRichTextColorHelper.ToPlainText(MsbtRichTextColorHelper.Parse(gameId));
+                    NameId = Regex.Replace(plainGameId.Replace(" ", "_"), REGEX_REPLACE, string.Empty).ToLower();
                     UiGameTitleId = $"{MusicConstants.InternalIds.GAME_TITLE_ID_PREFIX}{NameId}";
                 }
             }
@@ -149,6 +151,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 _refSelectedItem = _viewModelManager.GetGameTitleViewModel(UiGameTitleId);
             }
 
+            MSBTTitleEditor.SaveValueToRecent();
             _refSelectedItem.MSBTTitle = SaveMSBTValues(MSBTTitleEditor.MSBTValues);
             _refSelectedItem.NameId = UiGameTitleId.TrimStart(MusicConstants.InternalIds.GAME_TITLE_ID_PREFIX);
             _refSelectedItem.Release = Release;
@@ -179,6 +182,7 @@ namespace Sma5hMusic.GUI.ViewModels
         protected override void LoadItem(GameTitleEntryViewModel item)
         {
             _logger.LogDebug("Load Item");
+            MSBTTitleEditor.ResetTextColorSelection();
 
             if (item == null)
             {

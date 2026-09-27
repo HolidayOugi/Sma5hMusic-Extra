@@ -13,8 +13,7 @@ namespace Sma5hMusic.GUI.Converters
             if (string.IsNullOrEmpty(valueStr))
                 return valueStr;
 
-            valueStr = valueStr.Replace("{{", string.Empty).Replace("}}", string.Empty);
-            return MsbtRichTextColorHelper.ToPlainText(MsbtRichTextColorHelper.Parse(valueStr));
+            return MsbtRichTextColorHelper.ToPlainText(valueStr);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

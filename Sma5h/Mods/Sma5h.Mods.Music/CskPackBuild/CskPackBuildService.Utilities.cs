@@ -198,6 +198,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
             entries.Add(MakeEntry(label, text));
         }
 
+        //hacky way to fix inconsistencies between the override name_id entries and the original prc database
+        //makes sure that the title entry has the correct label
+        private static string GetGameTitleMessageLabel(GameTitleEntry game, CskBuildState state)
+        {
+            if (state.OriginalGames.TryGetValue(game.UiGameTitleId, out var original) && !string.IsNullOrEmpty(original.NameId))
+                return original.MSBTTitleKey;
+            return game.MSBTTitleKey;
+        }
+
         private static void WriteXmsbt(string path, IEnumerable<string> entries)
         {
             var content = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-16\"?>\n<xmsbt>\n");

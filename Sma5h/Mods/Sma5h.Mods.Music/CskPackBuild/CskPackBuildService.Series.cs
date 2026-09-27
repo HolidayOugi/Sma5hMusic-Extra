@@ -256,6 +256,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             //get all games already covered by the selected series
             var selectedGames = GetSelectedGameTitleIds(contexts, selectedKeys, state);
+            AddCoreGameTitleChanges(state.ChangedCoreGameTitleIds.Where(gameId => !selectedGames.Contains(gameId)), state, titleMessages);
             foreach (var bgmId in state.OverriddenCoreBgmIds)
             {
                 if (!state.BgmDbRoots.TryGetValue(bgmId, out var db) || selectedGames.Contains(db.UiGameTitleId) ||
@@ -273,7 +274,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 {
                     var gameTitle = GetLocalizedString(game.MSBTTitle);
                     if (!string.IsNullOrEmpty(gameTitle))
-                        AddUniqueMessage(titleMessages, $"tit_{game.NameId}", gameTitle);
+                        AddUniqueMessage(titleMessages, GetGameTitleMessageLabel(game, state), gameTitle);
                     //add game title entry if custom
                     if (game.Source != EntrySource.Core && !HasEntry(songData, "gametitle_database_entries", "ui_gametitle_id", game.UiGameTitleId))
                         GetArray(songData, "gametitle_database_entries").Add(CreateGameEntry(game));
@@ -307,6 +308,15 @@ namespace Sma5h.Mods.Music.CskPackBuild
             }
             var after = GetArray(songData, "bgm_database_entries").Count + GetArray(songData, "stage_database_entries").Count + bgmMessages.Count + titleMessages.Count;
             return after > before || copiedAudio;
+        }
+
+        private void AddCoreGameTitleChanges(IEnumerable<string> gameIds, CskBuildState state, List<string> titleMessages)
+        {
+            foreach (var gameId in gameIds)
+            {
+                if (state.Games.TryGetValue(gameId, out var game))
+                    AddUniqueMessage(titleMessages, GetGameTitleMessageLabel(game, state), GetLocalizedString(game.MSBTTitle));
+            }
         }
 
         #endregion

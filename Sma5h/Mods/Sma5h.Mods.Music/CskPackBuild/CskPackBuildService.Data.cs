@@ -44,9 +44,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public Dictionary<string, string> CoreGameSeriesById { get; set; }
             public HashSet<string> CoreBgmIds { get; set; }
             public List<string> OverriddenCoreBgmIds { get; set; }
+            public List<string> ChangedCoreGameTitleIds { get; set; }
             public HashSet<string> ChangedPlaylistIds { get; set; }
             public List<CoreBgmVolumeEntry> CoreVolumeChanges { get; set; }
-            public bool HasCoreChanges => OverriddenCoreBgmIds.Count > 0 || ChangedPlaylistIds.Count > 0 || CoreVolumeChanges.Count > 0;
+            public bool HasCoreChanges => OverriddenCoreBgmIds.Count > 0 || ChangedCoreGameTitleIds.Count > 0 || ChangedPlaylistIds.Count > 0 || CoreVolumeChanges.Count > 0;
         }
 
         private sealed class CoreBgmVolumeEntry
@@ -163,6 +164,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .OrderBy(current => current.OverrideOrder)
                 .Select(current => current.UiBgmId)
                 .ToList();
+            state.ChangedCoreGameTitleIds = state.Games.Values
+                .Where(current => current.MusicMod == null &&
+                    state.OriginalGames.TryGetValue(current.UiGameTitleId, out var original) &&
+                    !LocalizedValuesEqual(current.MSBTTitle, original.MSBTTitle))
+                .OrderBy(current => current.OverrideOrder)
+                .Select(current => current.UiGameTitleId)
+                .ToList();
             state.ChangedPlaylistIds = state.Playlists.Values
                 .Where(playlist => !state.OriginalPlaylists.TryGetValue(playlist.Id, out var original) || !PlaylistEquals(playlist, original))
                 .Select(playlist => playlist.Id)
@@ -209,6 +217,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 }
             }
             return true;
+        }
+
+        private static bool LocalizedValuesEqual(Dictionary<string, string> current, Dictionary<string, string> original)
+        {
+            if (current?.Count != original?.Count)
+                return false;
+            return current == null || current.All(item => original.TryGetValue(item.Key, out var value) && value == item.Value);
         }
 
         private List<CoreBgmVolumeEntry> BuildCoreVolumeChanges(CskBuildState state)

@@ -88,6 +88,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 .DeferUntilLoaded()
                 .AutoRefresh(p => p.UiGameTitleId, TimeSpan.FromMilliseconds(50))
                 .AutoRefresh(p => p.GameTitleViewModel.UiSeriesId, TimeSpan.FromMilliseconds(50))
+                .AutoRefresh(p => p.Title, TimeSpan.FromMilliseconds(50))
                 .Filter(p => p.UiBgmId != MusicConstants.InternalIds.BGM_ID_RANDOM);
 
             var whenAnyPropertyChanged = this.WhenAnyPropertyChanged("SelectedSeries", "SelectedGame",
@@ -107,7 +108,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     MatchesPlaylistFilter(p) &&
                     (SelectedSeries == null || SelectedSeries.AllFlag || p.SeriesId == SelectedSeries.UiSeriesId) &&
                     (SelectedGame == null || SelectedGame.AllFlag || p.UiGameTitleId == SelectedGame.UiGameTitleId) &&
-                    (string.IsNullOrEmpty(SearchText) || p.ToneId.Contains(SearchText, StringComparison.OrdinalIgnoreCase) || p.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                    (string.IsNullOrEmpty(SearchText) || p.ToneId.Contains(SearchText, StringComparison.OrdinalIgnoreCase) || MsbtRichTextColorHelper.ToPlainText(p.Title).Contains(SearchText, StringComparison.OrdinalIgnoreCase))
                 );
 
             var modsChanged = observableBgmEntries.WhenValueChanged(mod => mod.MusicModViewModel.Name);

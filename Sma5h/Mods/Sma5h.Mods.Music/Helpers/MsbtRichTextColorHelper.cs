@@ -143,6 +143,10 @@ namespace Sma5h.Mods.Music.Helpers
             return string.Concat((spans ?? Enumerable.Empty<MsbtRichTextSpan>()).Select(p => p.Text));
         }
 
+        public static string ToPlainText(string value)
+        {
+            return ToPlainText(Parse(value?.Replace("{{", string.Empty).Replace("}}", string.Empty)));
+        }
         //serialize for metadata
         public static string Serialize(IEnumerable<MsbtRichTextSpan> spans)
         {

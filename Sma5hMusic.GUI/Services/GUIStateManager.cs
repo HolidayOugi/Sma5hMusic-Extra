@@ -1402,7 +1402,7 @@ namespace Sma5hMusic.GUI.Services
                         SongCount = p.Count()
                     };
                 })
-                .OrderBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => MsbtRichTextColorHelper.ToPlainText(p.Title), StringComparer.OrdinalIgnoreCase)
                 .ThenBy(p => p.UiGameTitleId, StringComparer.OrdinalIgnoreCase);
         }
 
@@ -1497,7 +1497,7 @@ namespace Sma5hMusic.GUI.Services
                         .ToList();
 
                     var sortedSongs = groupSongs
-                        .OrderBy(p => p.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(p => MsbtRichTextColorHelper.ToPlainText(p.Title), StringComparer.OrdinalIgnoreCase)
                         .ThenBy(p => p.UiGameTitleId ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                         .ThenBy(p => GetRecordTypeSortOrder(p.RecordType))
                         .ThenBy(p => p.UiBgmId, StringComparer.OrdinalIgnoreCase)

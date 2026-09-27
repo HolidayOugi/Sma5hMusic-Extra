@@ -75,12 +75,12 @@
                       <ComboBox Classes="noBorder" IsVisible="{Binding DisplayRecents}" PlaceholderText="Use Recent Values..." SelectedItem="{Binding SelectedRecentAction, Mode=TwoWay}" Items="{Binding RecentGameTitles}">
                         <ComboBox.ItemTemplate>
                           <DataTemplate>
-                            <TextBlock Text="{Binding Title}" />
+                            <TextBlock Text="{Binding Title, Converter={StaticResource LabelValueConverter}}" />
                           </DataTemplate>
                         </ComboBox.ItemTemplate>
                       </ComboBox>
                     </StackPanel>
-                    <AutoCompleteBox x:Name="GamePicker" Items="{Binding Games}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
+                    <AutoCompleteBox x:Name="GamePicker" Items="{Binding Games}" ValueMemberBinding="{Binding Title, Converter={StaticResource LabelValueConverter}}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
                                      MinimumPopulateDelay="0.5" FilterMode="Contains"/>
                   </StackPanel>
                 </fields:PropertyField.FieldContent>
