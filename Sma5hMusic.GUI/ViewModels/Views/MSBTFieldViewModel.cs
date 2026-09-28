@@ -19,7 +19,6 @@ namespace Sma5hMusic.GUI.ViewModels
         private const string COPY_ACTION_ALL = "all";
         private const string COPY_ACTION_EMPTY = "empty";
         private readonly Dictionary<string, List<string>> _useRecentDict;
-        private readonly HashSet<string> _customTextColorIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly IEnumerable<ComboItem> _copyActions;
         private readonly IEnumerable<ComboItem> _locales;
 
@@ -84,9 +83,9 @@ namespace Sma5hMusic.GUI.ViewModels
             _copyActions = GetCopyActions();
             _useRecentDict = Constants.CONVERTER_LOCALE.ToDictionary(p => p.Key, p => new List<string>());
             TextColorOptions = new ObservableCollection<MsbtTextColor>(
-                MsbtRichTextColorHelper.Colors.Concat(new[] { MsbtRichTextColorHelper.CustomColorSelector }));
+                MsbtRichTextColorHelper.AvailableColors.Concat(new[] { MsbtRichTextColorHelper.CustomColorSelector }));
             SelectedTextColor = MsbtRichTextColorHelper.DefaultColor;
-            MsbtRichTextColorHelper.DefaultColorsChanged += RefreshDefaultTextColors;
+            MsbtRichTextColorHelper.ColorsChanged += RefreshDefaultTextColors;
             ActionChangeLocale = ReactiveCommand.Create<ComboItem>(ChangeLocale);
             ActionCopyToAll = ReactiveCommand.Create(CopyToAllLanguages);
             ActionCopyToEmptyLanguages = ReactiveCommand.Create(CopyToEmptyLanguages);
@@ -232,23 +231,7 @@ namespace Sma5hMusic.GUI.ViewModels
             if (color == null || color.IsDefault || color.IsCustomSelector)
                 return;
 
-            var existingColor = TextColorOptions.FirstOrDefault(p => string.Equals(p.Id, color.Id, StringComparison.OrdinalIgnoreCase));
-            if (existingColor != null)
-            {
-                if (!MsbtRichTextColorHelper.Colors.Any(p => string.Equals(p.Id, color.Id, StringComparison.OrdinalIgnoreCase)))
-                    _customTextColorIds.Add(color.Id);
-                SelectedTextColor = existingColor;
-                return;
-            }
-
-            _customTextColorIds.Add(color.Id);
-            var customSelectorIndex = TextColorOptions.IndexOf(MsbtRichTextColorHelper.CustomColorSelector);
-            if (customSelectorIndex < 0)
-                TextColorOptions.Add(color);
-            else
-                TextColorOptions.Insert(customSelectorIndex, color);
-
-            SelectedTextColor = color;
+            SelectedTextColor = MsbtRichTextColorHelper.AddTemporaryColor(color);
         }
 
         //refresh color list to include any temporary custom colors that may have been added
@@ -256,15 +239,10 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var customColors = TextColorOptions
-                    .Where(p => _customTextColorIds.Contains(p.Id) &&
-                                !MsbtRichTextColorHelper.Colors.Any(c =>
-                                    string.Equals(c.Id, p.Id, StringComparison.OrdinalIgnoreCase)))
-                    .ToList();
                 var selectedId = SelectedTextColor?.Id;
 
                 TextColorOptions.Clear();
-                foreach (var color in MsbtRichTextColorHelper.Colors.Concat(customColors))
+                foreach (var color in MsbtRichTextColorHelper.AvailableColors)
                     TextColorOptions.Add(color);
                 TextColorOptions.Add(MsbtRichTextColorHelper.CustomColorSelector);
 

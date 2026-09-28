@@ -50,14 +50,28 @@ namespace Sma5h.Mods.Music.Helpers
         public static readonly MsbtTextColor CustomColorSelector = new MsbtTextColor("custom", "Custom...", 0x00, 0x00, 0x00, false, true);
 
         private static IReadOnlyList<MsbtTextColor> _colors = CreateColorList(BuiltInDefaultColors);
+        private static readonly List<MsbtTextColor> _temporaryColors = new List<MsbtTextColor>();
 
         public static IReadOnlyList<MsbtTextColor> Colors => _colors;
-        public static event Action DefaultColorsChanged;
+        public static IReadOnlyList<MsbtTextColor> AvailableColors => _colors.Concat(_temporaryColors).ToList();
+        public static event Action ColorsChanged;
 
         public static void ConfigureDefaultColors(IEnumerable<MsbtTextColorSetting> settings)
         {
             _colors = CreateColorList(settings ?? BuiltInDefaultColors);
-            DefaultColorsChanged?.Invoke();
+            ColorsChanged?.Invoke();
+        }
+
+        //add colors added through the hex color selector
+        public static MsbtTextColor AddTemporaryColor(MsbtTextColor color)
+        {
+            var existing = AvailableColors.FirstOrDefault(p => string.Equals(p.Id, color.Id, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+                return existing;
+
+            _temporaryColors.Add(color);
+            ColorsChanged?.Invoke();
+            return color;
         }
 
         //clean color list if duplicates or invalid colors are present
@@ -194,7 +208,7 @@ namespace Sma5h.Mods.Music.Helpers
             if (legacyColor != null)
                 return TryParseHexColor(legacyColor.Hex, out var migratedColor) ? migratedColor : null;
 
-            return Colors.FirstOrDefault(p =>
+            return AvailableColors.FirstOrDefault(p =>
                 string.Equals(p.Id, colorId, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(p.Label, colorId, StringComparison.OrdinalIgnoreCase));
         }
