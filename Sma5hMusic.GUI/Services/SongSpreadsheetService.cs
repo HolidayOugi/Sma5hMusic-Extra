@@ -217,7 +217,7 @@ namespace Sma5hMusic.GUI.Services
                 return null;
 
             var game = GetValue(context.Games, song.UiGameTitleId);
-            var gameName = GetTitle(game?.MSBTTitle, locale);
+            var gameName = UnwrapDoubleBraces(GetTitle(game?.MSBTTitle, locale));
             var series = GetValue(context.Series, game?.UiSeriesId);
             var seriesName = GetTitle(series?.MSBTTitle, locale);
 
