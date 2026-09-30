@@ -46,7 +46,7 @@
       <StackPanel x:Name="ModalContent" Classes="content" MaxWidth="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
         <fields:PropertyTextField Classes="jpnSupport"
                                   Label="Filename"
-                                  Text="{Binding Filename, Mode=OneWay}"
+                                  Text="{Binding DisplayFilename, Mode=OneWay}"
                                   ToolTip="The source of the song"
                                   IsReadOnly="True"
                                   IsVisible="{Binding !IsLoopPreviewOnly}"

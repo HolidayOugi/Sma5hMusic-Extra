@@ -43,6 +43,9 @@ namespace Sma5hMusic.GUI.ViewModels
         public string Filename { get; set; }
 
         [Reactive]
+        public string DisplayFilename { get; set; }
+
+        [Reactive]
         public string ToneId { get; set; }
 
         [Reactive]

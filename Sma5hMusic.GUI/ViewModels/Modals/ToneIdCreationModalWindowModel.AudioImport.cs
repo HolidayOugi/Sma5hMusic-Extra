@@ -128,6 +128,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             CleanupTrimmedAudioFile();
             Filename = filename;
+            DisplayFilename = filename;
         }
 
         public void CleanupTrimmedAudioFile()
@@ -274,6 +275,7 @@ namespace Sma5hMusic.GUI.ViewModels
             IsToneIdVisible = false;
             IsImportingSong = false;
             Filename = filename;
+            DisplayFilename = filename;
             ToneId = Guid.NewGuid().ToString("N");
             ApplyNormalization = false;
             CanApplyNormalization = false;

@@ -285,7 +285,8 @@ namespace Sma5hMusic.GUI.ViewModels
                                 _vmToneIdCreation.LoopStartSample,
                                 _vmToneIdCreation.LoopEndSample,
                                 applyNormalization,
-                                _vmToneIdCreation.NoLoop);
+                                _vmToneIdCreation.NoLoop,
+                                _vmToneIdCreation.DisplayFilename);
                         }
                         catch (Exception e)
                         {
@@ -335,10 +336,11 @@ namespace Sma5hMusic.GUI.ViewModels
             uint loopStartSample,
             uint loopEndSample,
             bool applyNormalization,
-            bool noLoop)
+            bool noLoop,
+            string displayFilename)
         {
             var progressVm = new AudioConversionProgressModalWindowViewModel();
-            progressVm.SetConverting(Path.GetFileName(inputFile));
+            progressVm.SetConverting(Path.GetFileName(displayFilename ?? inputFile));
 
             var progressWindow = new AudioConversionProgressModalWindow
             {
