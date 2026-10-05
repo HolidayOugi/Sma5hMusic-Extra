@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Sma5hMusic.GUI.ViewModels
@@ -17,6 +18,7 @@ namespace Sma5hMusic.GUI.ViewModels
     {
         private const int AutoLoopPageSize = 15;
         private IDisposable _autoLoopStatusSubscription;
+        private CancellationTokenSource _autoLoopCancellation;
         private List<AutoLoopPoint> _allAutoLoopPoints = new List<AutoLoopPoint>();
 
         public ReactiveCommand<Unit, Unit> ActionCalculateAutoLoops { get; }
@@ -45,6 +47,9 @@ namespace Sma5hMusic.GUI.ViewModels
             if (NoLoop)
                 return;
 
+            using var cancellation = new CancellationTokenSource();
+            _autoLoopCancellation = cancellation;
+
             try
             {
                 _logger.LogInformation("Calculate automatic loop points clicked. Filename={Filename}, SampleRate={SampleRate}, TotalSamples={TotalSamples}.",
@@ -55,7 +60,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 IsCalculatingAutoLoops = true;
                 StartAutoLoopStatusAnimation();
 
-                var loopPoints = await _audioImportService.CalculateAutoLoopPoints(Filename, SampleRate, TotalSamples);
+                var loopPoints = await _audioImportService.CalculateAutoLoopPoints(Filename, SampleRate, TotalSamples, cancellation.Token);
                 if (NoLoop)
                 {
                     ClearAutoLoopPoints();
@@ -79,6 +84,10 @@ namespace Sma5hMusic.GUI.ViewModels
                 UpdateAutoLoopLoadedStatus();
                 _logger.LogInformation("Automatic loop point candidates loaded into modal. Count={Count}.",
                     _allAutoLoopPoints.Count);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                _logger.LogInformation("Automatic loop point calculation cancelled.");
             }
             catch (FileNotFoundException e)
             {
@@ -110,9 +119,17 @@ namespace Sma5hMusic.GUI.ViewModels
             }
             finally
             {
+                if (ReferenceEquals(_autoLoopCancellation, cancellation))
+                    _autoLoopCancellation = null;
+
                 StopAutoLoopStatusAnimation();
                 IsCalculatingAutoLoops = false;
             }
+        }
+
+        private void CancelAutoLoopCalculation()
+        {
+            _autoLoopCancellation?.Cancel();
         }
 
         private async Task PreviewAutoLoop(AutoLoopPoint loopPoint)

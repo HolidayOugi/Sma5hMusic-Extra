@@ -9,21 +9,24 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Sma5hMusic.GUI.Services
 {
     public partial class AudioImportService
     {
-        public async Task<IReadOnlyList<AutoLoopPoint>> CalculateAutoLoopPoints(string filename, uint sampleRate, uint totalSamples)
+        public async Task<IReadOnlyList<AutoLoopPoint>> CalculateAutoLoopPoints(string filename, uint sampleRate, uint totalSamples, CancellationToken cancellationToken = default)
         {
             return await Task.Run(() =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 _logger.LogInformation("Automatic loop point calculation requested. File={Filename}, SampleRate={SampleRate}, TotalSamples={TotalSamples}.",
                     filename, sampleRate, totalSamples);
 
                 //call pymusiclooper
-                var output = RunPymusiclooper("export-points", "--path", filename, "--fmt", "SAMPLES", "--alt-export-top", "-1");
+                var output = RunPymusiclooper(cancellationToken, "export-points", "--path", filename, "--fmt", "SAMPLES", "--alt-export-top", "-1");
+                cancellationToken.ThrowIfCancellationRequested();
                 var loopPoints = ParsePymusiclooperOutput(output, sampleRate, totalSamples)
                     .ToList();
 
@@ -42,9 +45,8 @@ namespace Sma5hMusic.GUI.Services
                     _logger.LogInformation("Additional automatic loop candidates omitted from log. OmittedCandidates={OmittedCandidates}.", loopPoints.Count - 15);
 
                 return loopPoints;
-            });
+            }, cancellationToken);
         }
-
         public async Task<LoopPreviewInfo> CreateLoopPreview(string filename, uint loopStartSample, uint loopEndSample, uint totalSamples)
         {
             return await Task.Run(() =>
@@ -154,7 +156,7 @@ namespace Sma5hMusic.GUI.Services
             return Path.Combine(GetTempPath(), "LoopPreviews");
         }
 
-        private string RunPymusiclooper(params string[] arguments)
+        private string RunPymusiclooper(CancellationToken cancellationToken, params string[] arguments)
         {
             if (OperatingSystem.IsLinux())
             {
@@ -167,9 +169,7 @@ namespace Sma5hMusic.GUI.Services
 
                 try
                 {
-                    return RunCommand(
-                        File.Exists(localExecutable) ? localExecutable : "pymusiclooper",
-                        arguments);
+                    return RunCommand(File.Exists(localExecutable) ? localExecutable : "pymusiclooper", cancellationToken, arguments);
                 }
                 catch (Win32Exception e)
                 {
@@ -179,7 +179,7 @@ namespace Sma5hMusic.GUI.Services
                 try
                 {
                     //try running with python3 -m pymusiclooper if pymusiclooper is not in PATH
-                    return RunCommand("python3", new[] { "-m", "pymusiclooper" }.Concat(arguments).ToArray());
+                    return RunCommand("python3", cancellationToken, new[] { "-m", "pymusiclooper" }.Concat(arguments).ToArray());
                 }
                 catch (Exception e) when (e is Win32Exception || IsPymusiclooperMissingError(e.Message))
                 {
@@ -193,7 +193,7 @@ namespace Sma5hMusic.GUI.Services
 
             try
             {
-                return RunCommand("pymusiclooper.exe", arguments);
+                return RunCommand("pymusiclooper.exe", cancellationToken, arguments);
             }
             catch (Win32Exception e)
             {
@@ -202,7 +202,7 @@ namespace Sma5hMusic.GUI.Services
 
             try
             {
-                return RunCommand("python", new[] { "-m", "pymusiclooper" }.Concat(arguments).ToArray());
+                return RunCommand("python", cancellationToken, new[] { "-m", "pymusiclooper" }.Concat(arguments).ToArray());
             }
             catch (Win32Exception e)
             {
@@ -230,7 +230,7 @@ namespace Sma5hMusic.GUI.Services
                 message.IndexOf("No module named pymusiclooper", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private string RunCommand(string executable, params string[] arguments)
+        private string RunCommand(string executable, CancellationToken cancellationToken, params string[] arguments)
         {
             _logger.LogInformation("Running command: {Executable} {Arguments}", executable, string.Join(" ", arguments.Select(p => $"\"{p}\"")));
 
@@ -255,9 +255,24 @@ namespace Sma5hMusic.GUI.Services
                 startInfo.ArgumentList.Add(argument);
 
             using var process = Process.Start(startInfo);
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
+            using var cancellationRegistration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            });
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
             process.WaitForExit();
+            Task.WaitAll(outputTask, errorTask);
+            cancellationToken.ThrowIfCancellationRequested();
+            var output = outputTask.Result;
+            var error = errorTask.Result;
 
             _logger.LogInformation("Command exited: {Executable}. ExitCode={ExitCode}. StdOutLength={StdOutLength}. StdErrLength={StdErrLength}.",
                 executable, process.ExitCode, output.Length, error.Length);

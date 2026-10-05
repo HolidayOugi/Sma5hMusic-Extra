@@ -273,6 +273,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 return;
 
             _disposed = true;
+            CancelAutoLoopCalculation();
             StopAutoLoopStatusAnimation();
             DisposePreviewProgressTimer();
             CleanupTrimmedAudioFile();
@@ -282,6 +283,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private async void CancelAll(Window w)
         {
             IsCancelAllRequested = true;
+            CancelAutoLoopCalculation();
 
             try
             {
@@ -297,6 +299,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private async void Cancel(Window w)
         {
+            CancelAutoLoopCalculation();
             try
             {
                 _logger.LogInformation("Tone ID modal cancel requested. Stopping preview before close.");
