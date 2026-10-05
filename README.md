@@ -127,7 +127,7 @@ The songs can be imported either from their URL or from a text file containing a
 
 ## Colored Text
 
-Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors, which can be modified in the Extra submenu, or by inputting a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
+Colored Text is now supported when editing a song title or gametitle. The color can either be chosen from a premade list of colors, which can be modified in the Extra submenu, or by inputting a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
 
 ![Colored](https://elixi.re/i/t07dd.png)
 
@@ -196,6 +196,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Volume can now be set to the mean or median value of all songs' volume in a Mod.
 * A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
 * A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
+* A button has been added to the BGM Properties Window to automatically add the gametitle to the song name.
 * New Special Categories have been added in the BGM Properties Window.
 
 ### Bug Fixes
@@ -260,7 +261,7 @@ If you encounter any problems using the software, submit an issue here on GitHub
 
 - [x] Update vgmstream library and main executable to x64
 - [x] Linux Support
-- [ ] Decouple CSK Build service from JSONs loading
+- [x] Decouple CSK Build service from JSONs loading
 - [x] Allow editing of Color Picker color list
 - [x] Add Trim function when importing from audio
 - [x] Add Filter to MainWindow for songs not in a playlist
