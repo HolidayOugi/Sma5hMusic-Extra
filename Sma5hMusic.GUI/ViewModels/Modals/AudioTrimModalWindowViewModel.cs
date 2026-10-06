@@ -24,6 +24,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private bool _isUpdatingFields;
         private bool _isClosing;
         private bool _isCompletingPreview;
+        private bool _isUpdatingWaveformView;
         private int _previewVersion;
         private string _previewFilename;
         private uint _previewSourceStartSample;
@@ -61,6 +62,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 loopStartSample.Value <= loopEndSample.Value;
             _originalLoopStartMarker = _hasOriginalLoopMarkers ? loopStartSample.Value : 0;
             _originalLoopEndMarker = _hasOriginalLoopMarkers ? loopEndSample.Value : 0;
+            WaveformViewLength = totalSamples;
             TrimEndSample = totalSamples;
 
             this.ValidationRule(p => p.TrimStartSample,
@@ -111,6 +113,8 @@ namespace Sma5hMusic.GUI.ViewModels
                 .Subscribe(value => UpdateEndSample(value)));
             _subscriptions.Add(this.WhenAnyValue(p => p.TrimStartMs, p => p.TrimEndMs)
                 .Subscribe(_ => this.RaisePropertyChanged(nameof(TrimRangeText))));
+            _subscriptions.Add(this.WhenAnyValue(p => p.WaveformViewStart, p => p.WaveformViewLength)
+                .Subscribe(_ => NormalizeWaveformView()));
             _subscriptions.Add(this.WhenAnyValue(
                     p => p.TrimStartMinutes,
                     p => p.TrimStartSeconds,
@@ -154,6 +158,16 @@ namespace Sma5hMusic.GUI.ViewModels
         public uint LoopEndMarker => ClampMarkerToTrimRange(_originalLoopEndMarker);
 
         public string TrimRangeText => $"{FormatTrimTime(TrimStartMs)} / {FormatTrimTime(TrimEndMs)}";
+
+        public uint WaveformScrollMaximum => TotalSamples - Math.Min(TotalSamples, WaveformViewLength);
+
+        public bool IsWaveformZoomed => WaveformViewLength < TotalSamples;
+
+        [Reactive]
+        public uint WaveformViewStart { get; set; }
+
+        [Reactive]
+        public uint WaveformViewLength { get; set; }
 
         [Reactive]
         public uint TrimStartSample { get; set; }
@@ -404,6 +418,23 @@ namespace Sma5hMusic.GUI.ViewModels
             _isUpdatingFields = true;
             update();
             _isUpdatingFields = false;
+        }
+
+        private void NormalizeWaveformView()
+        {
+            if (_isUpdatingWaveformView)
+                return;
+
+            _isUpdatingWaveformView = true;
+            var length = Math.Max(1, Math.Min(TotalSamples, WaveformViewLength));
+            var start = Math.Min(WaveformViewStart, TotalSamples - length);
+            if (WaveformViewLength != length)
+                WaveformViewLength = length;
+            if (WaveformViewStart != start)
+                WaveformViewStart = start;
+            _isUpdatingWaveformView = false;
+            this.RaisePropertyChanged(nameof(WaveformScrollMaximum));
+            this.RaisePropertyChanged(nameof(IsWaveformZoomed));
         }
 
         private void StartPreviewProgress()

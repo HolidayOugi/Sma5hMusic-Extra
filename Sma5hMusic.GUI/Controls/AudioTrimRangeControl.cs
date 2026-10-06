@@ -14,6 +14,7 @@ namespace Sma5hMusic.GUI.Controls
         private const double ThumbWidth = 1;
         private const double VerticalPadding = 6;
         private const double LoopMarkerAreaHeight = 10;
+        private const double MaximumZoomFactor = 1000;
 
         private static readonly IBrush SelectionBrush = new SolidColorBrush(Color.Parse("#401E88E5"));
         private static readonly IBrush OutsideWaveformBrush = new SolidColorBrush(Color.Parse("#66808080"));
@@ -57,6 +58,12 @@ namespace Sma5hMusic.GUI.Controls
         public static readonly StyledProperty<uint> LoopEndMarkerProperty =
             AvaloniaProperty.Register<AudioTrimRangeControl, uint>(nameof(LoopEndMarker));
 
+        public static readonly StyledProperty<uint> ViewStartProperty =
+            AvaloniaProperty.Register<AudioTrimRangeControl, uint>(nameof(ViewStart));
+
+        public static readonly StyledProperty<uint> ViewLengthProperty =
+            AvaloniaProperty.Register<AudioTrimRangeControl, uint>(nameof(ViewLength), 1);
+
         static AudioTrimRangeControl()
         {
             AffectsRender<AudioTrimRangeControl>(
@@ -67,7 +74,9 @@ namespace Sma5hMusic.GUI.Controls
                 WaveformPeaksProperty,
                 ShowLoopMarkersProperty,
                 LoopStartMarkerProperty,
-                LoopEndMarkerProperty);
+                LoopEndMarkerProperty,
+                ViewStartProperty,
+                ViewLengthProperty);
         }
 
         public uint Minimum
@@ -118,9 +127,22 @@ namespace Sma5hMusic.GUI.Controls
             set => SetValue(LoopEndMarkerProperty, value);
         }
 
+        public uint ViewStart
+        {
+            get => GetValue(ViewStartProperty);
+            set => SetValue(ViewStartProperty, value);
+        }
+
+        public uint ViewLength
+        {
+            get => GetValue(ViewLengthProperty);
+            set => SetValue(ViewLengthProperty, value);
+        }
+
         public override void Render(DrawingContext context)
         {
             base.Render(context);
+            context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
 
             var trackLeft = TrackPadding;
             var trackWidth = Math.Max(1, Bounds.Width - (TrackPadding * 2));
@@ -173,10 +195,21 @@ namespace Sma5hMusic.GUI.Controls
             }
 
             var halfHeight = height / 2;
-            for (var index = 0; index < peaks.Length; index++)
+            var visibleStart = GetVisibleStart();
+            var visibleLength = GetVisibleLength();
+            var columnCount = Math.Max(1, (int)Math.Ceiling(width));
+            for (var column = 0; column < columnCount; column++)
             {
-                var x = left + (index / (double)Math.Max(1, peaks.Length - 1) * width);
-                var amplitude = Math.Max(0, Math.Min(1, peaks[index])) * halfHeight;
+                var startRatio = (visibleStart + (column / (double)columnCount * visibleLength)) / Maximum;
+                var endRatio = (visibleStart + ((column + 1) / (double)columnCount * visibleLength)) / Maximum;
+                var startIndex = Math.Max(0, Math.Min(peaks.Length - 1, (int)Math.Floor(startRatio * peaks.Length)));
+                var endIndex = Math.Max(startIndex + 1, Math.Min(peaks.Length, (int)Math.Ceiling(endRatio * peaks.Length)));
+                var peak = 0f;
+                for (var index = startIndex; index < endIndex; index++)
+                    peak = Math.Max(peak, peaks[index]);
+
+                var x = left + (column / (double)Math.Max(1, columnCount - 1) * width);
+                var amplitude = Math.Max(0, Math.Min(1, peak)) * halfHeight;
                 context.DrawLine(
                     pen,
                     new Point(x, centerY - amplitude),
@@ -188,14 +221,21 @@ namespace Sma5hMusic.GUI.Controls
         {
             base.OnPointerPressed(e);
             var point = e.GetPosition(this);
-            var trackLeft = TrackPadding;
-            var trackWidth = Math.Max(1, Bounds.Width - (TrackPadding * 2));
-            var startX = ValueToX(StartValue, trackLeft, trackWidth);
-            var endX = ValueToX(EndValue, trackLeft, trackWidth);
-
-            _draggedThumb = Math.Abs(point.X - startX) <= Math.Abs(point.X - endX)
-                ? DraggedThumb.Start
-                : DraggedThumb.End;
+            if (GetVisibleLength() < Maximum - Minimum)
+            {
+                _draggedThumb = point.X <= Bounds.Width / 2
+                    ? DraggedThumb.Start
+                    : DraggedThumb.End;
+            }
+            else
+            {
+                var value = XToValue(point.X);
+                var startDistance = Math.Abs((long)value - StartValue);
+                var endDistance = Math.Abs((long)value - EndValue);
+                _draggedThumb = startDistance <= endDistance
+                    ? DraggedThumb.Start
+                    : DraggedThumb.End;
+            }
             e.Pointer.Capture(this);
             UpdateValueFromPointer(point.X);
             e.Handled = true;
@@ -223,12 +263,41 @@ namespace Sma5hMusic.GUI.Controls
             e.Handled = true;
         }
 
+        //zoom functionality
+        protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+        {
+            base.OnPointerWheelChanged(e);
+            if (e.Delta.Y == 0 || Maximum <= Minimum)
+                return;
+
+            var currentLength = GetVisibleLength();
+            var rangeLength = Maximum - Minimum;
+            var minimumLength = Math.Max(1, Math.Ceiling(rangeLength / MaximumZoomFactor));
+            var nextLength = e.Delta.Y > 0
+                ? (uint)Math.Max(minimumLength, Math.Floor(currentLength * 0.75))
+                : (uint)Math.Min(rangeLength, Math.Ceiling(currentLength / 0.75));
+
+            if (nextLength == currentLength)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            var point = e.GetPosition(this);
+            var trackWidth = Math.Max(1, Bounds.Width - (TrackPadding * 2));
+            var pointerRatio = Math.Max(0, Math.Min(1, (point.X - TrackPadding) / trackWidth));
+            var pointerValue = GetVisibleStart() + pointerRatio * currentLength;
+            var nextStart = pointerValue - pointerRatio * nextLength;
+            var maxStart = Maximum - nextLength;
+
+            SetValue(ViewLengthProperty, nextLength);
+            SetValue(ViewStartProperty, (uint)Math.Max(Minimum, Math.Min(maxStart, Math.Round(nextStart))));
+            e.Handled = true;
+        }
+
         private void UpdateValueFromPointer(double x)
         {
-            var maximum = Math.Max(Minimum + 1u, Maximum);
-            var trackWidth = Math.Max(1, Bounds.Width - (TrackPadding * 2));
-            var ratio = Math.Max(0, Math.Min(1, (x - TrackPadding) / trackWidth));
-            var value = Minimum + (uint)Math.Round(ratio * (maximum - Minimum));
+            var value = XToValue(x);
 
             if (_draggedThumb == DraggedThumb.Start)
             {
@@ -244,11 +313,38 @@ namespace Sma5hMusic.GUI.Controls
 
         private double ValueToX(uint value, double trackLeft, double trackWidth)
         {
-            if (Maximum <= Minimum)
+            var minimum = GetVisibleStart();
+            var maximum = GetVisibleEnd();
+            if (maximum <= minimum)
                 return trackLeft;
 
-            var clamped = Math.Max(Minimum, Math.Min(Maximum, value));
-            return trackLeft + ((clamped - Minimum) / (double)(Maximum - Minimum) * trackWidth);
+            var clamped = Math.Max(minimum, Math.Min(maximum, value));
+            return trackLeft + ((clamped - minimum) / (double)(maximum - minimum) * trackWidth);
+        }
+
+        private uint XToValue(double x)
+        {
+            var minimum = GetVisibleStart();
+            var maximum = GetVisibleEnd();
+            var trackWidth = Math.Max(1, Bounds.Width - (TrackPadding * 2));
+            var ratio = Math.Max(0, Math.Min(1, (x - TrackPadding) / trackWidth));
+            return minimum + (uint)Math.Round(ratio * (maximum - minimum));
+        }
+
+        private uint GetVisibleStart()
+        {
+            var length = GetVisibleLength();
+            return Math.Min(Math.Max(Minimum, ViewStart), Maximum - length);
+        }
+
+        private uint GetVisibleLength()
+        {
+            return Math.Max(1, Math.Min(Maximum - Minimum, ViewLength));
+        }
+
+        private uint GetVisibleEnd()
+        {
+            return GetVisibleStart() + GetVisibleLength();
         }
 
         private enum DraggedThumb

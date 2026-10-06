@@ -42,17 +42,28 @@
                                 ToolTip="The source audio being trimmed."
                                 IsReadOnly="True" />
 
-      <controls:AudioTrimRangeControl Height="170"
-                                      Margin="8,12,8,0"
-                                      HorizontalAlignment="Stretch"
-                                      Minimum="0"
-                                      Maximum="{Binding TotalSamples}"
-                                      StartValue="{Binding TrimStartSample, Mode=TwoWay}"
-                                      EndValue="{Binding TrimEndSample, Mode=TwoWay}"
-                                      WaveformPeaks="{Binding WaveformPeaks}"
-                                      ShowLoopMarkers="{Binding ShowLoopMarkers}"
-                                      LoopStartMarker="{Binding LoopStartMarker}"
-                                      LoopEndMarker="{Binding LoopEndMarker}" />
+      <Grid Margin="8,12,8,0" RowDefinitions="170,16" HorizontalAlignment="Stretch">
+        <controls:AudioTrimRangeControl Grid.Row="0"
+                                        HorizontalAlignment="Stretch"
+                                        Minimum="0"
+                                        Maximum="{Binding TotalSamples}"
+                                        StartValue="{Binding TrimStartSample, Mode=TwoWay}"
+                                        EndValue="{Binding TrimEndSample, Mode=TwoWay}"
+                                        WaveformPeaks="{Binding WaveformPeaks}"
+                                        ShowLoopMarkers="{Binding ShowLoopMarkers}"
+                                        LoopStartMarker="{Binding LoopStartMarker}"
+                                        LoopEndMarker="{Binding LoopEndMarker}"
+                                        ViewStart="{Binding WaveformViewStart, Mode=TwoWay}"
+                                        ViewLength="{Binding WaveformViewLength, Mode=TwoWay}" />
+        <ScrollBar Grid.Row="1"
+                   Orientation="Horizontal"
+                   AllowAutoHide="False"
+                   Minimum="0"
+                   Maximum="{Binding WaveformScrollMaximum}"
+                   Value="{Binding WaveformViewStart, Mode=TwoWay}"
+                   IsVisible="{Binding IsWaveformZoomed}"
+                   HorizontalAlignment="Stretch" />
+      </Grid>
       <TextBlock Text="{Binding TrimRangeText}"
                  HorizontalAlignment="Center"
                  Margin="0,0,0,4" />

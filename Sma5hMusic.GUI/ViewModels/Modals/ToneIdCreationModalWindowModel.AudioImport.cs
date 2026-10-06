@@ -170,7 +170,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 //convert to WAV and open the trim modal window
                 preparedWav = await _audioImportService.PrepareAudioTrimWav(Filename);
                 var audioInfo = await _audioImportService.GetAudioInfo(preparedWav);
-                var waveformPeaks = await _audioImportService.GetAudioWaveformPeaks(preparedWav, 1600);
+                var waveformPeaks = await _audioImportService.GetAudioWaveformPeaks(preparedWav, 16000);
                 var trimViewModel = new AudioTrimModalWindowViewModel(
                     _audioImportService,
                     _messageDialog,

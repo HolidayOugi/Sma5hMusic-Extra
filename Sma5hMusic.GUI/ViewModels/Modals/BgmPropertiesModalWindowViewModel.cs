@@ -469,7 +469,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 preparedWav = await _audioImportService.ExtractAudioToTempWav(sourceFilename);
 
                 var audioInfo = await _audioImportService.GetAudioInfo(preparedWav);
-                var waveformPeaks = await _audioImportService.GetAudioWaveformPeaks(preparedWav, 1600);
+                var waveformPeaks = await _audioImportService.GetAudioWaveformPeaks(preparedWav, 16000);
                 var hasValidLoopPoints =
                     BgmPropertyViewModel.LoopEndSample > 0 &&
                     BgmPropertyViewModel.LoopEndSample <= audioInfo.TotalSamples &&
