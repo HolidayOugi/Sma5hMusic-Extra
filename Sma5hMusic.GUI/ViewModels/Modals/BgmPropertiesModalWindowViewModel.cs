@@ -147,7 +147,12 @@ namespace Sma5hMusic.GUI.ViewModels
                 SelectedLocale = defaultLocaleItem,
                 EnableColorFormatting = true,
                 ShowGameTitleButton = true,
-                GameTitleTextProvider = () => SelectedGameTitleViewModel?.Title
+                //get gametitle for current language selected in BGM Properties
+                GameTitleTextProvider = locale =>
+                    !string.IsNullOrEmpty(locale) && SelectedGameTitleViewModel?.MSBTTitle != null &&
+                    SelectedGameTitleViewModel.MSBTTitle.TryGetValue(locale, out var title)
+                        ? title
+                        : null
             };
             MSBTAuthorEditor = new MSBTFieldViewModel()
             {

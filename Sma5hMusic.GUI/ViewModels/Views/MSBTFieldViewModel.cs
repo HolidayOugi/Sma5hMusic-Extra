@@ -27,7 +27,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public bool AcceptsReturn { get; set; }
         public bool EnableColorFormatting { get; set; }
         public bool ShowGameTitleButton { get; set; }
-        public Func<string> GameTitleTextProvider { get; set; }
+        public Func<string, string> GameTitleTextProvider { get; set; }
         public ObservableCollection<MsbtTextColor> TextColorOptions { get; }
 
         public IEnumerable<ComboItem> CopyActions { get { return _copyActions; } }
@@ -161,7 +161,7 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private void AppendGameTitle()
         {
-            var gameTitle = GameTitleTextProvider?.Invoke();
+            var gameTitle = GameTitleTextProvider?.Invoke(SelectedLocale?.Id);
             if (!string.IsNullOrEmpty(gameTitle))
                 CurrentLocalizedValue = $"{CurrentLocalizedValue} - {gameTitle}";
         }

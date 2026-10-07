@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NAudio.Wave;
 using Sma5h.Helpers;
 using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
@@ -218,12 +219,19 @@ namespace Sma5hMusic.GUI.Services
                 var info = GetAudioInfo(soxInputFile).GetAwaiter().GetResult();
 
                 var encoderWavFile = soxInputFile;
-                var isWav = string.Equals(
+                //vgmstream does not support higher bitrates than 16-bit, so we need to convert to 16-bit WAV first
+                var isPcm16Wav = false;
+                if (string.Equals(
                     Path.GetExtension(soxInputFile),
                     ".wav",
-                    StringComparison.OrdinalIgnoreCase);
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    using var wavReader = new WaveFileReader(soxInputFile);
+                    isPcm16Wav = wavReader.WaveFormat.Encoding == WaveFormatEncoding.Pcm &&
+                        wavReader.WaveFormat.BitsPerSample == 16;
+                }
 
-                if (!isWav || info.SampleRate != TargetSampleRate)
+                if (!isPcm16Wav || info.SampleRate != TargetSampleRate)
                 {
                     //convert compressed audio or WAVs with a different sample rate to 48kHz WAV
                     RunTool(

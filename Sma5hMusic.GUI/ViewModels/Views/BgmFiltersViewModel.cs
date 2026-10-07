@@ -148,7 +148,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 .Transform(p => p.Cache.Items.First().GameTitleViewModel)
                 .AutoRefresh(p => p.Title, TimeSpan.FromMilliseconds(50))
                 .Prepend(_allGameTitleChangeSet)
-                .Sort(SortExpressionComparer<GameTitleEntryViewModel>.Descending(p => p.AllFlag).ThenByAscending(p => p.Title), SortOptimisations.ComparesImmutableValuesOnly)
+                .Sort(SortExpressionComparer<GameTitleEntryViewModel>.Descending(p => p.AllFlag).ThenByAscending(p => MsbtRichTextColorHelper.ToPlainText(p.Title)), SortOptimisations.ComparesImmutableValuesOnly)
                 .ObserveOn(RxApp.MainThreadScheduler)
                 .Bind(out _games)
                 .DisposeMany()

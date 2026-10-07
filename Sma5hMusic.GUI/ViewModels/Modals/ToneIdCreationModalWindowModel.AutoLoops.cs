@@ -61,6 +61,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 StartAutoLoopStatusAnimation();
 
                 var loopPoints = await _audioImportService.CalculateAutoLoopPoints(Filename, SampleRate, TotalSamples, cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
                 if (NoLoop)
                 {
                     ClearAutoLoopPoints();

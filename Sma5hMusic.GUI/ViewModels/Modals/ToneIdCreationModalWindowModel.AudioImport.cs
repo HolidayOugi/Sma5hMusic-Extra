@@ -188,6 +188,8 @@ namespace Sma5hMusic.GUI.ViewModels
                 if (string.IsNullOrEmpty(trimmedWav))
                     return;
 
+                CancelAutoLoopCalculation();
+
                 //assign the trimmed file to the model and reload the audio import info
                 var applyNormalization = ApplyNormalization;
                 var canApplyNormalization = CanApplyNormalization;
