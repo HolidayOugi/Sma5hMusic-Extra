@@ -190,7 +190,7 @@ namespace Sma5h.Mods.Music
 
         private static float RoundVolume(float value)
         {
-            return (float)Math.Round(value, 1, MidpointRounding.AwayFromZero);
+            return (float)Math.Round(value, 2, MidpointRounding.AwayFromZero);
         }
 
         private void CopySeriesIcons()
