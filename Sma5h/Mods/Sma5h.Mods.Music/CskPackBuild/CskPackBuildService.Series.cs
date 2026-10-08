@@ -290,7 +290,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
             //write nus3bank for volume overrides
             var copiedAudio = false;
-            if (includeAudio && !string.IsNullOrEmpty(generatedBgmFolder))
+            if (includeAudio && _config.CurrentValue.Sma5hMusicGUI?.BuildNus3bankForCoreSongs == true && !string.IsNullOrEmpty(generatedBgmFolder))
             {
                 var destination = Path.Combine(packRoot, "stream;", "sound", "bgm");
                 foreach (var entry in state.CoreVolumeChanges.Where(entry =>

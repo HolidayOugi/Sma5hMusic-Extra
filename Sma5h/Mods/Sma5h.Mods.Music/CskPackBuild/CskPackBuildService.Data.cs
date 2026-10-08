@@ -69,7 +69,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private List<CskModContext> LoadModContexts(IEnumerable<IMusicMod> mods)
         {
-            var gameState = IndexBy(_audioStateService.GetGameTitleEntries(), item => item.UiGameTitleId);
+            var seriesState = IndexBy(_audioStateService.GetSeriesEntries(), item => item.UiSeriesId);
             var contexts = new List<CskModContext>();
 
             foreach (var mod in mods)
@@ -80,6 +80,19 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     .GroupBy(item => item.UiSeriesId, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
                     .ToList();
+
+                //get the latest series data from override/mod if available
+                //if mod doesn't have series info (old jsons), then we will just use the current series data from the audio state service
+                for (var i = 0; i < series.Count; i++)
+                {
+                    var modSeries = series[i];
+                    if (!seriesState.TryGetValue(modSeries.UiSeriesId, out var current))
+                        continue;
+                    var missingMetadata = string.IsNullOrWhiteSpace(modSeries.NameId) || modSeries.MSBTTitle == null || modSeries.MSBTTitle.Count == 0;
+                    var completeState = !string.IsNullOrWhiteSpace(current.NameId) && current.MSBTTitle?.Count > 0;
+                    if (current.IsOverridden || (missingMetadata && completeState))
+                        series[i] = current;
+                }
 
                 if (series.Count == 0)
                     continue;
