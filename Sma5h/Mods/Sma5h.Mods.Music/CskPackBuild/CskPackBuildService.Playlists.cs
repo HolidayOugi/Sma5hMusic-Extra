@@ -108,7 +108,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (!state.OriginalBgmDbRoots.TryGetValue(uiBgmId, out var original))
                 return;
             state.BgmDbRoots.TryGetValue(uiBgmId, out var current);
-            if (state.OverriddenCoreBgmIds.Contains(uiBgmId) ||
+            if (current?.MusicMod != null || state.OverriddenCoreBgmIds.Contains(uiBgmId) ||
                 HasEntry(songData, "bgm_database_entries", "ui_bgm_id", uiBgmId))
                 return;
             var order = current?.TestDispOrder ?? original.TestDispOrder;
