@@ -250,8 +250,12 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private static bool PathsAreEqual(string left, string right)
         {
-            return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return string.Equals(left, right, comparison);
         }
+        
         private void SetPlaylistGenerationItemDescription(GlobalConfigurationViewModel item)
         {
             if (item != null)
