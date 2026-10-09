@@ -221,21 +221,12 @@ namespace Sma5hMusic.GUI.Controls
         {
             base.OnPointerPressed(e);
             var point = e.GetPosition(this);
-            if (GetVisibleLength() < Maximum - Minimum)
-            {
-                _draggedThumb = point.X <= Bounds.Width / 2
-                    ? DraggedThumb.Start
-                    : DraggedThumb.End;
-            }
-            else
-            {
-                var value = XToValue(point.X);
-                var startDistance = Math.Abs((long)value - StartValue);
-                var endDistance = Math.Abs((long)value - EndValue);
-                _draggedThumb = startDistance <= endDistance
-                    ? DraggedThumb.Start
-                    : DraggedThumb.End;
-            }
+            var trackWidth = Math.Max(1, Bounds.Width - (TrackPadding * 2));
+            var startDistance = Math.Abs(point.X - ValueToX(StartValue, TrackPadding, trackWidth));
+            var endDistance = Math.Abs(point.X - ValueToX(EndValue, TrackPadding, trackWidth));
+            _draggedThumb = startDistance <= endDistance
+                ? DraggedThumb.Start
+                : DraggedThumb.End;
             e.Pointer.Capture(this);
             UpdateValueFromPointer(point.X);
             e.Handled = true;
