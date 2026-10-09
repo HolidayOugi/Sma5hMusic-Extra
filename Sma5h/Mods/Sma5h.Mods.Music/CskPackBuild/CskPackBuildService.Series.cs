@@ -216,7 +216,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 return;
             if (songData["stage_database_entries"] is JArray stageEntries && stageEntries.Count == 0)
                 songData.Remove("stage_database_entries");
-            if (GetArray(songData, "bgm_database_entries").Count > 0)
+            //save playlist and stage changes even when there are no bgm database entries
+            if (GetArray(songData, "bgm_database_entries").Count > 0 || songData["stage_database_entries"] is JArray { Count: > 0 } || HasPlaylistTracks(songData))
             {
                 var database = Path.Combine(packRoot, "database");
                 Directory.CreateDirectory(database);
@@ -250,7 +251,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 PopulateVanillaPlaylists(songData, name, state, true);
             foreach (var name in state.CoreGameSeriesById.Values.Where(name => !string.IsNullOrEmpty(name) && !selectedNames.Contains(name)).Distinct(StringComparer.OrdinalIgnoreCase))
                 PopulateCustomPlaylists(songData, name, state);
-            PopulateCustomStageDatabaseEntries(songData, state, GetSelectedSeriesIds(contexts, selectedKeys));
+            var selectedSeriesIds = GetSelectedSeriesIds(contexts, selectedKeys);
+            PopulateCustomStageDatabaseEntries(songData, state, selectedSeriesIds);
+            //save changes for non-selected series only if no selected pack has already written the stage
+            foreach (var stage in state.Stages.Where(stage =>
+                state.ChangedStageIds.Contains(stage.UiStageId) && !selectedSeriesIds.Contains(stage.UiSeriesId) &&
+                !state.WrittenStageIds.Contains(stage.UiStageId)))
+                AddStageEntryIfChanged(songData, stage.UiStageId, stage.BgmSetId, stage.BgmSettingNo, state);
             if (GetArray(songData, "stage_database_entries").Count == 0)
                 songData.Remove("stage_database_entries");
 
@@ -307,7 +314,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 }
             }
             var after = GetArray(songData, "bgm_database_entries").Count + GetArray(songData, "stage_database_entries").Count + bgmMessages.Count + titleMessages.Count;
-            return after > before || copiedAudio;
+            return after > before || HasPlaylistTracks(songData) || copiedAudio;
+        }
+
+        private static bool HasPlaylistTracks(JObject songData)
+        {
+            return songData["playlist_entries"] is JObject playlists &&
+                   playlists.Properties().Any(property => property.Value is JArray { Count: > 0 });
         }
 
         private void AddCoreGameTitleChanges(IEnumerable<string> gameIds, CskBuildState state, List<string> titleMessages)

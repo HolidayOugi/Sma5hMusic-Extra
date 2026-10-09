@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
 using System;
@@ -46,8 +47,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
             public List<string> OverriddenCoreBgmIds { get; set; }
             public List<string> ChangedCoreGameTitleIds { get; set; }
             public HashSet<string> ChangedPlaylistIds { get; set; }
+            public HashSet<string> ChangedStageIds { get; set; }
+            public HashSet<string> WrittenStageIds { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             public List<CoreBgmVolumeEntry> CoreVolumeChanges { get; set; }
-            public bool HasCoreChanges => OverriddenCoreBgmIds.Count > 0 || ChangedCoreGameTitleIds.Count > 0 || ChangedPlaylistIds.Count > 0 || CoreVolumeChanges.Count > 0;
+            public bool HasCoreChanges => OverriddenCoreBgmIds.Count > 0 || ChangedCoreGameTitleIds.Count > 0 || ChangedPlaylistIds.Count > 0 || ChangedStageIds.Count > 0 || CoreVolumeChanges.Count > 0;
         }
 
         private sealed class CoreBgmVolumeEntry
@@ -189,6 +192,14 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .Select(playlist => playlist.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             state.CoreVolumeChanges = BuildCoreVolumeChanges(state);
+            state.ChangedStageIds = state.Stages
+                .Where(stage => !string.IsNullOrEmpty(stage.UiStageId) &&
+                    (!MusicConstants.DEFAULT_STAGE_BGM_SET_ID.TryGetValue(stage.UiStageId, out var defaultPlaylist) ||
+                     !string.Equals(stage.BgmSetId, defaultPlaylist, StringComparison.OrdinalIgnoreCase) ||
+                     !MusicConstants.DEFAULT_STAGE_BGM_SETTING_NO.TryGetValue(stage.UiStageId, out var defaultSetting) ||
+                     stage.BgmSettingNo != defaultSetting))
+                .Select(stage => stage.UiStageId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             return state;
         }
 

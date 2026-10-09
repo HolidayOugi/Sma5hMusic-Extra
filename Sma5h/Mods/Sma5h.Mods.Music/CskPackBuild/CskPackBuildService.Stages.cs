@@ -31,9 +31,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 //exclude any stages that are part of the excluded series
                 foreach (var stage in state.Stages.Where(stage =>
                     string.Equals(stage.BgmSetId, playlistId, StringComparison.OrdinalIgnoreCase) &&
-                    excludedSeriesIds?.Contains(stage.UiSeriesId) != true))
+                    excludedSeriesIds?.Contains(stage.UiSeriesId) != true &&
+                    (excludedSeriesIds == null || !state.WrittenStageIds.Contains(stage.UiStageId))))
                 {
-                    AddStageEntryIfChanged(songData, stage.UiStageId, playlistId, stage.BgmSettingNo);
+                    AddStageEntryIfChanged(songData, stage.UiStageId, playlistId, stage.BgmSettingNo, state);
                 }
             }
         }
@@ -72,11 +73,11 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     ? stage.BgmSetId
                     : stagePlaylists[0];
                 //add stage entry for this series
-                AddStageEntryIfChanged(songData, stage.UiStageId, chosenPlaylist, stage.BgmSettingNo);
+                AddStageEntryIfChanged(songData, stage.UiStageId, chosenPlaylist, stage.BgmSettingNo, state);
             }
         }
 
-        private static void AddStageEntryIfChanged(JObject songData, string stageId, string playlistId, int setting)
+        private static void AddStageEntryIfChanged(JObject songData, string stageId, string playlistId, int setting, CskBuildState state)
         {
             var changedPlaylist = !MusicConstants.DEFAULT_STAGE_BGM_SET_ID.TryGetValue(stageId, out var defaultPlaylist) ||
                                   !string.Equals(playlistId, defaultPlaylist, StringComparison.OrdinalIgnoreCase);
@@ -92,6 +93,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
             if (changedSetting)
                 output["bgm_setting_no"] = setting;
             entries.Add(output);
+            state.WrittenStageIds.Add(stageId);
         }
 
         #endregion
