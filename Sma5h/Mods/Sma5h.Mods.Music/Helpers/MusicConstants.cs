@@ -168,15 +168,15 @@ namespace Sma5h.Mods.Music.Helpers
             {"ui_series_streetfighter", 27 },
             {"ui_series_finalfantasy", 28 },
             {"ui_series_bayonetta", 29 },
-            {"ui_series_castlevania", 30 },
-            {"ui_series_persona", 31 },
-            {"ui_series_dragonquest", 32 },
-            {"ui_series_banjokazooie", 33 },
-            {"ui_series_fatalfury", 34 },
-            {"ui_series_arms", 35 },
-            {"ui_series_minecraft", 36 },
-            {"ui_series_tekken", 37 },
-            {"ui_series_kingdomhearts", 38 },
+            {"ui_series_castlevania", 30 }, //this is so stupid
+            {"ui_series_persona", 32 },
+            {"ui_series_dragonquest", 33 },
+            {"ui_series_banjokazooie", 34 },
+            {"ui_series_fatalfury", 35 },
+            {"ui_series_arms", 36 },
+            {"ui_series_minecraft", 37 },
+            {"ui_series_tekken", 38 },
+            {"ui_series_kingdomhearts", 39 },
             {"ui_series_etc", 99 }
         };
 
