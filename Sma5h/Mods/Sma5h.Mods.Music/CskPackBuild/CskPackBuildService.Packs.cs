@@ -19,7 +19,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private void GenerateCskPacks(List<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedKeys, CskBuildState state, bool includeAudio)
         {
             //build sound order for music select menu
-            var order = BuildSeriesSoundOrder(contexts.SelectMany(context => context.SeriesList), state);
+            var order = BuildSeriesSoundOrder(state);
             var fileCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var copiedIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var context in contexts)
@@ -46,7 +46,8 @@ namespace Sma5h.Mods.Music.CskPackBuild
         //generation of one pack for each selected mod
         private void GenerateCskPacksByMod(List<CskModContext> contexts, string generatedBgmFolder, string outputRoot, HashSet<string> selectedKeys, CskBuildState state, bool includeAudio)
         {
-            var order = BuildSeriesSoundOrder(contexts.SelectMany(context => context.SeriesList), state);
+            var order = BuildSeriesSoundOrder(state);
+            var copiedIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var context in contexts.Where(context => context.SeriesList.Any(series => selectedKeys.Contains(CreateSeriesKey(context.Mod, series)))))
             {
                 _logger.LogInformation("Generating CSK pack for mod {ModName}", context.Mod.Name);
@@ -63,7 +64,12 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 foreach (var series in context.SeriesList.Where(series => selectedKeys.Contains(CreateSeriesKey(context.Mod, series))))
                 {
                     _logger.LogInformation("[CSK] Adding {SeriesName} to mod pack {ModName}.", series.NameId, context.Mod.Name);
-                    CopySeriesIcon(series, packRoot);
+                    var seriesIconKey = series.UiSeriesId ?? series.NameId;
+                    //copy icon if not already copied
+                    if (!copiedIcons.Contains(seriesIconKey) && CopySeriesIcon(series, packRoot))
+                    {
+                        copiedIcons.Add(seriesIconKey);
+                    }
                     PopulateSeriesPackData(context, series, songData, bgmMessages, titleMessages, packFolder, outputRoot, generatedBgmFolder, order, writtenModBgms, includeAudio, state);
                     if (includeAudio)
                         CopyCoreVolumeBanks(series.NameId, packFolder, outputRoot, generatedBgmFolder, state);
@@ -91,7 +97,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 .ToList();
             if (selected.Count == 0)
                 throw new InvalidOperationException("No selected series were found in the currently loaded music mods.");
-            var order = BuildSeriesSoundOrder(contexts.SelectMany(context => context.SeriesList), state);
+            var order = BuildSeriesSoundOrder(state);
             var packFolder = GetSingleCskPackOutputFolderName(contexts);
             var packRoot = string.IsNullOrEmpty(packFolder) ? outputRoot : Path.Combine(outputRoot, packFolder);
             var database = Path.Combine(packRoot, "database");
@@ -159,9 +165,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
             var messages = Path.Combine(outputRoot, folderName, "ui", "message");
             Directory.CreateDirectory(database);
             Directory.CreateDirectory(messages);
-            //copy icon is not already copied
-            if (copiedIcons.Add(series.UiSeriesId ?? series.NameId))
-                CopySeriesIcon(series, Path.Combine(outputRoot, folderName));
+            //copy icon if not already copied
+            var seriesIconKey = series.UiSeriesId ?? series.NameId;
+            if (!copiedIcons.Contains(seriesIconKey) &&
+                CopySeriesIcon(series, Path.Combine(outputRoot, folderName)))
+            {
+                copiedIcons.Add(seriesIconKey);
+            }
             var songData = CreateSongData();
             var bgmMessages = new List<string>();
             var titleMessages = new List<string>();

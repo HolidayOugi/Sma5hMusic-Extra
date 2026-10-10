@@ -47,7 +47,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Sound Order
 
-        private Dictionary<string, int> BuildSeriesSoundOrder(IEnumerable<SeriesEntry> contextSeries, CskBuildState state)
+        private Dictionary<string, int> BuildSeriesSoundOrder(CskBuildState state)
         {
             var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             //get order from the audio state
@@ -60,21 +60,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
             foreach (var gameId in sortedGames)
             {
                 if (!state.Games.TryGetValue(gameId, out var game) || !state.Series.TryGetValue(game.UiSeriesId ?? string.Empty, out var series) ||
-                    series.DispOrderSound < 0 || result.ContainsKey(series.UiSeriesId))
+                    result.ContainsKey(series.UiSeriesId))
                     continue;
                 SetSeriesOrder(result, series, index);
                 if (index < sbyte.MaxValue)
                     index++;
             }
 
-            var firstCustomOrder = 39;
-            foreach (var series in contextSeries
-                .Where(series => !VanillaSeries.Contains(series.NameId))
-                .OrderBy(GetSeriesDisplayName, StringComparer.OrdinalIgnoreCase))
-            {
-                if (!result.ContainsKey(series.UiSeriesId))
-                    SetSeriesOrder(result, series, firstCustomOrder++);
-            }
             return result;
         }
 
@@ -92,7 +84,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                 return value;
             if (!string.IsNullOrEmpty(series.NameId) && order.TryGetValue(series.NameId, out value))
                 return value;
-            return GetStartingOrderForSeries();
+            return -1;
         }
 
         private int GetStartingOrderForSeries()

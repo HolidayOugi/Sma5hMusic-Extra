@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 
 namespace Sma5h.Mods.Music.CskPackBuild
 {
@@ -259,7 +260,20 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         private static string EscapeXml(string text)
         {
-            return string.IsNullOrEmpty(text) ? string.Empty : text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("'", "&apos;").Replace("\"", "&quot;");
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+            var validText = new StringBuilder(text.Length);
+
+            //filter out invalid XML characters, but keep surrogate pairs intact (chinese, japanese characters, etc.)
+            //an invalid character will cause the XMSBT to fail to load in-game
+            for (var index = 0; index < text.Length; index++)
+            {
+                if (char.IsHighSurrogate(text[index]) && index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]))
+                    validText.Append(text[index]).Append(text[++index]);
+                else if (XmlConvert.IsXmlChar(text[index]))
+                    validText.Append(text[index]);
+            }
+            return validText.ToString().Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("'", "&apos;").Replace("\"", "&quot;");
         }
 
         private static bool ContainsGameTextTagMarker(string text)
@@ -310,7 +324,9 @@ namespace Sma5h.Mods.Music.CskPackBuild
                         }
                     }
                 }
-                bytes.AddRange(Encoding.Unicode.GetBytes(text[index].ToString())); index++;
+                var characterLength = char.IsHighSurrogate(text[index]) && index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]) ? 2 : 1;
+                bytes.AddRange(Encoding.Unicode.GetBytes(text.Substring(index, characterLength)));
+                index += characterLength;
             }
             return bytes.ToArray();
         }
