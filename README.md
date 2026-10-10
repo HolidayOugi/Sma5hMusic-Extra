@@ -211,6 +211,7 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Fixed backups creating duplicates of the metadata JSON.
 * Fixed Playlist and Sound Test views not updating if a song was hidden.
 * Fixed Change File sometimes causing the song not to play.
+* Fixed Playlist Incidences not being correct for some stages using the standard Build.
 
 ## FAQ
 
