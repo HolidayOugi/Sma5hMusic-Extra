@@ -74,7 +74,7 @@ namespace Sma5hMusic.GUI.ViewModels
                     .Select(p => p.UiSeriesId)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                return Series.Where(p => matchingSeriesIds.Contains(p.UiSeriesId));
+                return Series.Where(p => matchingSeriesIds.Contains(p.UiSeriesId)).ToList();
             }
         }
 
@@ -85,7 +85,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 if (SelectedSeries == null)
                     return Enumerable.Empty<CoreSongPickerOptionViewModel>();
 
-                return Songs.Where(p => string.Equals(p.UiSeriesId, SelectedSeries.UiSeriesId, StringComparison.OrdinalIgnoreCase) && MatchesSearch(p));
+                return Songs.Where(p => string.Equals(p.UiSeriesId, SelectedSeries.UiSeriesId, StringComparison.OrdinalIgnoreCase) && MatchesSearch(p)).ToList();
             }
         }
 
