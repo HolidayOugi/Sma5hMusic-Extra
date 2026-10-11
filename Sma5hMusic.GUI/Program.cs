@@ -258,6 +258,7 @@ namespace Sma5hMusic.GUI
                 { "Sma5hMusicGUI:UITheme", "Dark" },
                 { "Sma5hMusicGUI:DefaultGUILocale", "us_en" },
                 { "Sma5hMusicGUI:CopyToEmptyLocales", "true" },
+                { "Sma5hMusicGUI:EnableMSBTColors", "true" },
                 { "Sma5hMusicGUI:DefaultMSBTLocale", "us_en" },
                 { "Sma5hMusicGUI:PlaylistIncidenceDefault", "0" },
                 { "Sma5hMusicGUI:DefaultSongVolume", "2.7" },

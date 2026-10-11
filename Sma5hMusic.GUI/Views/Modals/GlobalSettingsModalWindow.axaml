@@ -70,7 +70,7 @@
           </fields:PropertyField>
           <!-- MSBT -->
           <Border Classes="contentTitle" DockPanel.Dock="Top">
-            <TextBlock>MSBT Automation</TextBlock>
+            <TextBlock>MSBT Settings</TextBlock>
           </Border>
           <StackPanel Orientation="Horizontal">
             <fields:PropertyBooleanField Label="Automatically Fill Empty Locales" IsChecked="{Binding SelectedItem.CopyToEmptyLocales}" ToolTip="Every locale will get the value of 'Default MSBT Locale' if left empty." />
@@ -86,6 +86,7 @@
               </fields:PropertyField.FieldContent>
             </fields:PropertyField>
           </StackPanel>
+          <fields:PropertyBooleanField Label="Enable Text Colors" IsChecked="{Binding SelectedItem.EnableMSBTColors, Mode=TwoWay}" ToolTip="Include text colors in MSBT and XMSBT output. Turn off to remove colors from text when building." />
           <Border Classes="contentTitle" DockPanel.Dock="Top">
             <TextBlock>Icon Settings</TextBlock>
           </Border>

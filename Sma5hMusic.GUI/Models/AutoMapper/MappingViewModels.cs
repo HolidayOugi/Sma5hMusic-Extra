@@ -40,6 +40,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                     DefaultGUILocale = p.DefaultGUILocale,
                     DefaultMSBTLocale = p.DefaultMSBTLocale,
                     CopyToEmptyLocales = p.CopyToEmptyLocales,
+                    EnableMSBTColors = p.EnableMSBTColors,
                     PlaylistIncidenceDefault = p.PlaylistIncidenceDefault,
                     DefaultSongVolume = (double)p.DefaultSongVolume,
                     DefaultRecordType = p.DefaultRecordType,
@@ -88,6 +89,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.DefaultGUILocale, me => me.MapFrom(p => p.Sma5hMusicGUI.DefaultGUILocale))
                 .ForMember(i => i.DefaultMSBTLocale, me => me.MapFrom(p => p.Sma5hMusicGUI.DefaultMSBTLocale))
                 .ForMember(i => i.CopyToEmptyLocales, me => me.MapFrom(p => p.Sma5hMusicGUI.CopyToEmptyLocales))
+                .ForMember(i => i.EnableMSBTColors, me => me.MapFrom(p => p.Sma5hMusicGUI.EnableMSBTColors))
                 .ForMember(i => i.PlaylistIncidenceDefault, me => me.MapFrom(p => p.Sma5hMusicGUI.PlaylistIncidenceDefault))
                 .ForMember(i => i.DefaultSongVolume, me => me.MapFrom(p => (decimal)p.Sma5hMusicGUI.DefaultSongVolume))
                 .ForMember(i => i.DefaultRecordType, me => me.MapFrom(p => p.Sma5hMusicGUI.DefaultRecordType))

@@ -18,6 +18,7 @@ namespace Sma5h.Mods.Music
             public string DefaultGUILocale { get; set; }
             public string DefaultMSBTLocale { get; set; }
             public bool CopyToEmptyLocales { get; set; }
+            public bool EnableMSBTColors { get; set; } = true;
             public ushort PlaylistIncidenceDefault { get; set; }
             public double DefaultSongVolume { get; set; }
             public string DefaultRecordType { get; set; }

@@ -170,8 +170,10 @@ namespace Sma5h.Mods.Music.CskPackBuild
 
         #region Messages
 
-        private static string MakeEntry(string label, string text)
+        private string MakeEntry(string label, string text)
         {
+            if (_config.CurrentValue.Sma5hMusicGUI?.EnableMSBTColors == false)
+                text = MsbtRichTextColorHelper.ToPlainText(MsbtRichTextColorHelper.Parse(text));
             //convert to base64 if contains game text tag or color markup
             if (ContainsGameTextTagMarker(text) || MsbtRichTextColorHelper.ContainsColorMarkup(text))
                 return $"<entry label=\"{label}\" base64=\"true\">\r\n<text><![CDATA[{EncodeGameTextAsBase64(text)}]]></text>\r\n</entry>";
@@ -184,13 +186,13 @@ namespace Sma5h.Mods.Music.CskPackBuild
             return !string.IsNullOrEmpty(label) && entries.Any(entry => entry.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
-        private static void AddUniqueMessage(List<string> entries, string label, string text)
+        private void AddUniqueMessage(List<string> entries, string label, string text)
         {
             if (!string.IsNullOrEmpty(text) && !HasMessageEntry(entries, label))
                 entries.Add(MakeEntry(label, text));
         }
 
-        private static void AddOrReplaceMessage(List<string> entries, string label, string text)
+        private void AddOrReplaceMessage(List<string> entries, string label, string text)
         {
             if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(label))
                 return;

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using MsbtEditor;
 using Sma5h.Attributes;
 using Sma5h.Data;
@@ -15,6 +16,7 @@ namespace Sma5h.ResourceProviders
     public class MsbtResourceProvider : BaseResourceProvider
     {
         private readonly ILogger _logger;
+        private readonly IConfiguration _configuration;
         private const string GameTextTagOpenMarker = "{{";
         private const string GameTextTagCloseMarker = "}}";
         private const string GameTextTagOpen = "\u000e\u0000\u0002\u0002P";
@@ -41,10 +43,11 @@ namespace Sma5h.ResourceProviders
                 new MsbtTextColor("gray", 0x80, 0x80, 0x80)
             }.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
 
-        public MsbtResourceProvider(IOptionsMonitor<Sma5hOptions> config, ILogger<MsbtResourceProvider> logger)
+        public MsbtResourceProvider(IOptionsMonitor<Sma5hOptions> config, ILogger<MsbtResourceProvider> logger, IConfiguration configuration)
             : base(config)
         {
             _logger = logger;
+            _configuration = configuration;
         }
 
         public override T ReadFile<T>(string inputFile)
@@ -82,6 +85,7 @@ namespace Sma5h.ResourceProviders
             try
             {
                 var msbtDb = (MsbtDatabase)(object)inputObj;
+                var enableColors = _configuration.GetValue("Sma5hMusicGUI:EnableMSBTColors", true);
 
                 _logger.LogDebug("MSBT: {NrbEntries} entries, InputFile: {InputFile}, OutputFile: {OutputFile}", msbtDb.Entries.Count, inputFile, outputFile);
                 File.Copy(inputFile, outputFile);
@@ -100,7 +104,7 @@ namespace Sma5h.ResourceProviders
                     var valueStr = newMsbtEntry.Value;
                     if (string.IsNullOrEmpty(newMsbtEntry.Value))
                         valueStr = "MISSING";
-                    newEntry.Value = EncodeMsbtText(valueStr);
+                    newEntry.Value = EncodeMsbtText(valueStr, enableColors);
                 }
                 msbtFile.Save();
             }
@@ -112,7 +116,7 @@ namespace Sma5h.ResourceProviders
             return true;
         }
 
-        private static byte[] EncodeMsbtText(string text)
+        private static byte[] EncodeMsbtText(string text, bool enableColors)
         {
             //same as CSK
             var bytes = new List<byte>();
@@ -134,14 +138,16 @@ namespace Sma5h.ResourceProviders
 
                 if (text.IndexOf(ColorCloseTag, index, StringComparison.OrdinalIgnoreCase) == index)
                 {
-                    AddColorMarkerBytes(bytes, ColorMap["default"]);
+                    if (enableColors)
+                        AddColorMarkerBytes(bytes, ColorMap["default"]);
                     index += ColorCloseTag.Length;
                     continue;
                 }
 
                 if (text.IndexOf(ColorCloseTagAlt, index, StringComparison.OrdinalIgnoreCase) == index)
                 {
-                    AddColorMarkerBytes(bytes, ColorMap["default"]);
+                    if (enableColors)
+                        AddColorMarkerBytes(bytes, ColorMap["default"]);
                     index += ColorCloseTagAlt.Length;
                     continue;
                 }
@@ -154,7 +160,8 @@ namespace Sma5h.ResourceProviders
                         var colorId = text.Substring(index + ColorOpenPrefix.Length, tagEnd - index - ColorOpenPrefix.Length).Trim();
                         if (TryGetColor(colorId, out var color))
                         {
-                            AddColorMarkerBytes(bytes, color);
+                            if (enableColors)
+                                AddColorMarkerBytes(bytes, color);
                             index = tagEnd + 1;
                             continue;
                         }
