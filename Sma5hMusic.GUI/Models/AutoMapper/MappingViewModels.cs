@@ -40,6 +40,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                     DefaultGUILocale = p.DefaultGUILocale,
                     DefaultMSBTLocale = p.DefaultMSBTLocale,
                     CopyToEmptyLocales = p.CopyToEmptyLocales,
+                    EnableMSBTColors = p.EnableMSBTColors,
                     PlaylistIncidenceDefault = p.PlaylistIncidenceDefault,
                     DefaultSongVolume = (double)p.DefaultSongVolume,
                     DefaultRecordType = p.DefaultRecordType,
@@ -51,6 +52,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                     AudioNormalizationTargetLufs = p.AudioNormalizationTargetLufs,
                     LoopPreviewSeconds = p.LoopPreviewSeconds,
                     StartingOrderForSeries = p.StartingOrderForSeries,
+                    BuildSeries1 = p.BuildSeries1,
                     HideIndexColumn = p.HideIndexColumn,
                     HideModColumn = p.HideModColumn,
                     HideRecordColumn = p.HideRecordColumn,
@@ -87,6 +89,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.DefaultGUILocale, me => me.MapFrom(p => p.Sma5hMusicGUI.DefaultGUILocale))
                 .ForMember(i => i.DefaultMSBTLocale, me => me.MapFrom(p => p.Sma5hMusicGUI.DefaultMSBTLocale))
                 .ForMember(i => i.CopyToEmptyLocales, me => me.MapFrom(p => p.Sma5hMusicGUI.CopyToEmptyLocales))
+                .ForMember(i => i.EnableMSBTColors, me => me.MapFrom(p => p.Sma5hMusicGUI.EnableMSBTColors))
                 .ForMember(i => i.PlaylistIncidenceDefault, me => me.MapFrom(p => p.Sma5hMusicGUI.PlaylistIncidenceDefault))
                 .ForMember(i => i.DefaultSongVolume, me => me.MapFrom(p => (decimal)p.Sma5hMusicGUI.DefaultSongVolume))
                 .ForMember(i => i.DefaultRecordType, me => me.MapFrom(p => p.Sma5hMusicGUI.DefaultRecordType))
@@ -98,6 +101,7 @@ namespace Sma5hMusic.GUI.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.AudioNormalizationTargetLufs, me => me.MapFrom(p => p.Sma5hMusicGUI.AudioNormalizationTargetLufs))
                 .ForMember(i => i.LoopPreviewSeconds, me => me.MapFrom(p => p.Sma5hMusicGUI.LoopPreviewSeconds))
                 .ForMember(i => i.StartingOrderForSeries, me => me.MapFrom(p => p.Sma5hMusicGUI.StartingOrderForSeries))
+                .ForMember(i => i.BuildSeries1, me => me.MapFrom(p => p.Sma5hMusicGUI.BuildSeries1))
                 .ForMember(i => i.HideIndexColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideIndexColumn))
                 .ForMember(i => i.HideModColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideModColumn))
                 .ForMember(i => i.HideRecordColumn, me => me.MapFrom(p => p.Sma5hMusicGUI.HideRecordColumn))

@@ -55,6 +55,7 @@
                       <Button Content="Calculate Loop Cues" Command="{Binding ActionCalculateLoopCues}" CommandParameter="{Binding BgmPropertyViewModel}" />
                       <Button Content="Preview Loops" Command="{Binding ActionPreviewLoops}" CommandParameter="{Binding $parent[Window]}" />
                       <Button Content="Normalize Song" Command="{Binding ActionNormalizeSong}" CommandParameter="{Binding $parent[Window]}" />
+                      <Button Content="Trim Audio" Command="{Binding ActionTrimAudio}" CommandParameter="{Binding $parent[Window]}" />
                     </StackPanel>
                   </fields:PropertyField.FieldContent>
                 </fields:PropertyField>
@@ -74,12 +75,12 @@
                       <ComboBox Classes="noBorder" IsVisible="{Binding DisplayRecents}" PlaceholderText="Use Recent Values..." SelectedItem="{Binding SelectedRecentAction, Mode=TwoWay}" Items="{Binding RecentGameTitles}">
                         <ComboBox.ItemTemplate>
                           <DataTemplate>
-                            <TextBlock Text="{Binding Title}" />
+                            <TextBlock Text="{Binding Title, Converter={StaticResource LabelValueConverter}}" />
                           </DataTemplate>
                         </ComboBox.ItemTemplate>
                       </ComboBox>
                     </StackPanel>
-                    <AutoCompleteBox x:Name="GamePicker" Items="{Binding Games}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
+                    <AutoCompleteBox x:Name="GamePicker" Items="{Binding Games}" ValueMemberBinding="{Binding Title, Converter={StaticResource LabelValueConverter}}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
                                      MinimumPopulateDelay="0.5" FilterMode="Contains"/>
                   </StackPanel>
                 </fields:PropertyField.FieldContent>
@@ -149,7 +150,8 @@
               </fields:PropertyField>
               <fields:PropertyField Label="Special Category" ToolTip="This option can be used in game to trigger different effects.">
                 <fields:PropertyField.FieldContent>
-                  <ComboBox SelectedItem="{Binding SelectedSpecialCategory, Mode=TwoWay}" Items="{Binding SpecialCategories}">
+                  <ComboBox MaxDropDownHeight="250"
+                            SelectedItem="{Binding SelectedSpecialCategory, Mode=TwoWay}" Items="{Binding SpecialCategories}">
                     <ComboBox.ItemTemplate>
                       <DataTemplate>
                         <TextBlock Text="{Binding Label}" />

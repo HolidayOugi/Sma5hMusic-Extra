@@ -46,6 +46,8 @@ namespace Sma5hMusic.GUI.ViewModels
         [Reactive]
         public bool CopyToEmptyLocales { get; set; }
         [Reactive]
+        public bool EnableMSBTColors { get; set; } = true;
+        [Reactive]
         public string ModOverridePath { get; set; }
         [Reactive]
         public string ModPath { get; set; }
@@ -91,6 +93,8 @@ namespace Sma5hMusic.GUI.ViewModels
         public uint LoopPreviewSeconds { get; set; }
         [Reactive]
         public int StartingOrderForSeries { get; set; }
+        [Reactive]
+        public bool BuildSeries1 { get; set; }
 
         public ApplicationSettings GetReference()
         {

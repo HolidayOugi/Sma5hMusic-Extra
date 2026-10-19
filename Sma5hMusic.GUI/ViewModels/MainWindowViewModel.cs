@@ -129,8 +129,8 @@ namespace Sma5hMusic.GUI.ViewModels
             _appSettings = appSettings;
             IsLoading = true;
 
-            _logger.LogInformation($"GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} | Game v{_guiStateManager.GameVersion}");
-            Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")}";
+            _logger.LogInformation($"{GetGuiVersionTitle()} | Game v{_guiStateManager.GameVersion}");
+            Title = $"Sma5hMusic Extra - {GetGuiVersionTitle()}";
 
             //Set values
             IsAdvanced = appSettings.CurrentValue.Sma5hMusicGUI.Advanced;
@@ -321,7 +321,7 @@ namespace Sma5hMusic.GUI.ViewModels
                         await _messageDialog.ShowInformation("Game version not found", $"The version of your game could not be identified.\r\nIt might be that you are using a version that is unsupported or that your game files are customized.\r\nThis is known to cause some issues, such as silent files or wrong text information.\r\nBefore asking for support please make sure that the proper version of the files is recognized.");
                     }, DispatcherPriority.Background);
                 }
-                Title = $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} | Game v{_guiStateManager.GameVersion}";
+                Title = $"Sma5hMusic Extra - {GetGuiVersionTitle()} | Game v{_guiStateManager.GameVersion}";
 
                 IsLoading = false;
             }, (o) =>
@@ -331,13 +331,21 @@ namespace Sma5hMusic.GUI.ViewModels
             });
         }
 
+        private static string GetGuiVersionTitle()
+        {
+            var version = $"GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")}";
+            return Constants.IsStable
+                ? version
+                : $"{version} | Build {Constants.BuildTimestamp}";
+        }
+
         public async Task OnThanksOpen()
         {
             await _messageDialog.ShowInformation("About",
-                $"Sma5hMusic - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} by deinonychus71\r\n" +
+                $"Sma5hMusic - GUI by deinonychus71\r\n" +
+                $"Sma5hMusic Extra - GUI v{Constants.GUIVersion}{(!Constants.IsStable ? "pre" : "")} by HolidayOugi\r\n" +
                 $"Mod Sma5hMusic - v{MusicConstants.VersionSma5hMusic} by deinonychus71\r\n" +
                 $"Mod Sma5hMusicOverride - v{MusicConstants.VersionSma5hMusicOverride} by deinonychus71\r\n" +
-                $"Extra Features by HolidayOugi\r\n" +
                 $"Game - v{_guiStateManager.GameVersion}\r\n" +
                 "Original Project: https://github.com/Deinonychus71/Sma5hMusic\r\n" +
                 "Extra Project: https://github.com/HolidayOugi/Sma5hMusic-Extra\r\n\r\n" +

@@ -18,6 +18,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.Configure<Sma5hMusicOptions>(configuration);
             services.Configure<CskPackBuildOptions>(configuration);
             services.AddSingleton<ISma5hMod, Sma5hMusic>();
+            services.AddSingleton<IConfiguration>(configuration);
             services.AddSingleton<IResourceProvider, BgmPropertyProvider>();
             services.AddSingleton<IResourceProvider, MsbtResourceProvider>();
             services.AddSingleton<IResourceProvider, PrcResourceProvider>();

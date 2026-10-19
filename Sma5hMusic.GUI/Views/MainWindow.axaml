@@ -4,7 +4,7 @@
         xmlns:vw="clr-namespace:Sma5hMusic.GUI.Views;assembly=Sma5hMusic.GUI"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" MinWidth="1280" MinHeight="720" d:DesignWidth="1280" d:DesignHeight="720"
+        mc:Ignorable="d" MinWidth="1280" MinHeight="740" d:DesignWidth="1280" d:DesignHeight="740"
         x:Class="Sma5hMusic.GUI.Views.MainWindow"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Icon="/Assets/sma5hmusic-logo.ico"

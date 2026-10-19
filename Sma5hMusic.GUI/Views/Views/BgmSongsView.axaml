@@ -68,15 +68,15 @@
           <DataGridTemplateColumn Width="6*" Header="Game">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center" 
-                           Foreground="{Binding TestDispOrder, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding GameTitleViewModel.Title, Mode=OneWay}">
-                  <TextBlock.ContextMenu>
+                <controls:ColoredLabelTextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
+                           Text="{Binding GameTitleViewModel.Title, Mode=OneWay}">
+                  <controls:ColoredLabelTextBlock.ContextMenu>
                     <ContextMenu IsVisible="{Binding IsMod}">
                       <MenuItem Header="[EXPERIMENTAL] Rename Tone ID..." Command="{Binding $parent[DataGrid].DataContext.ActionRenameToneId, Mode=OneWay}" CommandParameter="{Binding}"/>
                       <MenuItem Header="[EXPERIMENTAL] Move to Another Mod..."  Command="{Binding $parent[DataGrid].DataContext.ActionMoveToOtherMod, Mode=OneWay}" CommandParameter="{Binding}"/>
                     </ContextMenu>
-                  </TextBlock.ContextMenu>
-                </TextBlock>
+                  </controls:ColoredLabelTextBlock.ContextMenu>
+                </controls:ColoredLabelTextBlock>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>

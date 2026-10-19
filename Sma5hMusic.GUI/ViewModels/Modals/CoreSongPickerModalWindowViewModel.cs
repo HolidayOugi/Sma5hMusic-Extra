@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using ReactiveUI;
+using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.Models;
 using System;
 using System.Collections.Generic;
@@ -15,12 +16,35 @@ namespace Sma5hMusic.GUI.ViewModels
     {
         private CoreSongPickerSeriesOptionViewModel _selectedSeries;
         private CoreSongPickerOptionViewModel _selectedSong;
+        private string _searchText = string.Empty;
 
         public ObservableCollection<CoreSongPickerOptionViewModel> Songs { get; }
         public ObservableCollection<CoreSongPickerSeriesOptionViewModel> Series { get; }
         public double PickerMinWidth { get; }
         public ReactiveCommand<Window, Unit> ActionCancel { get; }
         public ReactiveCommand<Window, Unit> ActionOK { get; }
+
+        //search bar
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (_searchText == value)
+                    return;
+
+                this.RaiseAndSetIfChanged(ref _searchText, value);
+                this.RaisePropertyChanged(nameof(FilteredSeries));
+
+                var matchingSeries = FilteredSeries.ToList();
+                if (!matchingSeries.Contains(SelectedSeries))
+                    SelectedSeries = matchingSeries.FirstOrDefault();
+                else if (SelectedSong != null && !FilteredSongs.Contains(SelectedSong))
+                    SelectedSong = null;
+
+                this.RaisePropertyChanged(nameof(FilteredSongs));
+            }
+        }
 
         public CoreSongPickerSeriesOptionViewModel SelectedSeries
         {
@@ -32,11 +56,26 @@ namespace Sma5hMusic.GUI.ViewModels
                 this.RaisePropertyChanged(nameof(FilteredSongs));
             }
         }
-
+        
         public CoreSongPickerOptionViewModel SelectedSong
         {
             get => _selectedSong;
             set => this.RaiseAndSetIfChanged(ref _selectedSong, value);
+        }
+        
+        public IEnumerable<CoreSongPickerSeriesOptionViewModel> FilteredSeries
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(SearchText))
+                    return Series;
+
+                var matchingSeriesIds = Songs.Where(MatchesSearch)
+                    .Select(p => p.UiSeriesId)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                return Series.Where(p => matchingSeriesIds.Contains(p.UiSeriesId)).ToList();
+            }
         }
 
         public IEnumerable<CoreSongPickerOptionViewModel> FilteredSongs
@@ -46,8 +85,15 @@ namespace Sma5hMusic.GUI.ViewModels
                 if (SelectedSeries == null)
                     return Enumerable.Empty<CoreSongPickerOptionViewModel>();
 
-                return Songs.Where(p => string.Equals(p.UiSeriesId, SelectedSeries.UiSeriesId, StringComparison.OrdinalIgnoreCase));
+                return Songs.Where(p => string.Equals(p.UiSeriesId, SelectedSeries.UiSeriesId, StringComparison.OrdinalIgnoreCase) && MatchesSearch(p)).ToList();
             }
+        }
+
+        private bool MatchesSearch(CoreSongPickerOptionViewModel song)
+        {
+            return string.IsNullOrEmpty(SearchText) ||
+                (song.ToneId?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                MsbtRichTextColorHelper.ToPlainText(song.Title).Contains(SearchText, StringComparison.OrdinalIgnoreCase);
         }
 
         public CoreSongPickerModalWindowViewModel(IEnumerable<CoreSongReplacementOption> songs)

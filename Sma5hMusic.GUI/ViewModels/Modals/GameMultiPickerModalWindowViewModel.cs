@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using ReactiveUI;
+using Sma5h.Mods.Music.Helpers;
 using Sma5hMusic.GUI.Models;
 using System;
 using System.Collections.Generic;
@@ -52,7 +53,7 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             Games = new ObservableCollection<GameMultiPickerOptionViewModel>(
                 games
-                    .OrderBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(p => MsbtRichTextColorHelper.ToPlainText(p.Title), StringComparer.OrdinalIgnoreCase)
                     .ThenBy(p => p.UiGameTitleId, StringComparer.OrdinalIgnoreCase)
                     .Select(p => new GameMultiPickerOptionViewModel(p)));
 

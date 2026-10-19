@@ -1,11 +1,32 @@
 ﻿using AutoMapper;
 
+using System.Collections.Generic;
+
 namespace Sma5h.Mods.Music.Models.AutoMapper
 {
     public class MappingDb : Profile
     {
         public MappingDb()
         {
+            CreateMap<GameTitleEntry, GameTitleEntry>()
+                .ForMember(i => i.MSBTTitle, me => me.MapFrom(p => p.MSBTTitle == null
+                    ? new Dictionary<string, string>()
+                    : new Dictionary<string, string>(p.MSBTTitle)));
+            CreateMap<BgmDbRootEntry, BgmDbRootEntry>()
+                .ForMember(i => i.Title, me => me.MapFrom(p => p.Title == null
+                    ? new Dictionary<string, string>()
+                    : new Dictionary<string, string>(p.Title)))
+                .ForMember(i => i.Author, me => me.MapFrom(p => p.Author == null
+                    ? new Dictionary<string, string>()
+                    : new Dictionary<string, string>(p.Author)))
+                .ForMember(i => i.Copyright, me => me.MapFrom(p => p.Copyright == null
+                    ? new Dictionary<string, string>()
+                    : new Dictionary<string, string>(p.Copyright)));
+            CreateMap<BgmStreamSetEntry, BgmStreamSetEntry>();
+            CreateMap<BgmAssignedInfoEntry, BgmAssignedInfoEntry>();
+            CreateMap<BgmStreamPropertyEntry, BgmStreamPropertyEntry>();
+            CreateMap<BgmPropertyEntry, BgmPropertyEntry>();
+
             CreateMap<AudioCuePoints, BgmPropertyEntry>()
                .ForMember(i => i.AudioVolume, me => me.Ignore())
                .ForMember(i => i.LoopEndMs, me => me.MapFrom(p => p.LoopEndMs))
@@ -251,7 +272,7 @@ namespace Sma5h.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.Order13, me => me.MapFrom(p => p.Order13))
                 .ForMember(i => i.Incidence14, me => me.MapFrom(p => p.Incidence14))
                 .ForMember(i => i.Order14, me => me.MapFrom(p => p.Order14))
-                .ForMember(i => i.Incidence5, me => me.MapFrom(p => p.Incidence15))
+                .ForMember(i => i.Incidence15, me => me.MapFrom(p => p.Incidence15))
                 .ForMember(i => i.Order15, me => me.MapFrom(p => p.Order15));
             CreateMap<PlaylistEntryModels.PlaylistValueEntry, Sma5h.Data.Ui.Param.Database.PrcUiBgmDatabaseModels.PrcBgmPlaylistEntry>()
                 .ForMember(i => i.UiBgmId, me => me.MapFrom(p => p.UiBgmId))
@@ -285,7 +306,7 @@ namespace Sma5h.Mods.Music.Models.AutoMapper
                 .ForMember(i => i.Order13, me => me.MapFrom(p => p.Order13))
                 .ForMember(i => i.Incidence14, me => me.MapFrom(p => p.Incidence14))
                 .ForMember(i => i.Order14, me => me.MapFrom(p => p.Order14))
-                .ForMember(i => i.Incidence5, me => me.MapFrom(p => p.Incidence15))
+                .ForMember(i => i.Incidence15, me => me.MapFrom(p => p.Incidence15))
                 .ForMember(i => i.Order15, me => me.MapFrom(p => p.Order15));
 
             CreateMap<Sma5h.Data.Ui.Param.Database.PrcUiStageDatabaseModels.StageDbRootEntry, StageEntry>()

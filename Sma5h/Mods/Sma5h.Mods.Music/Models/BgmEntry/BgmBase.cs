@@ -6,6 +6,8 @@ namespace Sma5h.Mods.Music.Models
     {
         public EntrySource Source { get; }
         public IMusicMod MusicMod { get; set; }
+        public bool IsOverridden { get; set; }
+        public int OverrideOrder { get; set; } = -1;
         public string ModId { get { return MusicMod?.Mod.Id; } }
 
 

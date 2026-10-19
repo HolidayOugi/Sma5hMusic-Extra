@@ -10,11 +10,16 @@ namespace Sma5hMusic.GUI.Interfaces
         bool RequiresConversion(string filename);
         bool IsFfmpegConfigured();
         Task<AudioImportInfo> GetAudioInfo(string filename);
-        Task<IReadOnlyList<AutoLoopPoint>> CalculateAutoLoopPoints(string filename, uint sampleRate, uint totalSamples);
+        Task<IReadOnlyList<AutoLoopPoint>> CalculateAutoLoopPoints(string filename, uint sampleRate, uint totalSamples, CancellationToken cancellationToken = default);
         Task<LoopPreviewInfo> CreateLoopPreview(string filename, uint loopStartSample, uint loopEndSample, uint totalSamples);
         void CleanupLoopPreviews();
+        Task<string> PrepareAudioTrimWav(string filename);
+        Task<float[]> GetAudioWaveformPeaks(string wavFilename, int pointCount);
+        Task<string> CreateAudioTrimPreview(string wavFilename, uint startSample, uint endSample, bool previewStart);
+        Task<string> TrimAudioWav(string wavFilename, uint startSample, uint endSample);
+        Task<string> CreateNus3AudioFromTrimmedWav(string toneId, string wavFilename, string outputFilename, uint? loopStartSample, uint? loopEndSample);
         Task<string> ExtractAudioToTempWav(string filename);
-        Task<string> ConvertToNus3Audio(string toneId, string filename, string modPath, uint loopStartSample, uint loopEndSample, bool applyNormalization = false);
+        Task<string> ConvertToNus3Audio(string toneId, string filename, string modPath, uint loopStartSample, uint loopEndSample, bool applyNormalization = false, bool noLoop = false);
         bool IsNus3Audio(string filename);
         bool IsGameAudio(string filename);
         Task<string> NormalizeNus3Audio(string toneId, string filename, string modPath, CancellationToken cancellationToken = default);

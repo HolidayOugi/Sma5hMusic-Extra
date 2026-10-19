@@ -12,6 +12,7 @@ using Sma5h.Mods.Music;
 using Sma5h.Mods.Music.Helpers;
 using Sma5h.Mods.Music.Interfaces;
 using Sma5h.Mods.Music.Models;
+using Sma5h.Mods.Music.Services;
 using Sma5hMusic.GUI.Helpers;
 using Sma5hMusic.GUI.Interfaces;
 using Sma5hMusic.GUI.Models;
@@ -39,6 +40,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly IViewModelManager _viewModelManager;
         private readonly IFileDialog _fileDialog;
         private readonly ISeriesIconService _seriesIconService;
+        private readonly IMessageDialog _messageDialog;
         private string _selectedIconPath;
 
         public IMusicMod ModManager { get; }
@@ -91,7 +93,7 @@ namespace Sma5hMusic.GUI.ViewModels
         public ReadOnlyObservableCollection<SeriesEntryViewModel> Series { get { return _series; } }
 
         public SeriesPropertiesModalWindowViewModel(IOptionsMonitor<ApplicationSettings> config, ILogger<SeriesPropertiesModalWindowViewModel> logger, IViewModelManager viewModelManager,
-            IGUIStateManager guiStateManager, IFileDialog fileDialog, ISeriesIconService seriesIconService)
+            IGUIStateManager guiStateManager, IFileDialog fileDialog, ISeriesIconService seriesIconService, IMessageDialog messageDialog)
         {
             _config = config;
             _logger = logger;
@@ -99,6 +101,7 @@ namespace Sma5hMusic.GUI.ViewModels
             _viewModelManager = viewModelManager;
             _fileDialog = fileDialog;
             _seriesIconService = seriesIconService;
+            _messageDialog = messageDialog;
 
             //Bind observables
             viewModelManager.ObservableSeries.Connect()
@@ -148,13 +151,16 @@ namespace Sma5hMusic.GUI.ViewModels
             if (string.IsNullOrEmpty(iconPath))
                 return;
 
+            if (Path.GetExtension(iconPath).Equals(".png", StringComparison.OrdinalIgnoreCase) &&
+                !SeriesIconBntxCodec.HasTransparentPixels(iconPath))
+            {
+                await _messageDialog.ShowWarning("Series Icon", "The selected icon must contain transparent pixels. Please select another icon.");
+                return;
+            }
             _selectedIconPath = iconPath;
             IconPath = Path.GetFileName(iconPath);
 
-            if (Path.GetExtension(iconPath).Equals(".bntx", StringComparison.OrdinalIgnoreCase))
-                SetIconPreview(_seriesIconService.CreatePreviewFromBntxFile(iconPath));
-            else
-                SetIconPreview(iconPath);
+            SetIconPreview(_seriesIconService.CreatePreviewFromFile(iconPath));
         }
 
         private void FormatSeriesId(string seriesId)

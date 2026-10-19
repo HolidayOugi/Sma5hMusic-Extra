@@ -13,7 +13,7 @@ namespace Sma5h.Mods.Music.Interfaces
         MusicModInformation Mod { get; }
 
         bool UpdateModInformation(MusicModInformation configBase);
-        MusicModEntries GetMusicModEntries();
+        MusicModEntries GetMusicModEntries(bool logEntries = true);
         Task<bool> AddOrUpdateMusicModEntries(MusicModEntries musicModEntries);
         bool ReorderSongs(List<string> list);
         bool AdjustSongVolumes(float amount, float minimumVolume, float maximumVolume);

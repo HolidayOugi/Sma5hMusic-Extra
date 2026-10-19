@@ -63,7 +63,17 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Width="2*" Header="Game" Binding="{Binding BgmReference.GameTitleViewModel.Title, Mode=OneWay}" />
+            <DataGridTemplateColumn Width="2*" Header="Game">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <controls:ColoredLabelTextBlock
+                      Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}"
+                      VerticalAlignment="Center"
+                      ClipToBounds="True"
+                      Text="{Binding BgmReference.GameTitleViewModel.Title, Mode=OneWay}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
             <DataGridTemplateColumn Width="3*" Header="Title">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>

@@ -30,8 +30,8 @@
           <DataGridTemplateColumn Width="2*" Header="Game">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
-                           Foreground="{Binding TestDispOrder, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding GameTitleViewModel.Title, Mode=OneWay}"></TextBlock>
+                <controls:ColoredLabelTextBlock Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
+                           Text="{Binding GameTitleViewModel.Title, Mode=OneWay}" />
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
@@ -144,9 +144,9 @@
           <DataGridTemplateColumn Width="2*" Header="Game">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
-                           Foreground="{Binding Order, Converter={StaticResource HiddenColumnConverter}}" Text="{Binding BgmReference.GameTitleViewModel.Title, Mode=OneWay}">
-                  <TextBlock.ContextMenu>
+                <controls:ColoredLabelTextBlock Background="Transparent" Margin="{StaticResource DataGridTextColumnCellTextBlockMargin}" VerticalAlignment="Center"
+                           Text="{Binding BgmReference.GameTitleViewModel.Title, Mode=OneWay}">
+                  <controls:ColoredLabelTextBlock.ContextMenu>
                     <ContextMenu IsVisible="{Binding IsMod}">
                       <MenuItem Header="Set exact incidence value..." Command="{Binding $parent[DataGrid].DataContext.ActionSetIncidence, Mode=OneWay}" CommandParameter="{Binding}"/>
                       <Separator/>
@@ -154,8 +154,8 @@
                       <MenuItem Header="Paste incidence" IsEnabled="{Binding $parent[DataGrid].DataContext.CopyValueExists}" Command="{Binding $parent[DataGrid].DataContext.ActionPasteIncidence, Mode=OneWay}" CommandParameter="{Binding}"/>
                       <MenuItem Header="Paste incidence to all other Orders" IsEnabled="{Binding $parent[DataGrid].DataContext.CopyValueExists}" Command="{Binding $parent[DataGrid].DataContext.ActionPasteIncidenceAll, Mode=OneWay}" CommandParameter="{Binding}"/>
                     </ContextMenu>
-                  </TextBlock.ContextMenu>
-                </TextBlock>
+                  </controls:ColoredLabelTextBlock.ContextMenu>
+                </controls:ColoredLabelTextBlock>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>

@@ -1,5 +1,5 @@
 using Newtonsoft.Json.Linq;
-using Sma5h.Mods.Music.Models;
+using Sma5h.Mods.Music.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,160 +10,90 @@ namespace Sma5h.Mods.Music.CskPackBuild
     {
         #region Stage Database
 
-        private JObject BuildEffectiveStageData(JObject stageOverride)
+        private void PopulateStageDatabaseEntries(JObject songData, string seriesName, CskBuildState state)
         {
-            var stageData = new JObject();
-
-            foreach (var stage in _audioStateService.GetStagesEntries().Where(p => !string.IsNullOrEmpty(p.UiStageId)))
-                stageData[stage.UiStageId] = CreateStageObject(stage);
-
-            OverlayProperties(stageData, stageOverride);
-            return stageData;
-        }
-
-        private static JObject CreateStageObject(StageEntry stage)
-        {
-            return new JObject
-            {
-                ["ui_stage_id"] = stage.UiStageId,
-                ["name_id"] = stage.NameId,
-                ["save_no"] = stage.SaveNo,
-                ["ui_series_id"] = stage.UiSeriesId,
-                ["can_select"] = stage.CanSelect,
-                ["disp_order"] = stage.DispOrder,
-                ["stage_place_id"] = stage.StagePlaceId,
-                ["secret_stage_place_id"] = stage.SecretStagePlaceId,
-                ["can_demo"] = stage.CanDemo,
-                ["0x10359e17b0"] = stage.Unk1,
-                ["is_usable_flag"] = stage.IsUsableFlag,
-                ["is_usable_amiibo"] = stage.IsUsableAmiibo,
-                ["secret_command_id"] = stage.SecretCommandId,
-                ["secret_command_id_joycon"] = stage.SecretCommandIdJoycon,
-                ["bgm_set_id"] = stage.BgmSetId,
-                ["bgm_setting_no"] = stage.BgmSettingNo,
-                ["bgm_selector"] = stage.BgmSelector,
-                ["is_dlc"] = stage.IsDlc,
-                ["is_patch"] = stage.IsPatch,
-                ["dlc_chara_id"] = stage.DlcCharaId
-            };
-        }
-
-        private void PopulateStageDatabaseEntries(JObject songData, string seriesName, JObject stageOverride, JObject playlistData)
-        {
-            if (stageOverride == null)
-                return;
             //populate stage database
             if (VanillaSeries.Contains(seriesName))
-                PopulateVanillaStageDatabaseEntries(songData, seriesName, stageOverride, playlistData);
+                PopulateVanillaStageDatabaseEntries(songData, seriesName, state);
             else
-                PopulateCustomStageDatabaseEntries(songData, stageOverride);
+                PopulateCustomStageDatabaseEntries(songData, state);
         }
 
-        private void PopulateCustomStageDatabaseEntries(JObject songData, JObject stageOverride, HashSet<string> excludedSeriesIds = null)
+        private void PopulateCustomStageDatabaseEntries(JObject songData, CskBuildState state, HashSet<string> excludedSeriesIds = null)
         {
             //get playlists
-            var validPlaylists = SeriesToPlaylist.Values.SelectMany(p => p).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            validPlaylists.UnionWith(VanillaNonSeriesPlaylists);
-            var playlists = songData["playlist_entries"] as JObject;
-            if (playlists == null)
+            if (songData["playlist_entries"] is not JObject playlists)
                 return;
-
-            //for each playlist, assign its stage
-            foreach (var playlistName in playlists.Properties().Select(p => p.Name).ToList())
+            var vanillaPlaylists = SeriesToPlaylist.Values.SelectMany(ids => ids).Concat(VanillaNonSeriesPlaylists).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            //for each playlist, assign all of its stages
+            foreach (var playlistId in playlists.Properties().Select(property => property.Name).Where(id => !vanillaPlaylists.Contains(id)).ToList())
             {
-                if (validPlaylists.Contains(playlistName))
-                    continue;
-
                 //exclude any stages that are part of the excluded series
-                var foundStage = stageOverride.Properties()
-                    .FirstOrDefault(p =>
-                        string.Equals(GetString(p.Value, "bgm_set_id"), playlistName, StringComparison.OrdinalIgnoreCase)
-                        && excludedSeriesIds?.Contains(GetString(p.Value, "ui_series_id")) != true);
-
-                if (foundStage != null)
+                foreach (var stage in state.Stages.Where(stage =>
+                    string.Equals(stage.BgmSetId, playlistId, StringComparison.OrdinalIgnoreCase) &&
+                    excludedSeriesIds?.Contains(stage.UiSeriesId) != true &&
+                    (excludedSeriesIds == null || !state.WrittenStageIds.Contains(stage.UiStageId))))
                 {
-                    var stageEntries = songData["stage_database_entries"] as JArray;
-                    if (stageEntries == null)
-                        songData["stage_database_entries"] = stageEntries = new JArray();
-                    if (stageEntries.Any(p => string.Equals(GetString(p, "ui_stage_id"), foundStage.Name, StringComparison.OrdinalIgnoreCase)))
-                        continue;
-
-                    stageEntries.Add(new JObject
-                    {
-                        ["ui_stage_id"] = foundStage.Name,
-                        ["bgm_set_id"] = playlistName
-                    });
+                    AddStageEntryIfChanged(songData, stage.UiStageId, playlistId, stage.BgmSettingNo, state);
                 }
             }
         }
 
-        private void PopulateVanillaStageDatabaseEntries(JObject songData, string seriesName, JObject stageOverride, JObject playlistData)
+        private void PopulateVanillaStageDatabaseEntries(JObject songData, string seriesName, CskBuildState state)
         {
-            var seriesKey = seriesName.ToLowerInvariant();
-            if (!SeriesToPlaylist.ContainsKey(seriesKey))
-                return;
-
             //get playlists for this series
-            var validPlaylists = SeriesToPlaylist[seriesKey];
-            var defaultPlaylist = validPlaylists[0];
-            var validUiSeries = seriesKey == "etc"
+            if (!SeriesToPlaylist.TryGetValue(seriesName, out var validPlaylists))
+                return;
+            var validSeries = string.Equals(seriesName, "etc", StringComparison.OrdinalIgnoreCase)
                 ? new HashSet<string>(new[]
                 {
-                    "ui_series_etc", "ui_series_nintendogs", "ui_series_balloonfight",
-                    "ui_series_duckhunt", "ui_series_plankton", "ui_series_iceclimber",
-                    "ui_series_touch", "ui_series_lightplane", "ui_series_miiplaza",
-                    "ui_series_tomodachi", "ui_series_wuhuisland", "ui_series_wreckingcrew"
+                    "ui_series_etc", "ui_series_nintendogs", "ui_series_balloonfight", "ui_series_duckhunt",
+                    "ui_series_plankton", "ui_series_iceclimber", "ui_series_touch", "ui_series_lightplane",
+                    "ui_series_miiplaza", "ui_series_tomodachi", "ui_series_wuhuisland", "ui_series_wreckingcrew"
                 }, StringComparer.OrdinalIgnoreCase)
-                : new HashSet<string>(new[] { $"ui_series_{seriesKey}" }, StringComparer.OrdinalIgnoreCase);
+                : new HashSet<string>(new[] { $"ui_series_{seriesName}" }, StringComparer.OrdinalIgnoreCase);
 
-            //mariokart stage is in mario playlist, need override
-            var stageSeriesOverride = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            foreach (var stage in state.Stages)
             {
-                ["ui_stage_kart_circuitfor"] = "mariokart",
-                ["ui_stage_kart_circuitx"] = "mariokart"
-            };
-
-            foreach (var stageProperty in stageOverride.Properties())
-            {
-                var stageId = stageProperty.Name;
-                var stageData = stageProperty.Value;
-                var uiSeriesId = GetString(stageData, "ui_series_id");
-                var validPlaylistsStage = validPlaylists;
-                var defaultPlaylistStage = defaultPlaylist;
-                var validUiSeriesStage = validUiSeries;
-                var uiSeriesIdCheck = uiSeriesId;
-
-                //mario kart case
-                if (stageSeriesOverride.ContainsKey(stageId))
+                var stagePlaylists = validPlaylists;
+                var stageSeries = validSeries;
+                //mariokart stage is in mario playlist, need override
+                if (stage.UiStageId is "ui_stage_kart_circuitfor" or "ui_stage_kart_circuitx")
                 {
-                    var forcedSeriesKey = stageSeriesOverride[stageId];
-                    if (seriesKey != forcedSeriesKey || !SeriesToPlaylist.ContainsKey(forcedSeriesKey))
+                    //mario kart case
+                    if (!string.Equals(seriesName, "mariokart", StringComparison.OrdinalIgnoreCase))
                         continue;
-
-                    uiSeriesIdCheck = $"ui_series_{forcedSeriesKey}";
-                    validPlaylistsStage = SeriesToPlaylist[forcedSeriesKey];
-                    defaultPlaylistStage = validPlaylistsStage[0];
-                    validUiSeriesStage = new HashSet<string>(new[] { uiSeriesIdCheck }, StringComparer.OrdinalIgnoreCase);
+                    stagePlaylists = SeriesToPlaylist["mariokart"];
+                    stageSeries = new HashSet<string>(new[] { "ui_series_mariokart" }, StringComparer.OrdinalIgnoreCase);
                 }
-
-                if (!validUiSeriesStage.Contains(uiSeriesIdCheck))
+                var isMarioKartCircuit = stage.UiStageId is "ui_stage_kart_circuitfor" or "ui_stage_kart_circuitx";
+                if ((!isMarioKartCircuit && !stageSeries.Contains(stage.UiSeriesId)) || string.IsNullOrEmpty(stage.BgmSetId))
                     continue;
-
-                var bgmSetId = GetString(stageData, "bgm_set_id");
-                if (string.IsNullOrEmpty(bgmSetId))
-                    continue;
-
+                var chosenPlaylist = stagePlaylists.Contains(stage.BgmSetId) || state.Playlists.ContainsKey(stage.BgmSetId)
+                    ? stage.BgmSetId
+                    : stagePlaylists[0];
                 //add stage entry for this series
-                var chosenBgm = validPlaylistsStage.Contains(bgmSetId) || playlistData[bgmSetId] != null
-                    ? bgmSetId
-                    : defaultPlaylistStage;
-
-                GetArray(songData, "stage_database_entries").Add(new JObject
-                {
-                    ["ui_stage_id"] = stageId,
-                    ["bgm_set_id"] = chosenBgm
-                });
+                AddStageEntryIfChanged(songData, stage.UiStageId, chosenPlaylist, stage.BgmSettingNo, state);
             }
+        }
+
+        private static void AddStageEntryIfChanged(JObject songData, string stageId, string playlistId, int setting, CskBuildState state)
+        {
+            var changedPlaylist = !MusicConstants.DEFAULT_STAGE_BGM_SET_ID.TryGetValue(stageId, out var defaultPlaylist) ||
+                                  !string.Equals(playlistId, defaultPlaylist, StringComparison.OrdinalIgnoreCase);
+            var changedSetting = !MusicConstants.DEFAULT_STAGE_BGM_SETTING_NO.TryGetValue(stageId, out var defaultSetting) || setting != defaultSetting;
+            if (!changedPlaylist && !changedSetting)
+                return;
+            var entries = GetArray(songData, "stage_database_entries");
+            if (entries.Any(entry => string.Equals((string)entry["ui_stage_id"], stageId, StringComparison.OrdinalIgnoreCase)))
+                return;
+            var output = new JObject { ["ui_stage_id"] = stageId };
+            if (changedPlaylist)
+                output["bgm_set_id"] = playlistId;
+            if (changedSetting)
+                output["bgm_setting_no"] = setting;
+            entries.Add(output);
+            state.WrittenStageIds.Add(stageId);
         }
 
         #endregion

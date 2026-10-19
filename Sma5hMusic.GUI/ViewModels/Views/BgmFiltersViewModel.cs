@@ -13,6 +13,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 
 namespace Sma5hMusic.GUI.ViewModels
 {
@@ -22,14 +23,19 @@ namespace Sma5hMusic.GUI.ViewModels
         private readonly ReadOnlyObservableCollection<GameTitleEntryViewModel> _games;
         private readonly ReadOnlyObservableCollection<ModEntryViewModel> _mods;
         private readonly List<ComboItem> _recordTypes;
+        private readonly List<ComboItem> _playlistFilters;
         private readonly IChangeSet<ModEntryViewModel, string> _allModsChangeSet;
         private readonly IChangeSet<SeriesEntryViewModel, string> _allSeriesChangeSet;
         private readonly IChangeSet<GameTitleEntryViewModel, string> _allGameTitleChangeSet;
+        private readonly IObservableCache<PlaylistEntryValueViewModel, string> _playlistTracks;
+        private readonly object _playlistMembershipLock = new object();
+        private HashSet<string> _playlistSongIds = new HashSet<string>();
 
         public ReadOnlyObservableCollection<SeriesEntryViewModel> Series { get { return _series; } }
         public ReadOnlyObservableCollection<GameTitleEntryViewModel> Games { get { return _games; } }
         public ReadOnlyObservableCollection<ModEntryViewModel> Mods { get { return _mods; } }
         public IEnumerable<ComboItem> RecordTypes { get { return _recordTypes; } }
+        public IEnumerable<ComboItem> PlaylistFilters { get { return _playlistFilters; } }
 
         [Reactive]
         public string SearchText { get; set; }
@@ -41,6 +47,8 @@ namespace Sma5hMusic.GUI.ViewModels
         public GameTitleEntryViewModel SelectedGame { get; set; }
         [Reactive]
         public ComboItem SelectedRecordType { get; set; }
+        [Reactive]
+        public ComboItem SelectedPlaylistFilter { get; set; }
         [Reactive]
         public bool SelectedShowInSoundTest { get; set; }
         [Reactive]
@@ -63,28 +71,44 @@ namespace Sma5hMusic.GUI.ViewModels
             _allSeriesChangeSet = GetAllSeriesChangeSet();
             _allGameTitleChangeSet = GetAllGameTitleChangeSet();
             _recordTypes = GetRecordTypes();
+            _playlistFilters = GetPlaylistFilters();
+
+            var whenPlaylistMembershipChanged = new Subject<Unit>();
+            _playlistTracks = viewModelManager.ObservablePlaylistsEntries.Connect()
+                .TransformMany(p => p.Tracks[0], p => p.UniqueId)
+                .AsObservableCache();
+            _playlistTracks.Connect().Subscribe((o) =>
+            {
+                lock (_playlistMembershipLock)
+                    _playlistSongIds = _playlistTracks.Items.Select(p => p.UiBgmId).ToHashSet();
+                whenPlaylistMembershipChanged.OnNext(Unit.Default);
+            });
 
             var observableBgmEntries = viewModelManager.ObservableDbRootEntries.Connect()
                 .DeferUntilLoaded()
                 .AutoRefresh(p => p.UiGameTitleId, TimeSpan.FromMilliseconds(50))
                 .AutoRefresh(p => p.GameTitleViewModel.UiSeriesId, TimeSpan.FromMilliseconds(50))
+                .AutoRefresh(p => p.Title, TimeSpan.FromMilliseconds(50))
                 .Filter(p => p.UiBgmId != MusicConstants.InternalIds.BGM_ID_RANDOM);
 
             var whenAnyPropertyChanged = this.WhenAnyPropertyChanged("SelectedSeries", "SelectedGame",
-                "SelectedRecordType", "SelectedMod", "SelectedShowInSoundTest", "SelectedShowHiddenSongs",
+                "SelectedRecordType", "SelectedPlaylistFilter", "SelectedMod", "SelectedShowInSoundTest", "SelectedShowHiddenSongs",
                 "SelectedCharacterVictorySongs", "SelectedPinchSongs", "SelectedCoreSongs", "SelectedModSongs", "SearchText");
+            var whenFilterRefreshIsRequired = whenAnyPropertyChanged.Select((o) => Unit.Default)
+                .Merge(whenPlaylistMembershipChanged);
             WhenFiltersAreApplied = observableBgmEntries
                 .AutoRefresh(p => p.TestDispOrder, TimeSpan.FromMilliseconds(50))
-                .AutoRefreshOnObservable(p => whenAnyPropertyChanged, changeSetBuffer: TimeSpan.FromMilliseconds(50), scheduler: RxApp.TaskpoolScheduler)
+                .AutoRefreshOnObservable(p => whenFilterRefreshIsRequired, changeSetBuffer: TimeSpan.FromMilliseconds(50), scheduler: RxApp.TaskpoolScheduler)
                 .Filter(p =>
                     (SelectedShowHiddenSongs || (!SelectedShowHiddenSongs && !p.HiddenInSoundTest)) &&
                     (SelectedShowInSoundTest || (!SelectedShowInSoundTest && p.HiddenInSoundTest)) &&
                     MatchesSongSourceFilter(p) &&
                     (SelectedMod == null || SelectedMod.DefaultFlag || p.ModId == SelectedMod.Id) &&
                     (SelectedRecordType == null || SelectedRecordType.DefaultFlag || p.RecordType == SelectedRecordType.Id) &&
+                    MatchesPlaylistFilter(p) &&
                     (SelectedSeries == null || SelectedSeries.AllFlag || p.SeriesId == SelectedSeries.UiSeriesId) &&
                     (SelectedGame == null || SelectedGame.AllFlag || p.UiGameTitleId == SelectedGame.UiGameTitleId) &&
-                    (string.IsNullOrEmpty(SearchText) || p.ToneId.Contains(SearchText, StringComparison.OrdinalIgnoreCase) || p.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                    (string.IsNullOrEmpty(SearchText) || p.ToneId.Contains(SearchText, StringComparison.OrdinalIgnoreCase) || MsbtRichTextColorHelper.ToPlainText(p.Title).Contains(SearchText, StringComparison.OrdinalIgnoreCase))
                 );
 
             var modsChanged = observableBgmEntries.WhenValueChanged(mod => mod.MusicModViewModel.Name);
@@ -124,7 +148,7 @@ namespace Sma5hMusic.GUI.ViewModels
                 .Transform(p => p.Cache.Items.First().GameTitleViewModel)
                 .AutoRefresh(p => p.Title, TimeSpan.FromMilliseconds(50))
                 .Prepend(_allGameTitleChangeSet)
-                .Sort(SortExpressionComparer<GameTitleEntryViewModel>.Descending(p => p.AllFlag).ThenByAscending(p => p.Title), SortOptimisations.ComparesImmutableValuesOnly)
+                .Sort(SortExpressionComparer<GameTitleEntryViewModel>.Descending(p => p.AllFlag).ThenByAscending(p => MsbtRichTextColorHelper.ToPlainText(p.Title)), SortOptimisations.ComparesImmutableValuesOnly)
                 .ObserveOn(RxApp.MainThreadScheduler)
                 .Bind(out _games)
                 .DisposeMany()
@@ -134,6 +158,7 @@ namespace Sma5hMusic.GUI.ViewModels
             SelectedModSongs = true;
             SelectedCoreSongs = false;
             SelectedRecordType = _recordTypes[0];
+            SelectedPlaylistFilter = _playlistFilters[0];
             this.WhenAnyValue(p => p.SelectedSeries).Subscribe((o) => SelectedGame = _allGameTitleChangeSet.First().Current);
         }
 
@@ -151,6 +176,18 @@ namespace Sma5hMusic.GUI.ViewModels
         {
             return (SelectedModSongs && IsModFilterSong(bgmEntry)) ||
                    (SelectedCoreSongs && IsCoreFilterSong(bgmEntry));
+        }
+
+        private bool MatchesPlaylistFilter(BgmDbRootEntryViewModel bgmEntry)
+        {
+            if (SelectedPlaylistFilter == null || SelectedPlaylistFilter.DefaultFlag)
+                return true;
+
+            bool isInPlaylist;
+            lock (_playlistMembershipLock)
+                isInPlaylist = _playlistSongIds.Contains(bgmEntry.UiBgmId);
+
+            return SelectedPlaylistFilter.Id == "InPlaylist" ? isInPlaylist : !isInPlaylist;
         }
 
         private IChangeSet<SeriesEntryViewModel, string> GetAllSeriesChangeSet()
@@ -194,6 +231,16 @@ namespace Sma5hMusic.GUI.ViewModels
             var recordTypes = new List<ComboItem>() { new ComboItem("All", "All", true) };
             recordTypes.AddRange(Constants.CONVERTER_RECORD_TYPE.Select(p => new ComboItem(p.Key, p.Value)));
             return recordTypes;
+        }
+
+        private List<ComboItem> GetPlaylistFilters()
+        {
+            return new List<ComboItem>()
+            {
+                new ComboItem("All", "All", true),
+                new ComboItem("InPlaylist", "In a Playlist"),
+                new ComboItem("NotInPlaylist", "Not in a Playlist")
+            };
         }
     }
 }

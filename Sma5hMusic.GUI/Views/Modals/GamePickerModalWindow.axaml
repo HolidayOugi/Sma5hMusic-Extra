@@ -21,7 +21,7 @@
       <fields:PropertyField Label="Game" ToolTip="Pick an existing game to modify.">
         <fields:PropertyField.FieldContent>
           <StackPanel>
-            <AutoCompleteBox Items="{Binding Games}" ValueMemberBinding="{Binding Title}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
+            <AutoCompleteBox Items="{Binding Games}" ValueMemberBinding="{Binding Title, Converter={StaticResource LabelValueConverter}}" IsTextCompletionEnabled="True" MinimumPrefixLength="2"
                            MinimumPopulateDelay="0.5" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" FilterMode="Contains"/>
           </StackPanel>
         </fields:PropertyField.FieldContent>

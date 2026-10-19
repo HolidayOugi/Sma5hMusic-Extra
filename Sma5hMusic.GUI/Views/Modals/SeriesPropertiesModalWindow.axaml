@@ -8,6 +8,17 @@
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
         xmlns:fields="clr-namespace:Sma5hMusic.GUI.Views.Fields"
         Title="Series Properties">
+    <Window.Styles>
+      <Style Selector=".content Button:pointerover">
+        <Setter Property="Background" Value="Gray"/>
+      </Style>
+      <Style Selector=".content Button">
+        <Setter Property="Background" Value="Transparent"/>
+      </Style>
+      <Style Selector="ComboBox:pointerover">
+        <Setter Property="BorderThickness" Value="1"/>
+      </Style>
+    </Window.Styles>
     <DockPanel Classes="modal">
       <Border Classes="headerTitle" DockPanel.Dock="Top">
         <TextBlock>Series Entry</TextBlock>

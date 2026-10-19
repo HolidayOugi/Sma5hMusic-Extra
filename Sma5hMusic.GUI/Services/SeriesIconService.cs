@@ -50,19 +50,21 @@ namespace Sma5hMusic.GUI.Services
             return previewPath;
         }
 
-        public string CreatePreviewFromBntxFile(string bntxPath)
+        public string CreatePreviewFromFile(string iconPath)
         {
-            if (string.IsNullOrEmpty(bntxPath) || !File.Exists(bntxPath))
+            if (string.IsNullOrEmpty(iconPath) || !File.Exists(iconPath))
                 return string.Empty;
 
             var previewFolder = GetPreviewFolder();
             Directory.CreateDirectory(previewFolder);
 
-            var previewPath = Path.Combine(previewFolder, $"{Path.GetFileNameWithoutExtension(bntxPath)}.png");
-            SeriesIconBntxCodec.WritePreviewFromBntx(bntxPath, previewPath);
+            var previewPath = Path.Combine(previewFolder, $"{Path.GetFileNameWithoutExtension(iconPath)}.png");
+            if (Path.GetExtension(iconPath).Equals(".bntx", StringComparison.OrdinalIgnoreCase))
+                SeriesIconBntxCodec.WritePreviewFromBntx(iconPath, previewPath);
+            else
+                SeriesIconBntxCodec.WritePreviewFromPng(iconPath, previewPath);
             return previewPath;
         }
-
         public string SaveIcon(string sourceIconPath, string uiSeriesId)
         {
             if (string.IsNullOrEmpty(sourceIconPath))
@@ -80,11 +82,11 @@ namespace Sma5hMusic.GUI.Services
             if (Path.GetExtension(sourceIconPath).Equals(".bntx", StringComparison.OrdinalIgnoreCase))
             {
                 //Convert any BNTX to BC7 BNTX using the template
-                rgba = SeriesIconBntxCodec.LoadRgbaFromBntx(sourceIconPath);
+                rgba = SeriesIconBntxCodec.LoadRgbaFromBntx(sourceIconPath, SeriesIconBntxCodec.SeriesIconSize).Rgba;
             }
             else
             {
-                rgba = SeriesIconBntxCodec.LoadResizedRgba(sourceIconPath);
+                rgba = SeriesIconBntxCodec.LoadResizedRgba(sourceIconPath, SeriesIconBntxCodec.SeriesIconSize);
             }
 
             //save to output

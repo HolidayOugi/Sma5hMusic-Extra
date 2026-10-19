@@ -11,6 +11,7 @@ namespace Sma5h.Mods.Music.Models
         public List<BgmPropertyEntry> BgmPropertyEntries { get; }
         public List<GameTitleEntry> GameTitleEntries { get; }
         public List<SeriesEntry> SeriesEntries { get; }
+        public List<MusicModSeriesEntries> OrderedSeries { get; }
 
         public MusicModEntries()
         {
@@ -21,6 +22,7 @@ namespace Sma5h.Mods.Music.Models
             BgmPropertyEntries = new List<BgmPropertyEntry>();
             GameTitleEntries = new List<GameTitleEntry>();
             SeriesEntries = new List<SeriesEntry>();
+            OrderedSeries = new List<MusicModSeriesEntries>();
         }
 
         public MusicModDeleteEntries GetMusicModDeleteEntries()
@@ -62,6 +64,53 @@ namespace Sma5h.Mods.Music.Models
                 }
             }
             return output;
+        }
+    }
+
+    public sealed class MusicModSeriesEntries
+    {
+        public SeriesEntry Series { get; }
+        public List<MusicModGameEntries> Games { get; }
+
+        public MusicModSeriesEntries(SeriesEntry series)
+        {
+            Series = series;
+            Games = new List<MusicModGameEntries>();
+        }
+    }
+
+    public sealed class MusicModGameEntries
+    {
+        public GameTitleEntry Game { get; }
+        public List<MusicModBgmEntries> Bgms { get; }
+
+        public MusicModGameEntries(GameTitleEntry game)
+        {
+            Game = game;
+            Bgms = new List<MusicModBgmEntries>();
+        }
+    }
+
+    public sealed class MusicModBgmEntries
+    {
+        public BgmDbRootEntry Database { get; }
+        public BgmStreamSetEntry StreamSet { get; }
+        public BgmAssignedInfoEntry AssignedInfo { get; }
+        public BgmStreamPropertyEntry StreamProperty { get; }
+        public BgmPropertyEntry Property { get; }
+
+        public MusicModBgmEntries(
+            BgmDbRootEntry database,
+            BgmStreamSetEntry streamSet,
+            BgmAssignedInfoEntry assignedInfo,
+            BgmStreamPropertyEntry streamProperty,
+            BgmPropertyEntry property)
+        {
+            Database = database;
+            StreamSet = streamSet;
+            AssignedInfo = assignedInfo;
+            StreamProperty = streamProperty;
+            Property = property;
         }
     }
 }

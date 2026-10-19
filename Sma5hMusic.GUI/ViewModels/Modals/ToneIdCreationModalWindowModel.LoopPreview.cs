@@ -56,6 +56,9 @@ namespace Sma5hMusic.GUI.ViewModels
 
         private async Task PreviewLoop()
         {
+            if (NoLoop)
+                return;
+
             try
             {
                 _logger.LogInformation("Preview loop clicked. Filename={Filename}, LoopStartSample={LoopStartSample}, LoopEndSample={LoopEndSample}, LoopStartMs={LoopStartMs}, LoopEndMs={LoopEndMs}, TotalSamples={TotalSamples}",
@@ -114,6 +117,7 @@ namespace Sma5hMusic.GUI.ViewModels
         private async Task StopPreview()
         {
             _logger.LogInformation("StopPreview starting. PreviewFile={PreviewFile}", _loopPreviewFile);
+            _loopPreviewVersion++;
             _isCompletingPreview = false;
             StopPreviewProgress();
 

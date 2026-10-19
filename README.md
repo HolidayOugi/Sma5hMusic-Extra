@@ -50,11 +50,14 @@ Here's a rundown of the added features.
 ![Icon Selection](https://elixi.re/i/t0jjq.png)
 
 > [!TIP]
-> To obtain the best results, please choose a square icon with a transparent background and an all-white texture.
+> To obtain the best results, please choose a square icon. The icon must have a transparent background for it to show up in-game.
+
+> [!TIP]
+> An option can be enabled in Global Settings to also build the Result Screen's series icon (series_1). The resulting icon will have an higher resolution compared to the standard series icon.
 
 ## Importing of Audio Files
 
-**Standard Audio files** (.mp3, .flac, .wav, .ogg, .m4a) can now be loaded directly into the software without prior conversion.
+**Standard Audio files** (.mp3, .flac, .wav, .ogg) can now be loaded directly into the software without prior conversion.
 
 When loaded, the loop points for the given song can be selected. They can then be previewed by playing the track itself slightly before and after each loop point. The audio file is finally converted using the chosen loop points.
 
@@ -62,6 +65,8 @@ When loaded, the loop points for the given song can be selected. They can then b
 
 > [!TIP]
 > The preview duration can be set in the Global Settings.
+
+Alternatively, the song can also be added with no defined loop points, making it silent after the whole track has played.
 
 ### Automatic Loop Detection
 
@@ -74,6 +79,18 @@ The software can also automatically detect potential loop points, making it easy
 
 > [!TIP]
 > This feature can be used from the BGM Properties tab on songs that have already been added!
+
+### Audio Trimming
+
+> [!NOTE]
+> Requires the download of [FFmpeg](https://www.ffmpeg.org/) and for its path to be set in the Global Settings.
+
+Standard audio files can also be trimmed during importing, to cut out unwanted parts such as silent intros or loud outros.
+
+![Audio Trim](https://elixi.re/i/ops0e.png)
+
+> [!TIP]
+> This feature can be used from the BGM Properties tab on songs that have already been added! If the songs have loop points, they'll be adjusted accordingly. After trimming, the songs will be converted to NUS3Audio if they were in a different format.
 
 ## Normalization of Songs
 
@@ -110,7 +127,7 @@ The songs can be imported either from their URL or from a text file containing a
 
 ## Colored Text
 
-Colored Text is now supported when editing a song title. The color can either be chosen from a premade list of colors, which can be modified in the Extra submenu, or by inputting a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
+Colored Text is now supported when editing a song title or gametitle. The color can either be chosen from a premade list of colors, which can be modified in the Extra submenu, or by inputting a custom color. If part of the text is highlighted before selecting a color, the highlighted text will be recolored.
 
 ![Colored](https://elixi.re/i/t07dd.png)
 
@@ -140,7 +157,7 @@ After importing, replaced songs will be denoted in the main window with gold tex
 ## Generate Victory Themes
 
 > [!NOTE]
-> Requires the latest [CSK Collection](https://gamebanana.com/mods/499008) update released in July 2026.
+> Requires the [CSK Collection](https://gamebanana.com/mods/499008) update 5.0.6 or higher.
 
 Custom Victory Themes can now be generated from an option in the Extra submenu.
 
@@ -148,22 +165,43 @@ Victory themes can be generated for both base-game and custom characters. When g
 
 ![Victory](https://elixi.re/i/o3oru.png)
 
-## Miscellaneous fixes and improvements
+> [!TIP]
+> When importing a Victory Theme from a standard audio file, disabling loops will make the Result Screen theme play in-game after the Victory Theme has finished playing. If loops are defined, the Victory Theme will play endlessly.
 
-* (*Should have*) fixed bug where songs would stop playing in-game due to their order in the global song list.
-* Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
-* The default volume and arrange type for a new song can now be set in Global Settings.
-* Volume can now be set to the mean or median value of all songs' volume in a Mod.
+## Miscellaneous Additions, Fixes and Improvements
+
+### Small Additions
+
 * The Song List can now be exported to a spreadsheet.
 * Added option to generate a Sma5hMusic Mod from an already generated build.
-* Small text is now shown directly in the GUI.
-* A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
-* A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
 * Added a checkbox in the Series Properties Window to enable/disable the "Series" suffix after the Series name in Music Select.
 * Core Songs volume can now be changed in app and the relevant nus3bank will be generated at build time. This can be disabled in Global Settings.
 * Songs can now be sorted alphabetically per game or per series automatically.
-* If a song from custom Series was not manually added to a playlist, it will be automatically added to the Battlefield playlist to ensure it shows up in-game.
+
+### GUI Improvements
+
+* Small text is now shown directly in the GUI.
+* Added a filter option in the Main Window to show songs that haven't been added to a playlist.
+
+### New Settings
+
+* The default volume and arrange type for a new song can now be set in Global Settings.
+* Packs now are output in a subfolder of the build folder. This can be disabled in Global Settings.
+* If a song from custom Series was not manually added to a playlist, it will be automatically added to the Battlefield playlist to ensure it shows up in-game. Can be disabled in Global Settings.
 * Global Settings can now be saved when output folder is missing.
+* Changing most options in Global Settings no longer requires a restart.
+
+### BGM Properties
+
+* Volume can now be set to the mean or median value of all songs' volume in a Mod.
+* A display box has been added to the BGM Properties Window to show how the text will appear in game, with both colors and small text.
+* A button has been added to the BGM Properties Window to automatically add Small text brackets. If a portion of text is highlighted when pressing the button, it will apply the brackets to that portion of text.
+* A button has been added to the BGM Properties Window to automatically add the gametitle to the song name.
+* New Special Categories have been added in the BGM Properties Window.
+
+### Bug Fixes
+
+* Fixed bug where songs would stop playing in-game due to their order in the global song list.
 * Fixed importing of files with Japanese characters not working.
 * Fixed a possible silent conversion fail with BRSTM/IDSP/LOPUS files at build time.
 * Fixed importing of overrides from older Sma5hMusic builds having invalid characters.
@@ -172,6 +210,8 @@ Victory themes can be generated for both base-game and custom characters. When g
 * Fixed song list not refreshing when a filter was active.
 * Fixed backups creating duplicates of the metadata JSON.
 * Fixed Playlist and Sound Test views not updating if a song was hidden.
+* Fixed Change File sometimes causing the song not to play.
+* Fixed Playlist Incidences not being correct for some stages using the standard Build.
 
 ## FAQ
 
@@ -222,10 +262,10 @@ If you encounter any problems using the software, submit an issue here on GitHub
 
 - [x] Update vgmstream library and main executable to x64
 - [x] Linux Support
-- [ ] Decouple CSK Build service from JSONs loading
+- [x] Decouple CSK Build service from JSONs loading
 - [x] Allow editing of Color Picker color list
-- [ ] Add Trim function when importing from audio
-- [ ] Add Filter to MainWindow for songs not in a playlist
+- [x] Add Trim function when importing from audio
+- [x] Add Filter to MainWindow for songs not in a playlist
 - [ ] Allow reverse importing of CSK Packs and/or XMSBT files
 - [ ] One Slot Victory Themes support
 

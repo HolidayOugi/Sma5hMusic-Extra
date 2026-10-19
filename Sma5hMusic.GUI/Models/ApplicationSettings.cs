@@ -18,6 +18,7 @@ namespace Sma5h.Mods.Music
             public string DefaultGUILocale { get; set; }
             public string DefaultMSBTLocale { get; set; }
             public bool CopyToEmptyLocales { get; set; }
+            public bool EnableMSBTColors { get; set; } = true;
             public ushort PlaylistIncidenceDefault { get; set; }
             public double DefaultSongVolume { get; set; }
             public string DefaultRecordType { get; set; }
@@ -29,6 +30,7 @@ namespace Sma5h.Mods.Music
             public double AudioNormalizationTargetLufs { get; set; }
             public uint LoopPreviewSeconds { get; set; }
             public int StartingOrderForSeries { get; set; }
+            public bool BuildSeries1 { get; set; }
             public bool HideIndexColumn { get; set; }
             public bool HideSeriesColumn { get; set; }
             public bool HideRecordColumn { get; set; }
