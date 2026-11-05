@@ -73,6 +73,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
         private List<CskModContext> LoadModContexts(IEnumerable<IMusicMod> mods)
         {
             var seriesState = IndexBy(_audioStateService.GetSeriesEntries(), item => item.UiSeriesId);
+            var gameState = IndexBy(_audioStateService.GetGameTitleEntries(), item => item.UiGameTitleId);
             var contexts = new List<CskModContext>();
 
             foreach (var mod in mods)
@@ -83,6 +84,18 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     .GroupBy(item => item.UiSeriesId, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
                     .ToList();
+
+
+                //get core gametitles that have been moved to a new series
+                foreach (var game in entries.GameTitleEntries)
+                {
+                    if (!string.IsNullOrEmpty(game.UiGameTitleId) &&
+                        gameState.TryGetValue(game.UiGameTitleId, out var currentGame) &&
+                        !string.IsNullOrEmpty(currentGame.UiSeriesId) &&
+                        seriesState.TryGetValue(currentGame.UiSeriesId, out var currentSeries) &&
+                        !series.Any(item => string.Equals(item.UiSeriesId, currentSeries.UiSeriesId, StringComparison.OrdinalIgnoreCase)))
+                        series.Add(currentSeries);
+                }
 
                 //get the latest series data from override/mod if available
                 //if mod doesn't have series info (old jsons), then we will just use the current series data from the audio state service

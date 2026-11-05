@@ -7,7 +7,7 @@ namespace Sma5hMusic.GUI.Helpers
 {
     public static class Constants
     {
-        public const string GUIVersion = "2.2";
+        public const string GUIVersion = "2.2.1";
         public const bool IsStable = true;
         public static readonly string BuildTimestamp = typeof(Constants).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
