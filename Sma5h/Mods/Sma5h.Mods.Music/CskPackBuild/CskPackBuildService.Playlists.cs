@@ -90,13 +90,7 @@ namespace Sma5h.Mods.Music.CskPackBuild
                     if (entries.Any(entry => string.Equals((string)entry["ui_bgm_id"], track.UiBgmId, StringComparison.OrdinalIgnoreCase)))
                         continue;
                     AddOriginalCoreBgm(songData, track.UiBgmId, state);
-                    var output = new JObject { ["ui_bgm_id"] = track.UiBgmId };
-                    foreach (var setting in GetPlaylistSettingIndices(playlist.Id))
-                    {
-                        output[$"order{setting}"] = track.Order0;
-                        output[$"incidence{setting}"] = track.Incidence0;
-                    }
-                    entries.Add(output);
+                    entries.Add(CreatePlaylistOutputTrack(track, playlist.Id));
                 }
             }
         }
